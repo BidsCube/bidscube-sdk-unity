@@ -1,0 +1,336 @@
+using UnityEngine;
+using UnityEngine.UI;
+using System.Collections;
+
+namespace BidscubeSDK
+{
+    /// <summary>
+    /// Ad view controller - Identical to iOS AdViewController
+    /// </summary>
+    public class AdViewController : MonoBehaviour
+    {
+        [SerializeField] private string _placementId;
+        [SerializeField] private AdType _adType;
+        [SerializeField] private IAdCallback _callback;
+        [SerializeField] private GameObject _adView;
+        [SerializeField] private Button _backButton;
+        [SerializeField] private Button _closeButton;
+        [SerializeField] private Text _positionLabel;
+        [SerializeField] private AdPosition _currentPosition = AdPosition.Unknown;
+        [SerializeField] private bool _hasAdLoaded = false;
+        [SerializeField] private bool _isVideoPlaying = false;
+        
+        private Coroutine _loadingTimeoutCoroutine;
+        private Coroutine _swipeGestureCoroutine;
+        private Coroutine _doubleTapGestureCoroutine;
+
+        /// <summary>
+        /// Initialize ad view controller
+        /// </summary>
+        /// <param name="placementId">Placement ID</param>
+        /// <param name="adType">Ad type</param>
+        /// <param name="callback">Ad callback</param>
+        public void Initialize(string placementId, AdType adType, IAdCallback callback = null)
+        {
+            _placementId = placementId;
+            _adType = adType;
+            _callback = callback;
+            
+            SetupUI();
+            LoadAd();
+        }
+
+        private void SetupUI()
+        {
+            // Create canvas
+            var canvas = gameObject.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 1000;
+            
+            var canvasScaler = gameObject.AddComponent<CanvasScaler>();
+            canvasScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            canvasScaler.referenceResolution = new Vector2(1920, 1080);
+            
+            var graphicRaycaster = gameObject.AddComponent<GraphicRaycaster>();
+            
+            // Create background
+            var background = new GameObject("Background");
+            background.transform.SetParent(transform);
+            var backgroundImage = background.AddComponent<Image>();
+            backgroundImage.color = Color.black;
+            
+            var backgroundRect = background.GetComponent<RectTransform>();
+            backgroundRect.anchorMin = Vector2.zero;
+            backgroundRect.anchorMax = Vector2.one;
+            backgroundRect.offsetMin = Vector2.zero;
+            backgroundRect.offsetMax = Vector2.zero;
+            
+            // Create back button
+            CreateBackButton();
+            
+            // Create close button
+            CreateCloseButton();
+            
+            // Create position label
+            CreatePositionLabel();
+        }
+
+        private void CreateBackButton()
+        {
+            var backButtonObj = new GameObject("BackButton");
+            backButtonObj.transform.SetParent(transform);
+            _backButton = backButtonObj.AddComponent<Button>();
+            
+            var backButtonRect = backButtonObj.GetComponent<RectTransform>();
+            backButtonRect.anchorMin = new Vector2(0, 1);
+            backButtonRect.anchorMax = new Vector2(0, 1);
+            backButtonRect.sizeDelta = new Vector2(100, 50);
+            backButtonRect.anchoredPosition = new Vector2(50, -25);
+            
+            var backButtonImage = backButtonObj.AddComponent<Image>();
+            backButtonImage.color = new Color(0.2f, 0.2f, 0.2f, 0.8f);
+            
+            var backButtonText = new GameObject("Text");
+            backButtonText.transform.SetParent(backButtonObj.transform);
+            var text = backButtonText.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            text.fontSize = 16;
+            text.color = Color.white;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.text = "Back";
+            
+            var textRect = backButtonText.GetComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+            
+            _backButton.onClick.AddListener(OnBackButtonClicked);
+        }
+
+        private void CreateCloseButton()
+        {
+            var closeButtonObj = new GameObject("CloseButton");
+            closeButtonObj.transform.SetParent(transform);
+            _closeButton = closeButtonObj.AddComponent<Button>();
+            
+            var closeButtonRect = closeButtonObj.GetComponent<RectTransform>();
+            closeButtonRect.anchorMin = new Vector2(1, 1);
+            closeButtonRect.anchorMax = new Vector2(1, 1);
+            closeButtonRect.sizeDelta = new Vector2(50, 50);
+            closeButtonRect.anchoredPosition = new Vector2(-25, -25);
+            
+            var closeButtonImage = closeButtonObj.AddComponent<Image>();
+            closeButtonImage.color = new Color(0.8f, 0.2f, 0.2f, 0.8f);
+            
+            var closeButtonText = new GameObject("Text");
+            closeButtonText.transform.SetParent(closeButtonObj.transform);
+            var text = closeButtonText.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            text.fontSize = 20;
+            text.color = Color.white;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.text = "×";
+            
+            var textRect = closeButtonText.GetComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+            
+            _closeButton.onClick.AddListener(OnCloseButtonClicked);
+            _closeButton.gameObject.SetActive(false);
+        }
+
+        private void CreatePositionLabel()
+        {
+            var positionLabelObj = new GameObject("PositionLabel");
+            positionLabelObj.transform.SetParent(transform);
+            _positionLabel = positionLabelObj.AddComponent<Text>();
+            
+            var positionLabelRect = positionLabelObj.GetComponent<RectTransform>();
+            positionLabelRect.anchorMin = new Vector2(0, 1);
+            positionLabelRect.anchorMax = new Vector2(0, 1);
+            positionLabelRect.sizeDelta = new Vector2(200, 30);
+            positionLabelRect.anchoredPosition = new Vector2(100, -60);
+            
+            _positionLabel.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            _positionLabel.fontSize = 14;
+            _positionLabel.color = Color.white;
+            _positionLabel.alignment = TextAnchor.MiddleLeft;
+            _positionLabel.text = $"Position: {_currentPosition}";
+        }
+
+        private void LoadAd()
+        {
+            _callback?.OnAdLoading(_placementId);
+            
+            // Start loading timeout
+            _loadingTimeoutCoroutine = StartCoroutine(LoadingTimeout());
+            
+            // Create appropriate ad view based on type
+            switch (_adType)
+            {
+                case AdType.Image:
+                    CreateImageAdView();
+                    break;
+                case AdType.Video:
+                    CreateVideoAdView();
+                    break;
+                case AdType.Native:
+                    CreateNativeAdView();
+                    break;
+            }
+        }
+
+        private void CreateImageAdView()
+        {
+            var imageAdObj = new GameObject("ImageAdView");
+            imageAdObj.transform.SetParent(transform);
+            var imageAdView = imageAdObj.AddComponent<ImageAdView>();
+            
+            var imageAdRect = imageAdObj.GetComponent<RectTransform>();
+            imageAdRect.anchorMin = new Vector2(0.5f, 0.5f);
+            imageAdRect.anchorMax = new Vector2(0.5f, 0.5f);
+            imageAdRect.sizeDelta = new Vector2(320, 250);
+            imageAdRect.anchoredPosition = Vector2.zero;
+            
+            imageAdView.SetPlacementInfo(_placementId, _callback);
+            _adView = imageAdObj;
+        }
+
+        private void CreateVideoAdView()
+        {
+            var videoAdObj = new GameObject("VideoAdView");
+            videoAdObj.transform.SetParent(transform);
+            var videoAdView = videoAdObj.AddComponent<VideoAdView>();
+            
+            var videoAdRect = videoAdObj.GetComponent<RectTransform>();
+            videoAdRect.anchorMin = new Vector2(0.5f, 0.5f);
+            videoAdRect.anchorMax = new Vector2(0.5f, 0.5f);
+            videoAdRect.sizeDelta = new Vector2(640, 360);
+            videoAdRect.anchoredPosition = Vector2.zero;
+            
+            videoAdView.SetPlacementInfo(_placementId, _callback);
+            _adView = videoAdObj;
+        }
+
+        private void CreateNativeAdView()
+        {
+            var nativeAdObj = new GameObject("NativeAdView");
+            nativeAdObj.transform.SetParent(transform);
+            var nativeAdView = nativeAdObj.AddComponent<NativeAdView>();
+            
+            var nativeAdRect = nativeAdObj.GetComponent<RectTransform>();
+            nativeAdRect.anchorMin = new Vector2(0.5f, 0.5f);
+            nativeAdRect.anchorMax = new Vector2(0.5f, 0.5f);
+            nativeAdRect.sizeDelta = new Vector2(300, 200);
+            nativeAdRect.anchoredPosition = Vector2.zero;
+            
+            nativeAdView.SetPlacementInfo(_placementId, _callback);
+            _adView = nativeAdObj;
+        }
+
+        private IEnumerator LoadingTimeout()
+        {
+            yield return new WaitForSeconds(30f); // 30 second timeout like iOS
+            
+            if (!_hasAdLoaded)
+            {
+                _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.Timeout, "Ad loading timeout");
+                Destroy(gameObject);
+            }
+        }
+
+        private void OnBackButtonClicked()
+        {
+            Debug.Log("🔍 AdViewController: Back button clicked");
+            _callback?.OnAdClosed(_placementId);
+            Destroy(gameObject);
+        }
+
+        private void OnCloseButtonClicked()
+        {
+            Debug.Log("🔍 AdViewController: Close button clicked");
+            _callback?.OnAdClosed(_placementId);
+            Destroy(gameObject);
+        }
+
+        /// <summary>
+        /// Show close button - Identical to iOS showCloseButton
+        /// </summary>
+        public void ShowCloseButton()
+        {
+            if (_closeButton != null)
+            {
+                _closeButton.gameObject.SetActive(true);
+            }
+        }
+
+        /// <summary>
+        /// Show close button on complete - Identical to iOS showCloseButtonOnComplete
+        /// </summary>
+        public void ShowCloseButtonOnComplete()
+        {
+            if (_closeButton != null)
+            {
+                _closeButton.gameObject.SetActive(true);
+            }
+        }
+
+        /// <summary>
+        /// Hide close button - Identical to iOS hideCloseButton
+        /// </summary>
+        public void HideCloseButton()
+        {
+            if (_closeButton != null)
+            {
+                _closeButton.gameObject.SetActive(false);
+            }
+        }
+
+        /// <summary>
+        /// Update position label
+        /// </summary>
+        /// <param name="position">New position</param>
+        public void UpdatePosition(AdPosition position)
+        {
+            _currentPosition = position;
+            if (_positionLabel != null)
+            {
+                _positionLabel.text = $"Position: {position}";
+            }
+        }
+
+        /// <summary>
+        /// Mark ad as loaded
+        /// </summary>
+        public void MarkAdAsLoaded()
+        {
+            _hasAdLoaded = true;
+            if (_loadingTimeoutCoroutine != null)
+            {
+                StopCoroutine(_loadingTimeoutCoroutine);
+                _loadingTimeoutCoroutine = null;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_loadingTimeoutCoroutine != null)
+            {
+                StopCoroutine(_loadingTimeoutCoroutine);
+            }
+            if (_swipeGestureCoroutine != null)
+            {
+                StopCoroutine(_swipeGestureCoroutine);
+            }
+            if (_doubleTapGestureCoroutine != null)
+            {
+                StopCoroutine(_doubleTapGestureCoroutine);
+            }
+        }
+    }
+}
+
+
