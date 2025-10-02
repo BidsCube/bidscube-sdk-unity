@@ -43,7 +43,7 @@ namespace BidscubeSDK
                 var titleObj = new GameObject("TitleText");
                 titleObj.transform.SetParent(transform);
                 _titleText = titleObj.AddComponent<Text>();
-                _titleText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                _titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
                 _titleText.fontSize = 16;
                 _titleText.fontStyle = FontStyle.Bold;
                 _titleText.color = Color.black;
@@ -55,7 +55,7 @@ namespace BidscubeSDK
                 var descObj = new GameObject("DescriptionText");
                 descObj.transform.SetParent(transform);
                 _descriptionText = descObj.AddComponent<Text>();
-                _descriptionText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                _descriptionText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
                 _descriptionText.fontSize = 12;
                 _descriptionText.color = Color.gray;
             }
@@ -83,7 +83,7 @@ namespace BidscubeSDK
                 var buttonTextObj = new GameObject("InstallButtonText");
                 buttonTextObj.transform.SetParent(_installButton.transform);
                 _installButtonText = buttonTextObj.AddComponent<Text>();
-                _installButtonText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                _installButtonText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
                 _installButtonText.fontSize = 14;
                 _installButtonText.color = Color.white;
                 _installButtonText.alignment = TextAnchor.MiddleCenter;
@@ -96,7 +96,7 @@ namespace BidscubeSDK
                 var sponsoredObj = new GameObject("SponsoredText");
                 sponsoredObj.transform.SetParent(transform);
                 _sponsoredText = sponsoredObj.AddComponent<Text>();
-                _sponsoredText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                _sponsoredText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
                 _sponsoredText.fontSize = 10;
                 _sponsoredText.color = Color.gray;
                 _sponsoredText.text = "Sponsored";

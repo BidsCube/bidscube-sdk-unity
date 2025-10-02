@@ -57,7 +57,7 @@ namespace BidscubeSDK.Samples
                 .EnableDebugMode(true)
                 .DefaultAdTimeout(30000)
                 .DefaultAdPosition(AdPosition.Unknown)
-                .BaseURL("https://api.bidscube.com")
+                .BaseURL(Constants.BaseURL)
                 .Build();
 
             BidscubeSDK.Initialize(config);

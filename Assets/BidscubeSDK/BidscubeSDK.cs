@@ -43,7 +43,6 @@ namespace BidscubeSDK
                 .EnableDebugMode(false)
                 .DefaultAdTimeout(Constants.DefaultTimeoutMs)
                 .DefaultAdPosition(Constants.DefaultAdPosition)
-                .BaseURL(Constants.BaseURL)
                 .Build();
             
             Initialize(config);
@@ -258,7 +257,7 @@ namespace BidscubeSDK
             // Create AdViewController like iOS
             var adViewControllerObj = new GameObject("AdViewController");
             var adViewController = adViewControllerObj.AddComponent<AdViewController>();
-            adViewController.Initialize(placementId, AdType.Image, callback);
+            adViewController.Initialize(placementId, AdType.Image, callback, effectivePosition);
 
             // Load ad from URL
             var url = URLBuilder.BuildAdRequestURL(_configuration.BaseURL, placementId, AdType.Image, effectivePosition, _configuration.DefaultAdTimeoutMs, _configuration.EnableDebugMode);

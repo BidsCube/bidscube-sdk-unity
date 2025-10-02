@@ -65,7 +65,7 @@ namespace BidscubeSDK
                 var textObj = new GameObject("SkipText");
                 textObj.transform.SetParent(_skipButton.transform);
                 _skipText = textObj.AddComponent<Text>();
-                _skipText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                _skipText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
                 _skipText.fontSize = 12;
                 _skipText.color = Color.white;
                 _skipText.alignment = TextAnchor.MiddleCenter;

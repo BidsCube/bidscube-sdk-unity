@@ -1,0 +1,28 @@
+{
+  "name": "com.bidscube.sdk",
+  "version": "0.1.0",
+  "displayName": "Bidscube SDK",
+  "description": "Bidscube Unity SDK for mobile advertising",
+  "unity": "2020.3",
+  "keywords": [
+    "advertising",
+    "ads",
+    "monetization",
+    "bidscube"
+  ],
+  "author": {
+    "name": "Bidscube",
+    "email": "support@bidscube.com",
+    "url": "https://bidscube.com"
+  },
+  "dependencies": {
+    "com.unity.ugui": "1.0.0"
+  },
+  "samples": [
+    {
+      "displayName": "Basic Integration",
+      "description": "Basic SDK integration example",
+      "path": "Samples~/BasicIntegration"
+    }
+  ]
+}

@@ -23,6 +23,7 @@ namespace BidscubeSDK
         private float _bannerHeight = 50f;
         private float _bannerWidth = 320f;
         private string _clickURL;
+        private WebViewObject _webViewObject;
         
         // Attachment state like iOS
         private bool _isAttachedToScreen = false;
@@ -80,7 +81,7 @@ namespace BidscubeSDK
             var loadingObj = new GameObject("LoadingLabel");
             loadingObj.transform.SetParent(transform);
             _loadingLabel = loadingObj.AddComponent<Text>();
-            _loadingLabel.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            _loadingLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             _loadingLabel.fontSize = 12;
             _loadingLabel.color = Color.white;
             _loadingLabel.alignment = TextAnchor.MiddleCenter;
