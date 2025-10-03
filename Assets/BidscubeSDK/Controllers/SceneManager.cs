@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace BidscubeSDK.Examples
+namespace BidscubeSDK.Controllers
 {
     /// <summary>
     /// Scene type enumeration
@@ -22,12 +22,12 @@ namespace BidscubeSDK.Examples
     {
         [SerializeField] private string sceneName;
         [SerializeField] private int sceneIndex = -1;
-        
+
         public string SceneName => sceneName;
         public int SceneIndex => sceneIndex;
-        
+
         public bool IsValid => !string.IsNullOrEmpty(sceneName) || sceneIndex >= 0;
-        
+
         public void LoadScene()
         {
             if (!IsValid)
@@ -35,7 +35,7 @@ namespace BidscubeSDK.Examples
                 Debug.LogError("SceneReference is not valid!");
                 return;
             }
-            
+
             if (sceneIndex >= 0)
             {
                 UnityEngine.SceneManagement.SceneManager.LoadScene(sceneIndex);
@@ -93,24 +93,24 @@ namespace BidscubeSDK.Examples
         {
             if (sceneRef == null)
             {
-                Debug.LogError("❌ Scene reference is null!");
+                Debug.LogError(" Scene reference is null!");
                 return;
             }
 
             if (!sceneRef.IsValid)
             {
-                Debug.LogError("❌ Scene reference is not valid!");
+                Debug.LogError(" Scene reference is not valid!");
                 return;
             }
 
             try
             {
                 sceneRef.LoadScene();
-                Debug.Log($"✅ Loaded scene: {sceneRef.SceneName}");
+                Debug.Log($" Loaded scene: {sceneRef.SceneName}");
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"❌ Failed to load scene {sceneRef.SceneName}: {e.Message}");
+                Debug.LogError($" Failed to load scene {sceneRef.SceneName}: {e.Message}");
             }
         }
 

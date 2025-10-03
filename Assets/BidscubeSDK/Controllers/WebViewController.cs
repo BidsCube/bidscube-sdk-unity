@@ -11,9 +11,7 @@ namespace BidscubeSDK
     {
         [Header("WebView Settings")]
         [SerializeField] private WebViewObject _webViewObject;
-        [SerializeField] private string _currentHtml;
-        [SerializeField] private bool _isLoading = false;
-        [SerializeField] private bool _isVisible = false;
+        [SerializeField] private string _html;
 
         [Header("Callbacks")]
         [SerializeField] private System.Action<string> _onHtmlLoaded;
@@ -32,7 +30,7 @@ namespace BidscubeSDK
             _onError = onError;
             _onMessage = onMessage;
 
-            Debug.Log($"🔍 WebViewController: Initializing for HTML rendering");
+            Debug.Log($"WebViewController: Initializing for HTML rendering");
             CreateWebView();
         }
 
@@ -45,22 +43,24 @@ namespace BidscubeSDK
         {
             if (_webViewObject == null)
             {
-                Debug.LogError("🔍 WebViewController: WebViewObject is null, cannot load HTML");
+                Debug.LogError("WebViewController: WebViewObject is null, cannot load HTML");
                 return;
             }
 
-            _currentHtml = htmlContent;
-            Debug.Log($"🔍 WebViewController: Loading HTML content");
-            Debug.Log($"🔍 WebViewController: HTML content length: {htmlContent.Length}");
-            Debug.Log($"🔍 WebViewController: HTML preview: {htmlContent.Substring(0, Mathf.Min(200, htmlContent.Length))}...");
+            // Store HTML content
+            _html = htmlContent;
 
-            // Ensure WebView is visible before loading HTML
-            _webViewObject.SetVisibility(true);
+            Debug.Log($"WebViewController: Loading HTML content");
+            Debug.Log($"WebViewController: HTML content length: {htmlContent.Length}");
+            Debug.Log($"WebViewController: HTML preview: {htmlContent.Substring(0, Mathf.Min(200, htmlContent.Length))}...");
+
+            // Wrap HTML content in proper HTML structure if needed
+            string wrappedHtml = WrapHtmlContent(htmlContent);
 
             // Load HTML content
-            _webViewObject.LoadHTML(htmlContent, baseUrl);
+            _webViewObject.LoadHTML(wrappedHtml, baseUrl);
 
-            Debug.Log($"🔍 WebViewController: HTML content loaded into WebView");
+            Debug.Log($"WebViewController: HTML content loaded into WebView");
         }
 
         /// <summary>
@@ -103,17 +103,15 @@ namespace BidscubeSDK
         }
 
         /// <summary>
-        /// Set WebView visibility
+        /// Load your specific HTML content
         /// </summary>
-        /// <param name="visible">Whether WebView should be visible</param>
-        public void SetVisibility(bool visible)
+        [ContextMenu("Load Your HTML")]
+        public void LoadYourHTML()
         {
-            _isVisible = visible;
-            if (_webViewObject != null)
-            {
-                _webViewObject.SetVisibility(visible);
-            }
+            var yourHtml = @"<h3>Welcome to the real-time HTML editor!</h3> <p>Type HTML in the textarea above, and it will magically appear in the frame below.</p>";
+            LoadHTML(yourHtml, "");
         }
+
 
         /// <summary>
         /// Set WebView margins
@@ -148,38 +146,67 @@ namespace BidscubeSDK
         /// <returns>Current HTML content</returns>
         public string GetCurrentHtml()
         {
-            return _currentHtml;
+            return _html;
         }
 
         /// <summary>
-        /// Check if WebView is loading
+        /// Wrap HTML content in proper HTML structure if needed
         /// </summary>
-        /// <returns>True if loading</returns>
-        public bool IsLoading()
+        /// <param name="htmlContent">Raw HTML content</param>
+        /// <returns>Properly wrapped HTML</returns>
+        private string WrapHtmlContent(string htmlContent)
         {
-            return _isLoading;
+            // Check if content already has proper HTML structure
+            if (htmlContent.Trim().ToLower().StartsWith("<!doctype") ||
+                htmlContent.Trim().ToLower().StartsWith("<html"))
+            {
+                return htmlContent;
+            }
+
+            // Wrap content in proper HTML structure
+            return $@"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>WebView Content</title>
+    <style>
+        body {{
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }}
+        h1, h2, h3, h4, h5, h6 {{
+            color: #333;
+            margin-top: 0;
+        }}
+        p {{
+            line-height: 1.6;
+            color: #666;
+        }}
+    </style>
+</head>
+<body>
+    {htmlContent}
+</body>
+</html>";
         }
 
-        /// <summary>
-        /// Check if WebView is visible
-        /// </summary>
-        /// <returns>True if visible</returns>
-        public bool IsVisible()
-        {
-            return _isVisible;
-        }
+
 
         /// <summary>
         /// Destroy WebView
         /// </summary>
         public void Destroy()
         {
-            if (_webViewObject != null)
-            {
-                _webViewObject.SetVisibility(false);
-                DestroyImmediate(_webViewObject.gameObject);
-                _webViewObject = null;
-            }
+            if (_webViewObject == null)
+                return;
+
+            _webViewObject.SetVisibility(false);
+            // Use Destroy instead of DestroyImmediate to avoid multiple destroy issues
+            Destroy(_webViewObject.gameObject);
+            _webViewObject = null;
         }
 
         /// <summary>
@@ -228,13 +255,13 @@ namespace BidscubeSDK
                 _webViewObject.bitmapRefreshCycle = 1;
                 _webViewObject.devicePixelRatio = 1;
 
-                Debug.Log("🔍 WebViewController: WebView created successfully for HTML rendering");
-                Debug.Log($"🔍 WebViewController: WebView visibility: {_webViewObject.GetVisibility()}");
-                Debug.Log($"🔍 WebViewController: WebView initialized: {_webViewObject.IsInitialized()}");
+                Debug.Log("WebViewController: WebView created successfully for HTML rendering");
+                Debug.Log($"WebViewController: WebView visibility: {_webViewObject.GetVisibility()}");
+                Debug.Log($"WebViewController: WebView initialized: {_webViewObject.IsInitialized()}");
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"🔍 WebViewController: Failed to create WebView: {e.Message}");
+                Debug.LogError($"WebViewController: Failed to create WebView: {e.Message}");
                 _onError?.Invoke(e.Message);
             }
         }
@@ -247,8 +274,17 @@ namespace BidscubeSDK
         /// <param name="message">Message from WebView</param>
         private void OnWebViewMessage(string message)
         {
-            Debug.Log($"🔍 WebViewController: WebView message: {message}");
+            Debug.Log($"WebViewController: WebView message: {message}");
             _onMessage?.Invoke(message);
+        }
+
+        /// <summary>
+        /// WebView started callback
+        /// </summary>
+        /// <param name="url">Starting URL</param>
+        private void OnWebViewStarted(string url)
+        {
+            Debug.Log($"WebViewController: WebView started loading HTML");
         }
 
         /// <summary>
@@ -257,8 +293,7 @@ namespace BidscubeSDK
         /// <param name="error">Error message</param>
         private void OnWebViewError(string error)
         {
-            Debug.LogError($"🔍 WebViewController: WebView error: {error}");
-            _isLoading = false;
+            Debug.LogError($"WebViewController: WebView error: {error}");
             _onError?.Invoke(error);
         }
 
@@ -268,8 +303,7 @@ namespace BidscubeSDK
         /// <param name="error">HTTP error message</param>
         private void OnWebViewHttpError(string error)
         {
-            Debug.LogError($"🔍 WebViewController: WebView HTTP error: {error}");
-            _isLoading = false;
+            Debug.LogError($"WebViewController: WebView HTTP error: {error}");
             _onError?.Invoke(error);
         }
 
@@ -279,22 +313,11 @@ namespace BidscubeSDK
         /// <param name="url">Loaded URL</param>
         private void OnWebViewLoaded(string url)
         {
-            Debug.Log($"🔍 WebViewController: HTML content loaded successfully");
-            Debug.Log($"🔍 WebViewController: Loaded URL: {url}");
-            Debug.Log($"🔍 WebViewController: WebView visibility: {_webViewObject.GetVisibility()}");
-            Debug.Log($"🔍 WebViewController: WebView initialized: {_webViewObject.IsInitialized()}");
-            _isLoading = false;
+            Debug.Log($"WebViewController: HTML content loaded successfully");
+            Debug.Log($"WebViewController: Loaded URL: {url}");
+            Debug.Log($"WebViewController: WebView visibility: {_webViewObject.GetVisibility()}");
+            Debug.Log($"WebViewController: WebView initialized: {_webViewObject.IsInitialized()}");
             _onHtmlLoaded?.Invoke(url);
-        }
-
-        /// <summary>
-        /// WebView started callback
-        /// </summary>
-        /// <param name="url">Starting URL</param>
-        private void OnWebViewStarted(string url)
-        {
-            Debug.Log($"🔍 WebViewController: WebView started loading HTML");
-            _isLoading = true;
         }
 
         /// <summary>
@@ -303,7 +326,7 @@ namespace BidscubeSDK
         /// <param name="url">Hooked URL</param>
         private void OnWebViewHooked(string url)
         {
-            Debug.Log($"🔍 WebViewController: WebView hooked: {url}");
+            Debug.Log($"WebViewController: WebView hooked: {url}");
         }
 
         #endregion

@@ -3,7 +3,7 @@ using UnityEngine.UI;
 using TMPro;
 using BidscubeSDK;
 
-namespace BidscubeSDK.Examples
+namespace BidscubeSDK.Controllers
 {
     /// <summary>
     /// Consent Test Scene - Consent form and consent management testing
@@ -106,7 +106,7 @@ namespace BidscubeSDK.Examples
         private void InitializeSDK()
         {
             LogMessage("Initializing Bidscube SDK...");
-            
+
             var config = new SDKConfig.Builder()
                 .EnableLogging(_enableLogging)
                 .EnableDebugMode(_enableDebugMode)
@@ -114,19 +114,19 @@ namespace BidscubeSDK.Examples
                 .DefaultAdTimeout(30000)
                 .DefaultAdPosition(AdPosition.Unknown)
                 .Build();
-            
+
             BidscubeSDK.Initialize(config);
-            
+
             if (BidscubeSDK.IsInitialized())
             {
                 _isSDKInitialized = true;
                 UpdateConsentStatus();
-                LogMessage("✅ SDK initialized successfully");
+                LogMessage(" SDK initialized successfully");
             }
             else
             {
                 UpdateStatus("SDK Status: Initialization Failed");
-                LogMessage("❌ SDK initialization failed");
+                LogMessage(" SDK initialization failed");
             }
         }
 
@@ -134,7 +134,7 @@ namespace BidscubeSDK.Examples
         {
             if (!_isSDKInitialized)
             {
-                LogMessage("❌ SDK not initialized");
+                LogMessage(" SDK not initialized");
                 return;
             }
 
@@ -142,14 +142,14 @@ namespace BidscubeSDK.Examples
             BidscubeSDK.Cleanup();
             _isSDKInitialized = false;
             UpdateStatus("SDK Status: Cleaned Up");
-            LogMessage("✅ SDK cleaned up successfully");
+            LogMessage(" SDK cleaned up successfully");
         }
 
         private void RequestConsentInfoUpdate()
         {
             if (!_isSDKInitialized)
             {
-                LogMessage("❌ SDK not initialized");
+                LogMessage(" SDK not initialized");
                 return;
             }
 
@@ -161,7 +161,7 @@ namespace BidscubeSDK.Examples
         {
             if (!_isSDKInitialized)
             {
-                LogMessage("❌ SDK not initialized");
+                LogMessage(" SDK not initialized");
                 return;
             }
 
@@ -173,7 +173,7 @@ namespace BidscubeSDK.Examples
         {
             if (!_isSDKInitialized)
             {
-                LogMessage("❌ SDK not initialized");
+                LogMessage(" SDK not initialized");
                 return;
             }
 
@@ -185,7 +185,7 @@ namespace BidscubeSDK.Examples
         {
             if (!_isSDKInitialized)
             {
-                LogMessage("❌ SDK not initialized");
+                LogMessage(" SDK not initialized");
                 return;
             }
 
@@ -197,7 +197,7 @@ namespace BidscubeSDK.Examples
         {
             if (!_isSDKInitialized)
             {
-                LogMessage("❌ SDK not initialized");
+                LogMessage(" SDK not initialized");
                 return;
             }
 
@@ -209,7 +209,7 @@ namespace BidscubeSDK.Examples
         {
             if (!_isSDKInitialized)
             {
-                LogMessage("❌ SDK not initialized");
+                LogMessage(" SDK not initialized");
                 return;
             }
 
@@ -221,7 +221,7 @@ namespace BidscubeSDK.Examples
         {
             if (!_isSDKInitialized)
             {
-                LogMessage("❌ SDK not initialized");
+                LogMessage(" SDK not initialized");
                 return;
             }
 
@@ -233,7 +233,7 @@ namespace BidscubeSDK.Examples
         {
             if (!_isSDKInitialized)
             {
-                LogMessage("❌ SDK not initialized");
+                LogMessage(" SDK not initialized");
                 return;
             }
 
@@ -246,20 +246,20 @@ namespace BidscubeSDK.Examples
         {
             if (!_isSDKInitialized)
             {
-                LogMessage("❌ SDK not initialized");
+                LogMessage(" SDK not initialized");
                 return;
             }
 
             if (!BidscubeSDK.HasAdsConsent())
             {
-                LogMessage("❌ No ads consent. Request consent first.");
+                LogMessage(" No ads consent. Request consent first.");
                 return;
             }
 
             string placementId = _placementIdInput != null ? _placementIdInput.text : _placementId;
             if (string.IsNullOrEmpty(placementId))
             {
-                LogMessage("❌ Placement ID is required");
+                LogMessage(" Placement ID is required");
                 return;
             }
 
@@ -303,18 +303,18 @@ namespace BidscubeSDK.Examples
             status += $"Consent Required: {BidscubeSDK.IsConsentRequired()}\n";
             status += $"Ads Consent: {BidscubeSDK.HasAdsConsent()}\n";
             status += $"Analytics Consent: {BidscubeSDK.HasAnalyticsConsent()}";
-            
+
             UpdateStatus(status);
         }
 
         private void LogMessage(string message)
         {
             _logContent += $"[{System.DateTime.Now:HH:mm:ss}] {message}\n";
-            
+
             if (_logText != null)
             {
                 _logText.text = _logContent;
-                
+
                 if (_logScrollRect != null)
                 {
                     Canvas.ForceUpdateCanvases();
@@ -382,13 +382,13 @@ namespace BidscubeSDK.Examples
         // IConsentCallback implementation
         public void OnConsentInfoUpdated()
         {
-            LogMessage("✅ Consent info updated successfully");
+            LogMessage(" Consent info updated successfully");
             UpdateConsentStatus();
         }
 
         public void OnConsentInfoUpdateFailed(System.Exception error)
         {
-            LogMessage($"❌ Consent info update failed: {error.Message}");
+            LogMessage($" Consent info update failed: {error.Message}");
         }
 
         public void OnConsentFormShown()
@@ -398,24 +398,24 @@ namespace BidscubeSDK.Examples
 
         public void OnConsentFormError(System.Exception error)
         {
-            LogMessage($"❌ Consent form error: {error.Message}");
+            LogMessage($" Consent form error: {error.Message}");
         }
 
         public void OnConsentGranted()
         {
-            LogMessage("✅ Consent granted");
+            LogMessage(" Consent granted");
             UpdateConsentStatus();
         }
 
         public void OnConsentDenied()
         {
-            LogMessage("❌ Consent denied");
+            LogMessage(" Consent denied");
             UpdateConsentStatus();
         }
 
         public void OnConsentNotRequired()
         {
-            LogMessage("ℹ️ Consent not required");
+            LogMessage(" Consent not required");
             UpdateConsentStatus();
         }
 

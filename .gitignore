@@ -133,6 +133,4 @@ Assets/UI Toolkit/
 ProjectSettings
 Packages
 scripts
-
-# Note: Packages/ and ProjectSettings/ should typically be included in version control
-# They contain important project configuration that should be shared with the team
+*.code-workspace

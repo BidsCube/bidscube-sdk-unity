@@ -134,7 +134,7 @@ namespace BidscubeSDK
             _loadingLabel.gameObject.SetActive(true);
             _loadingLabel.text = "Loading Banner...";
             
-            Debug.Log($"🔍 BannerAdView: Making HTTP request to: {url}");
+            Debug.Log($" BannerAdView: Making HTTP request to: {url}");
             StartCoroutine(LoadAdCoroutine(url));
         }
 
@@ -147,7 +147,7 @@ namespace BidscubeSDK
                 if (request.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
                 {
                     var htmlContent = request.downloadHandler.text;
-                    Debug.Log($"🔍 BannerAdView: Received response: {htmlContent}");
+                    Debug.Log($" BannerAdView: Received response: {htmlContent}");
                     
                     try
                     {
@@ -155,12 +155,12 @@ namespace BidscubeSDK
                         var json = JsonUtility.FromJson<AdResponse>(htmlContent);
                         if (json != null && !string.IsNullOrEmpty(json.adm))
                         {
-                            Debug.Log($"🔍 Banner Adm: {json.adm}");
+                            Debug.Log($" Banner Adm: {json.adm}");
                             
                             if (json.position != null)
                             {
                                 var position = (AdPosition)json.position;
-                                Debug.Log($"🔍 BannerAdView: Received position from server: {json.position} - {GetDisplayName(position)}");
+                                Debug.Log($" BannerAdView: Received position from server: {json.position} - {GetDisplayName(position)}");
                                 BidscubeSDK.SetResponseAdPosition(position);
                             }
                             
@@ -280,12 +280,12 @@ namespace BidscubeSDK
                 if (match.Success)
                 {
                     _clickURL = match.Value;
-                    Debug.Log($"🔍 BannerAdView: Extracted click URL from HTML: {_clickURL}");
+                    Debug.Log($" BannerAdView: Extracted click URL from HTML: {_clickURL}");
                     return;
                 }
             }
             
-            Debug.Log("⚠️ BannerAdView: Could not extract click URL from HTML content");
+            Debug.Log(" BannerAdView: Could not extract click URL from HTML content");
         }
 
         private string GetDisplayName(AdPosition position)
@@ -306,18 +306,18 @@ namespace BidscubeSDK
 
         private void OnAdClicked()
         {
-            Debug.Log("🔍 BannerAdView: Tap gesture detected");
+            Debug.Log(" BannerAdView: Tap gesture detected");
             
             _callback?.OnAdClicked(_placementId);
             
             if (!string.IsNullOrEmpty(_clickURL))
             {
-                Debug.Log($"🔍 BannerAdView: Opening extracted click URL: {_clickURL}");
+                Debug.Log($" BannerAdView: Opening extracted click URL: {_clickURL}");
                 Application.OpenURL(_clickURL);
             }
             else
             {
-                Debug.Log("⚠️ BannerAdView: No click URL available to open");
+                Debug.Log(" BannerAdView: No click URL available to open");
             }
         }
 
@@ -344,7 +344,7 @@ namespace BidscubeSDK
             canvasGroup.alpha = 0;
             StartCoroutine(FadeInAnimation());
             
-            Debug.Log($"🔍 BannerAdView: Attached to screen at {_bannerPosition}");
+            Debug.Log($" BannerAdView: Attached to screen at {_bannerPosition}");
         }
 
         /// <summary>
@@ -356,7 +356,7 @@ namespace BidscubeSDK
             
             StartCoroutine(FadeOutAndDetach());
             
-            Debug.Log("🔍 BannerAdView: Detached from screen");
+            Debug.Log(" BannerAdView: Detached from screen");
         }
 
         private IEnumerator FadeInAnimation()

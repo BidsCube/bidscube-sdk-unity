@@ -244,13 +244,13 @@ namespace BidscubeSDK
 
         private void CreateImageAdView()
         {
-            Debug.Log("🔍 AdViewController: Creating Image AdView with WebView…");
+            Debug.Log(" AdViewController: Creating Image AdView with WebView…");
 
             // Create parent container
             var imageAdObj = new GameObject("ImageAdView");
             imageAdObj.transform.SetParent(transform);
 
-            // ✅ Ensure RectTransform exists
+            //  Ensure RectTransform exists
             var rectTransform = imageAdObj.GetComponent<RectTransform>();
             if (rectTransform == null)
                 rectTransform = imageAdObj.AddComponent<RectTransform>();
@@ -269,12 +269,12 @@ namespace BidscubeSDK
 
             // Init WebView
             webViewObject.Init(
-                cb: (msg) => Debug.Log($"🔍 WebView msg: {msg}"),
-                err: (msg) => Debug.LogError($"🔍 WebView error: {msg}"),
-                httpErr: (msg) => Debug.LogError($"🔍 WebView HTTP error: {msg}"),
+                cb: (msg) => Debug.Log($" WebView msg: {msg}"),
+                err: (msg) => Debug.LogError($" WebView error: {msg}"),
+                httpErr: (msg) => Debug.LogError($" WebView HTTP error: {msg}"),
                 started: (url) =>
                 {
-                    Debug.Log($"🔍 WebView started: {url}");
+                    Debug.Log($" WebView started: {url}");
                     if (url == "about:blank")
                     {
                         // Load your ad HTML or URL here
@@ -288,7 +288,7 @@ namespace BidscubeSDK
                 },
                 ld: (url) =>
                 {
-                    Debug.Log($"🔍 WebView loaded: {url}");
+                    Debug.Log($" WebView loaded: {url}");
                     MarkAdAsLoaded();
                     ShowCloseButton();
                 },
@@ -307,7 +307,7 @@ namespace BidscubeSDK
         [ContextMenu("Test HTML Rendering")]
         public void TestHTMLRendering()
         {
-            Debug.Log("🔍 AdViewController: Testing HTML rendering using WebViewController...");
+            Debug.Log(" AdViewController: Testing HTML rendering using WebViewController...");
 
             // Create WebViewController for testing
             var webViewControllerGO = new GameObject("TestWebViewController");
@@ -316,15 +316,15 @@ namespace BidscubeSDK
 
             // Initialize WebViewController
             webViewController.Initialize(
-                onHtmlLoaded: (url) => Debug.Log($"🔍 Test WebViewController: HTML loaded: {url}"),
-                onError: (error) => Debug.LogError($"🔍 Test WebViewController error: {error}"),
-                onMessage: (message) => Debug.Log($"🔍 Test WebViewController message: {message}")
+                onHtmlLoaded: (url) => Debug.Log($" Test WebViewController: HTML loaded: {url}"),
+                onError: (error) => Debug.LogError($" Test WebViewController error: {error}"),
+                onMessage: (message) => Debug.Log($" Test WebViewController message: {message}")
             );
 
             // Load test HTML using WebViewController
             webViewController.LoadTestHTML();
 
-            Debug.Log("🔍 AdViewController: Test HTML loaded using WebViewController");
+            Debug.Log(" AdViewController: Test HTML loaded using WebViewController");
         }
 
         /// <summary>
@@ -333,7 +333,7 @@ namespace BidscubeSDK
         [ContextMenu("Test Your HTML")]
         public void TestYourHTML()
         {
-            Debug.Log("🔍 AdViewController: Testing your specific HTML content using WebViewController...");
+            Debug.Log(" AdViewController: Testing your specific HTML content using WebViewController...");
 
             // Your specific HTML content
             var yourHtml = @"<!DOCTYPE html> <html lang='en'> <head> <meta charset='UTF-8'> <meta name='viewport' content='width=device-width, initial-scale=1.0'> <title>Test Image Ad</title> <style>     body {         margin: 0;         background: black;         display: flex;         justify-content: center;         align-items: center;         height: 100vh;     }     img {         width: 100%;         height: auto;     } </style> </head> <body>     <img src='https://images.ctfassets.net/qclcq9s44sii/Xn8oCGZCVbWFZuDtPMYjE/854403c5605e210a371f958c0b5aa5f2/7_Image_APIs_To_Use_On_Your_Product_In_2025__Updated___2_.png' alt='Ad'> </body> </html>";
@@ -345,15 +345,15 @@ namespace BidscubeSDK
 
             // Initialize WebViewController
             webViewController.Initialize(
-                onHtmlLoaded: (url) => Debug.Log($"🔍 Your HTML WebViewController: HTML loaded: {url}"),
-                onError: (error) => Debug.LogError($"🔍 Your HTML WebViewController error: {error}"),
-                onMessage: (message) => Debug.Log($"🔍 Your HTML WebViewController message: {message}")
+                onHtmlLoaded: (url) => Debug.Log($" Your HTML WebViewController: HTML loaded: {url}"),
+                onError: (error) => Debug.LogError($" Your HTML WebViewController error: {error}"),
+                onMessage: (message) => Debug.Log($" Your HTML WebViewController message: {message}")
             );
 
             // Load your HTML using WebViewController
             webViewController.LoadHTML(yourHtml, "");
 
-            Debug.Log("🔍 AdViewController: Your HTML loaded using WebViewController");
+            Debug.Log(" AdViewController: Your HTML loaded using WebViewController");
         }
 
         private void CreateVideoAdView()
@@ -413,14 +413,14 @@ namespace BidscubeSDK
 
         private void OnBackButtonClicked()
         {
-            Debug.Log("🔍 AdViewController: Back button clicked");
+            Debug.Log(" AdViewController: Back button clicked");
             _callback?.OnAdClosed(_placementId);
             Destroy(gameObject);
         }
 
         private void OnCloseButtonClicked()
         {
-            Debug.Log("🔍 AdViewController: Close button clicked");
+            Debug.Log(" AdViewController: Close button clicked");
             _callback?.OnAdClosed(_placementId);
             Destroy(gameObject);
         }

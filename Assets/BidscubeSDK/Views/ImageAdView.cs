@@ -103,7 +103,7 @@ namespace BidscubeSDK
             _loadingLabel.gameObject.SetActive(true);
             _loadingLabel.text = "Loading Ad...";
 
-            Debug.Log($"🔍 ImageAdView: Making HTTP request to: {url}");
+            Debug.Log($" ImageAdView: Making HTTP request to: {url}");
             StartCoroutine(LoadAdCoroutine(url));
         }
 
@@ -116,7 +116,7 @@ namespace BidscubeSDK
                 if (request.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
                 {
                     var htmlContent = request.downloadHandler.text;
-                    Debug.Log($"🔍 ImageAdView: Received response: {htmlContent}");
+                    Debug.Log($" ImageAdView: Received response: {htmlContent}");
 
                     try
                     {
@@ -124,12 +124,12 @@ namespace BidscubeSDK
                         var json = JsonUtility.FromJson<AdResponse>(htmlContent);
                         if (json != null && !string.IsNullOrEmpty(json.adm))
                         {
-                            Debug.Log($"🔍 Adm: {json.adm}");
+                            Debug.Log($" Adm: {json.adm}");
 
                             if (json.position != null)
                             {
                                 var position = (AdPosition)json.position;
-                                Debug.Log($"🔍 ImageAdView: Received position from server: {json.position} - {GetDisplayName(position)}");
+                                Debug.Log($" ImageAdView: Received position from server: {json.position} - {GetDisplayName(position)}");
                                 BidscubeSDK.SetResponseAdPosition(position);
                             }
 
@@ -138,17 +138,17 @@ namespace BidscubeSDK
                         else
                         {
                             // Handle HTML response with document.write
-                            Debug.Log("🔍 ImageAdView: Received HTML content, extracting image URL...");
+                            Debug.Log(" ImageAdView: Received HTML content, extracting image URL...");
                             var imageUrl = ExtractImageUrlFromHtml(htmlContent);
                             if (!string.IsNullOrEmpty(imageUrl))
                             {
-                                Debug.Log($"🔍 ImageAdView: Extracted image URL: {imageUrl}");
+                                Debug.Log($" ImageAdView: Extracted image URL: {imageUrl}");
                                 LoadImageFromUrl(imageUrl);
                                 yield break;
                             }
                             else
                             {
-                                Debug.LogError("🔍 ImageAdView: Could not extract image URL from HTML content");
+                                Debug.LogError(" ImageAdView: Could not extract image URL from HTML content");
                                 OnAdFailed("Failed to extract image URL from HTML response");
                                 yield break;
                             }
@@ -156,7 +156,7 @@ namespace BidscubeSDK
                     }
                     catch (System.Exception e)
                     {
-                        Debug.LogError($"🔍 ImageAdView: Error parsing response: {e.Message}");
+                        Debug.LogError($" ImageAdView: Error parsing response: {e.Message}");
                         OnAdFailed($"Error parsing response: {e.Message}");
                         yield break;
                     }
@@ -184,7 +184,7 @@ namespace BidscubeSDK
                 if (match.Success)
                 {
                     var iframeUrl = match.Groups[1].Value;
-                    Debug.Log($"🔍 ImageAdView: Found iframe URL: {iframeUrl}");
+                    Debug.Log($" ImageAdView: Found iframe URL: {iframeUrl}");
                     return iframeUrl;
                 }
 
@@ -194,16 +194,16 @@ namespace BidscubeSDK
                 if (imgMatch.Success)
                 {
                     var imgUrl = imgMatch.Groups[1].Value;
-                    Debug.Log($"🔍 ImageAdView: Found img URL: {imgUrl}");
+                    Debug.Log($" ImageAdView: Found img URL: {imgUrl}");
                     return imgUrl;
                 }
 
-                Debug.LogWarning("🔍 ImageAdView: No image URL found in HTML content");
+                Debug.LogWarning(" ImageAdView: No image URL found in HTML content");
                 return null;
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"🔍 ImageAdView: Error extracting image URL: {e.Message}");
+                Debug.LogError($" ImageAdView: Error extracting image URL: {e.Message}");
                 return null;
             }
         }
@@ -235,12 +235,12 @@ namespace BidscubeSDK
                     _loadingLabel.gameObject.SetActive(false);
                     _webView.gameObject.SetActive(true);
 
-                    Debug.Log("🔍 ImageAdView: Image loaded successfully");
+                    Debug.Log(" ImageAdView: Image loaded successfully");
                     _callback?.OnAdLoaded(_placementId);
                 }
                 else
                 {
-                    Debug.LogError($"🔍 ImageAdView: Failed to load image: {request.error}");
+                    Debug.LogError($" ImageAdView: Failed to load image: {request.error}");
                     OnAdFailed($"Failed to load image: {request.error}");
                 }
             }
@@ -263,7 +263,7 @@ namespace BidscubeSDK
                 .Replace(");", "")
                 .Trim();
 
-            Debug.Log($"🔍 ImageAdView: Loading HTML content: {cleanHTML}");
+            Debug.Log($" ImageAdView: Loading HTML content: {cleanHTML}");
 
             // Create real web view experience
             CreateWebViewContent(cleanHTML);
@@ -276,7 +276,7 @@ namespace BidscubeSDK
         /// <param name="htmlContent">HTML content to render</param>
         private void CreateWebViewContent(string htmlContent)
         {
-            Debug.Log($"🔍 ImageAdView: Creating web view with HTML content");
+            Debug.Log($" ImageAdView: Creating web view with HTML content");
 
             // Create full HTML document
             var fullHTML = CreateFullHTMLDocument(htmlContent);
@@ -317,7 +317,7 @@ namespace BidscubeSDK
 
         private void OnWebViewLoaded(string msg)   // added string parameter
         {
-            Debug.Log("🔍 ImageAdView: WebView loaded successfully");
+            Debug.Log(" ImageAdView: WebView loaded successfully");
             _loadingLabel.gameObject.SetActive(false);
             _webView.gameObject.SetActive(true);
             _callback?.OnAdLoaded(_placementId);
@@ -325,12 +325,12 @@ namespace BidscubeSDK
 
         private void OnWebViewStarted(string msg)  // added string parameter
         {
-            Debug.Log("🔍 ImageAdView: WebView started");
+            Debug.Log(" ImageAdView: WebView started");
         }
 
         private void OnWebViewHooked(string msg)   // added string parameter
         {
-            Debug.Log("🔍 ImageAdView: WebView hooked");
+            Debug.Log(" ImageAdView: WebView hooked");
         }
 
 
@@ -352,7 +352,7 @@ namespace BidscubeSDK
 
                 if (canvas == null)
                 {
-                    Debug.LogError("🔍 ImageAdView: No Canvas found for WebView positioning");
+                    Debug.LogError(" ImageAdView: No Canvas found for WebView positioning");
                     OnAdFailed("No Canvas found for WebView positioning");
                     return;
                 }
@@ -362,10 +362,10 @@ namespace BidscubeSDK
 
                 // Calculate RectTransform position and size
                 var rectTransformRect = GetRectTransformRect(rectTransform);
-                Debug.Log($"🔍 ImageAdView: WebView RectTransform rect: {rectTransformRect}");
-                Debug.Log($"🔍 ImageAdView: Screen size: {Screen.width}x{Screen.height}");
-                Debug.Log($"🔍 ImageAdView: RectTransform position: {rectTransform.position}");
-                Debug.Log($"🔍 ImageAdView: RectTransform size: {rectTransform.sizeDelta}");
+                Debug.Log($" ImageAdView: WebView RectTransform rect: {rectTransformRect}");
+                Debug.Log($" ImageAdView: Screen size: {Screen.width}x{Screen.height}");
+                Debug.Log($" ImageAdView: RectTransform position: {rectTransform.position}");
+                Debug.Log($" ImageAdView: RectTransform size: {rectTransform.sizeDelta}");
 
                 // Initialize web view with proper settings
                 _webViewObject.Init(
@@ -386,7 +386,7 @@ namespace BidscubeSDK
                 var rightMargin = (int)(Screen.width - rectTransformRect.x - rectTransformRect.width);
                 var bottomMargin = (int)rectTransformRect.y;
 
-                Debug.Log($"🔍 ImageAdView: WebView margins - Left: {leftMargin}, Top: {topMargin}, Right: {rightMargin}, Bottom: {bottomMargin}");
+                Debug.Log($" ImageAdView: WebView margins - Left: {leftMargin}, Top: {topMargin}, Right: {rightMargin}, Bottom: {bottomMargin}");
 
                 _webViewObject.SetMargins(leftMargin, topMargin, rightMargin, bottomMargin);
 
@@ -405,16 +405,16 @@ namespace BidscubeSDK
                 // Verify WebViewObject initialization
                 if (_webViewObject.IsInitialized())
                 {
-                    Debug.Log("🔍 ImageAdView: WebView initialized successfully and is ready");
+                    Debug.Log(" ImageAdView: WebView initialized successfully and is ready");
                 }
                 else
                 {
-                    Debug.LogWarning("🔍 ImageAdView: WebView initialization may have failed");
+                    Debug.LogWarning(" ImageAdView: WebView initialization may have failed");
                 }
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"🔍 ImageAdView: Failed to initialize WebView: {e.Message}");
+                Debug.LogError($" ImageAdView: Failed to initialize WebView: {e.Message}");
                 OnAdFailed($"Failed to initialize WebView: {e.Message}");
             }
         }
@@ -429,7 +429,7 @@ namespace BidscubeSDK
             var canvas = GetComponentInParent<Canvas>();
             if (canvas == null)
             {
-                Debug.LogError("🔍 ImageAdView: No Canvas found for RectTransform rect calculation");
+                Debug.LogError(" ImageAdView: No Canvas found for RectTransform rect calculation");
                 return new Rect(0, 0, 1000, 1250); // Default fallback
             }
 
@@ -478,7 +478,7 @@ namespace BidscubeSDK
             var canvas = GetComponentInParent<Canvas>();
             if (canvas == null)
             {
-                Debug.LogError("🔍 ImageAdView: No Canvas found for screen rect calculation");
+                Debug.LogError(" ImageAdView: No Canvas found for screen rect calculation");
                 return new Rect(0, 0, 1000, 1250); // Default fallback
             }
 
@@ -529,7 +529,7 @@ namespace BidscubeSDK
                     if (!string.IsNullOrEmpty(url) && !url.StartsWith("data:"))
                     {
                         imageUrls.Add(url);
-                        Debug.Log($"🔍 ImageAdView: Found image URL: {url}");
+                        Debug.Log($" ImageAdView: Found image URL: {url}");
                     }
                 }
 
@@ -545,14 +545,14 @@ namespace BidscubeSDK
                         if (!string.IsNullOrEmpty(url))
                         {
                             imageUrls.Add(url);
-                            Debug.Log($"🔍 ImageAdView: Found iframe URL: {url}");
+                            Debug.Log($" ImageAdView: Found iframe URL: {url}");
                         }
                     }
                 }
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"🔍 ImageAdView: Error extracting image URLs: {e.Message}");
+                Debug.LogError($" ImageAdView: Error extracting image URLs: {e.Message}");
             }
 
             return imageUrls;
@@ -587,14 +587,14 @@ namespace BidscubeSDK
                         if (!string.IsNullOrEmpty(url) && !url.Contains("img") && !url.Contains("iframe"))
                         {
                             clickUrls.Add(url);
-                            Debug.Log($"🔍 ImageAdView: Found click URL: {url}");
+                            Debug.Log($" ImageAdView: Found click URL: {url}");
                         }
                     }
                 }
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"🔍 ImageAdView: Error extracting click URLs: {e.Message}");
+                Debug.LogError($" ImageAdView: Error extracting click URLs: {e.Message}");
             }
 
             return clickUrls;
@@ -625,12 +625,12 @@ namespace BidscubeSDK
                     _loadingLabel.gameObject.SetActive(false);
                     _webView.gameObject.SetActive(true);
 
-                    Debug.Log("🔍 ImageAdView: Ad image loaded successfully");
+                    Debug.Log(" ImageAdView: Ad image loaded successfully");
                     _callback?.OnAdLoaded(_placementId);
                 }
                 else
                 {
-                    Debug.LogError($"🔍 ImageAdView: Failed to load ad image: {request.error}");
+                    Debug.LogError($" ImageAdView: Failed to load ad image: {request.error}");
                     OnAdFailed($"Failed to load ad image: {request.error}");
                 }
             }
@@ -646,7 +646,7 @@ namespace BidscubeSDK
             var clickButton = _webView.gameObject.AddComponent<Button>();
             clickButton.onClick.AddListener(() => OpenUrlInBrowser(clickUrl));
 
-            Debug.Log($"🔍 ImageAdView: Click handler setup for URL: {clickUrl}");
+            Debug.Log($" ImageAdView: Click handler setup for URL: {clickUrl}");
         }
 
         /// <summary>
@@ -655,7 +655,7 @@ namespace BidscubeSDK
         /// <param name="url">URL to open</param>
         private void OpenUrlInBrowser(string url)
         {
-            Debug.Log($"🔍 ImageAdView: Opening URL in browser: {url}");
+            Debug.Log($" ImageAdView: Opening URL in browser: {url}");
 
             try
             {
@@ -667,7 +667,7 @@ namespace BidscubeSDK
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"🔍 ImageAdView: Failed to open URL: {e.Message}");
+                Debug.LogError($" ImageAdView: Failed to open URL: {e.Message}");
             }
         }
 
@@ -679,7 +679,7 @@ namespace BidscubeSDK
         /// <param name="message">Message from web view</param>
         private void OnWebViewMessage(string message)
         {
-            Debug.Log($"🔍 ImageAdView: WebView message: {message}");
+            Debug.Log($" ImageAdView: WebView message: {message}");
 
             // Handle click messages
             if (message.StartsWith("click:"))
@@ -695,7 +695,7 @@ namespace BidscubeSDK
         /// <param name="error">Error message</param>
         private void OnWebViewError(string error)
         {
-            Debug.LogError($"🔍 ImageAdView: WebView error: {error}");
+            Debug.LogError($" ImageAdView: WebView error: {error}");
             OnAdFailed($"WebView error: {error}");
         }
 
@@ -705,7 +705,7 @@ namespace BidscubeSDK
         /// <param name="error">HTTP error</param>
         private void OnWebViewHttpError(string error)
         {
-            Debug.LogError($"🔍 ImageAdView: WebView HTTP error: {error}");
+            Debug.LogError($" ImageAdView: WebView HTTP error: {error}");
             OnAdFailed($"WebView HTTP error: {error}");
         }
 
@@ -714,9 +714,9 @@ namespace BidscubeSDK
         /// </summary>
         private void OnWebViewLoaded()
         {
-            Debug.Log("🔍 ImageAdView: WebView loaded successfully");
-            Debug.Log($"🔍 ImageAdView: WebView visibility: {_webViewObject.GetVisibility()}");
-            Debug.Log($"🔍 ImageAdView: WebView initialized: {_webViewObject.IsInitialized()}");
+            Debug.Log(" ImageAdView: WebView loaded successfully");
+            Debug.Log($" ImageAdView: WebView visibility: {_webViewObject.GetVisibility()}");
+            Debug.Log($" ImageAdView: WebView initialized: {_webViewObject.IsInitialized()}");
             _loadingLabel.gameObject.SetActive(false);
             _webView.gameObject.SetActive(true);
             _callback?.OnAdLoaded(_placementId);
@@ -727,7 +727,7 @@ namespace BidscubeSDK
         /// </summary>
         private void OnWebViewStarted()
         {
-            Debug.Log("🔍 ImageAdView: WebView started");
+            Debug.Log(" ImageAdView: WebView started");
         }
 
         /// <summary>
@@ -735,7 +735,7 @@ namespace BidscubeSDK
         /// </summary>
         private void OnWebViewHooked()
         {
-            Debug.Log("🔍 ImageAdView: WebView hooked");
+            Debug.Log(" ImageAdView: WebView hooked");
         }
 
         /// <summary>
@@ -744,7 +744,7 @@ namespace BidscubeSDK
         /// <param name="url">URL being loaded</param>
         private void OnWebViewLoadURL(string url)
         {
-            Debug.Log($"🔍 ImageAdView: WebView loading URL: {url}");
+            Debug.Log($" ImageAdView: WebView loading URL: {url}");
         }
 
         #endregion
@@ -792,12 +792,12 @@ namespace BidscubeSDK
                 if (match.Success)
                 {
                     _clickURL = match.Value;
-                    Debug.Log($"🔍 ImageAdView: Extracted click URL from HTML: {_clickURL}");
+                    Debug.Log($" ImageAdView: Extracted click URL from HTML: {_clickURL}");
                     return;
                 }
             }
 
-            Debug.Log("⚠️ ImageAdView: Could not extract click URL from HTML content");
+            Debug.Log(" ImageAdView: Could not extract click URL from HTML content");
         }
 
         private string GetDisplayName(AdPosition position)
@@ -818,18 +818,18 @@ namespace BidscubeSDK
 
         private void OnAdClicked()
         {
-            Debug.Log("🔍 ImageAdView: Tap gesture detected");
+            Debug.Log(" ImageAdView: Tap gesture detected");
 
             _callback?.OnAdClicked(_placementId);
 
             if (!string.IsNullOrEmpty(_clickURL))
             {
-                Debug.Log($"🔍 ImageAdView: Opening extracted click URL: {_clickURL}");
+                Debug.Log($" ImageAdView: Opening extracted click URL: {_clickURL}");
                 Application.OpenURL(_clickURL);
             }
             else
             {
-                Debug.Log("⚠️ ImageAdView: No click URL available to open");
+                Debug.Log(" ImageAdView: No click URL available to open");
             }
         }
 
@@ -873,7 +873,7 @@ namespace BidscubeSDK
         /// <param name="errorMessage">Error message</param>
         private void OnAdFailed(string errorMessage)
         {
-            Debug.LogError($"🔍 ImageAdView: Ad failed - {errorMessage}");
+            Debug.LogError($" ImageAdView: Ad failed - {errorMessage}");
 
             // Show error message on screen for 3 seconds
             ShowErrorToast(errorMessage);
