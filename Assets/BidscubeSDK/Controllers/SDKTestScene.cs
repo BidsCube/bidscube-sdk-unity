@@ -295,51 +295,98 @@ namespace BidscubeSDK.Controllers
 
         /// <summary>
         /// Set ad position and size based on AdPosition
+        /// This controls the GameObject container size, HTML content is always full-screen
         /// </summary>
         private void SetAdPositionAndSize(RectTransform rectTransform, AdPosition position)
         {
+            LogMessage($"Setting GameObject container size for position: {position}");
+
             switch (position)
             {
                 case AdPosition.FullScreen:
-                    // Full screen
+                    // Full screen GameObject container - covers entire screen
                     rectTransform.anchorMin = Vector2.zero;
                     rectTransform.anchorMax = Vector2.one;
                     rectTransform.offsetMin = Vector2.zero;
                     rectTransform.offsetMax = Vector2.zero;
+                    LogMessage("GameObject container: Full screen (entire screen)");
                     break;
 
                 case AdPosition.Header:
-                    // Top of screen
-                    rectTransform.anchorMin = new Vector2(0, 0.8f);
+                    // Header GameObject container - top banner style
+                    rectTransform.anchorMin = new Vector2(0, 0.9f);
                     rectTransform.anchorMax = new Vector2(1, 1);
                     rectTransform.offsetMin = Vector2.zero;
                     rectTransform.offsetMax = Vector2.zero;
+                    LogMessage("GameObject container: Header (top banner - 10% height)");
                     break;
 
                 case AdPosition.Footer:
-                    // Bottom of screen
+                    // Footer GameObject container - bottom banner style
                     rectTransform.anchorMin = new Vector2(0, 0);
-                    rectTransform.anchorMax = new Vector2(1, 0.2f);
+                    rectTransform.anchorMax = new Vector2(1, 0.1f);
                     rectTransform.offsetMin = Vector2.zero;
                     rectTransform.offsetMax = Vector2.zero;
+                    LogMessage("GameObject container: Footer (bottom banner - 10% height)");
                     break;
 
                 case AdPosition.Sidebar:
-                    // Side of screen
-                    rectTransform.anchorMin = new Vector2(0, 0.2f);
-                    rectTransform.anchorMax = new Vector2(0.3f, 0.8f);
+                    // Sidebar GameObject container - left or right side panel
+                    rectTransform.anchorMin = new Vector2(0, 0.1f);
+                    rectTransform.anchorMax = new Vector2(0.25f, 0.9f);
+                    rectTransform.offsetMin = Vector2.zero;
+                    rectTransform.offsetMax = Vector2.zero;
+                    LogMessage("GameObject container: Sidebar (left panel - 25% width)");
+                    break;
+
+                case AdPosition.AboveTheFold:
+                    // Above the fold GameObject container - top half of screen
+                    rectTransform.anchorMin = new Vector2(0, 0.5f);
+                    rectTransform.anchorMax = new Vector2(1, 1);
+                    rectTransform.offsetMin = Vector2.zero;
+                    rectTransform.offsetMax = Vector2.zero;
+                    LogMessage("GameObject container: Above the fold (top 50% of screen)");
+                    break;
+
+                case AdPosition.BelowTheFold:
+                    // Below the fold GameObject container - bottom half of screen
+                    rectTransform.anchorMin = new Vector2(0, 0);
+                    rectTransform.anchorMax = new Vector2(1, 0.5f);
+                    rectTransform.offsetMin = Vector2.zero;
+                    rectTransform.offsetMax = Vector2.zero;
+                    LogMessage("GameObject container: Below the fold (bottom 50% of screen)");
+                    break;
+
+                case AdPosition.DependOnScreenSize:
+                    // Screen size dependent - use responsive sizing
+                    float screenAspect = (float)Screen.width / Screen.height;
+                    if (screenAspect > 1.5f) // Wide screen
+                    {
+                        rectTransform.anchorMin = new Vector2(0.2f, 0.2f);
+                        rectTransform.anchorMax = new Vector2(0.8f, 0.8f);
+                        LogMessage("GameObject container: DependOnScreenSize (wide screen - 60% center)");
+                    }
+                    else // Tall screen
+                    {
+                        rectTransform.anchorMin = new Vector2(0.1f, 0.1f);
+                        rectTransform.anchorMax = new Vector2(0.9f, 0.9f);
+                        LogMessage("GameObject container: DependOnScreenSize (tall screen - 80% center)");
+                    }
                     rectTransform.offsetMin = Vector2.zero;
                     rectTransform.offsetMax = Vector2.zero;
                     break;
 
                 default:
-                    // Default center position
+                    // Default center position GameObject container
                     rectTransform.anchorMin = new Vector2(0.1f, 0.1f);
                     rectTransform.anchorMax = new Vector2(0.9f, 0.9f);
                     rectTransform.offsetMin = Vector2.zero;
                     rectTransform.offsetMax = Vector2.zero;
+                    LogMessage("GameObject container: Default center (80% of screen)");
                     break;
             }
+
+            LogMessage($"GameObject container positioned: anchorMin={rectTransform.anchorMin}, anchorMax={rectTransform.anchorMax}");
         }
 
         /// <summary>
@@ -499,7 +546,14 @@ namespace BidscubeSDK.Controllers
 
             LogMessage("Wrapping adm content in proper HTML structure");
 
-            // Wrap content in proper HTML structure
+            // TODO: Get effective position to determine if we need full-screen styling
+            // var effectivePosition = GetEffectiveAdPosition();
+            // bool isFullScreen = effectivePosition == AdPosition.FullScreen;
+
+            // FOR NOW: Always use full-screen styling
+            bool isFullScreen = true;
+
+            // Wrap content in proper HTML structure with responsive full-screen support
             return $@"<!DOCTYPE html>
 <html lang='en'>
 <head>
@@ -507,30 +561,120 @@ namespace BidscubeSDK.Controllers
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>Ad Content</title>
     <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
         body {{
+            width: 100vw;
+            height: 100vh;
             margin: 0;
             padding: 0;
             font-family: Arial, sans-serif;
             background-color: transparent;
+            overflow: hidden;
         }}
-        /* Ensure images are responsive */
+        
+        .ad-container {{
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }}
+        
+        .ad-content {{
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }}
+        
+        /* Force all content to be full screen */
+        .ad-content > div {{
+            width: 100vw !important;
+            height: 100vh !important;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }}
+        
+        /* Force images to be full screen */
         img {{
-            max-width: 100%;
-            height: auto;
+            width: 100vw !important;
+            height: 100vh !important;
+            object-fit: cover;
+            display: block;
         }}
-        /* Ensure links work properly */
+        
+        /* Force links to be full screen */
         a {{
+            width: 100vw !important;
+            height: 100vh !important;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             text-decoration: none;
             color: inherit;
         }}
-        /* Ensure divs are properly displayed */
+        
+        /* Override any fixed dimensions */
+        div[style*='width:300px'], div[style*='width: 300px'] {{
+            width: 100vw !important;
+            height: 100vh !important;
+        }}
+        
+        div[style*='height:250px'], div[style*='height: 250px'] {{
+            width: 100vw !important;
+            height: 100vh !important;
+        }}
+        
+        /* Ensure divs are properly displayed and full screen */
         div {{
             box-sizing: border-box;
         }}
+        
+        /* Full screen specific styles - ALWAYS APPLIED FOR NOW */
+        {(isFullScreen ? @"
+        .ad-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        .ad-content {
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        .ad-content > div {
+            width: 100vw !important;
+            height: 100vh !important;
+        }
+        
+        img {
+            width: 100vw !important;
+            height: 100vh !important;
+            object-fit: cover;
+        }
+        " : "")}
     </style>
 </head>
 <body>
-    {admContent}
+    <div class='ad-container'>
+        <div class='ad-content'>
+            {admContent}
+        </div>
+    </div>
 </body>
 </html>";
         }
