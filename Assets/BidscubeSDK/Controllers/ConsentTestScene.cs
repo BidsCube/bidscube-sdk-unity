@@ -12,7 +12,7 @@ namespace BidscubeSDK.Controllers
     public class ConsentTestScene : MonoBehaviour, IAdCallback, IConsentCallback
     {
         [Header("SDK Configuration")]
-        [SerializeField] private string _placementId = "19481";
+        [SerializeField] private string _placementId = "20212";
         [SerializeField] private string _baseURL = Constants.BaseURL;
         [SerializeField] private bool _enableDebugMode = true;
         [SerializeField] private bool _enableLogging = true;
@@ -268,7 +268,9 @@ namespace BidscubeSDK.Controllers
             switch (adType)
             {
                 case AdType.Image:
-                    BidscubeSDK.ShowImageAd(placementId, this);
+                    var adViewControllerObj = new GameObject("AdViewController");
+                    var adViewController = adViewControllerObj.AddComponent<AdViewController>();
+                    adViewController.Initialize(placementId, AdType.Image, this);
                     break;
                 case AdType.Video:
                     BidscubeSDK.ShowVideoAd(placementId, this);

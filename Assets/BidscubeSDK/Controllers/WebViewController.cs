@@ -30,7 +30,7 @@ namespace BidscubeSDK
             _onError = onError;
             _onMessage = onMessage;
 
-            Debug.Log($"WebViewController: Initializing for HTML rendering");
+            Logger.Info($"WebViewController: Initializing for HTML rendering");
             CreateWebView();
         }
 
@@ -43,24 +43,45 @@ namespace BidscubeSDK
         {
             if (_webViewObject == null)
             {
-                Debug.LogError("WebViewController: WebViewObject is null, cannot load HTML");
+                Logger.InfoError("WebViewController: WebViewObject is null, cannot load HTML");
                 return;
             }
 
             // Store HTML content
             _html = htmlContent;
 
-            Debug.Log($"WebViewController: Loading HTML content");
-            Debug.Log($"WebViewController: HTML content length: {htmlContent.Length}");
-            Debug.Log($"WebViewController: HTML preview: {htmlContent.Substring(0, Mathf.Min(200, htmlContent.Length))}...");
+            Logger.Info($"WebViewController: Loading HTML content");
+            Logger.Info($"WebViewController: HTML content length: {htmlContent.Length}");
+            Logger.Info($"WebViewController: HTML preview: {htmlContent.Substring(0, Mathf.Min(200, htmlContent.Length))}...");
 
             // Wrap HTML content in proper HTML structure if needed
             string wrappedHtml = WrapHtmlContent(htmlContent);
 
+            // Ensure WebView is visible before loading
+            _webViewObject.SetVisibility(true);
+
             // Load HTML content
             _webViewObject.LoadHTML(wrappedHtml, baseUrl);
 
-            Debug.Log($"WebViewController: HTML content loaded into WebView");
+            Logger.Info($"WebViewController: HTML content loaded into WebView");
+
+            // Refresh margins after a short delay to ensure layout is complete
+            StartCoroutine(DelayedMarginRefresh());
+        }
+
+        /// <summary>
+        /// Delayed margin refresh to ensure layout is complete
+        /// </summary>
+        private IEnumerator DelayedMarginRefresh()
+        {
+            yield return null; // Wait one frame
+            yield return null; // Wait another frame for layout to settle
+            UpdateWebViewMargins();
+            // Ensure visibility is still true
+            if (_webViewObject != null)
+            {
+                _webViewObject.SetVisibility(true);
+            }
         }
 
         /// <summary>
@@ -248,20 +269,21 @@ namespace BidscubeSDK
                 _webViewObject.SetInteractionEnabled(true);
                 _webViewObject.SetScrollbarsVisibility(true);
 
-                // Set margins to cover full screen
-                _webViewObject.SetMargins(0, 0, 0, 0);
+                // Calculate margins based on parent RectTransform's screen position
+                // This ensures WebView renders within the ad container, not full screen
+                UpdateWebViewMargins();
 
                 // Set refresh cycle for better performance
                 _webViewObject.bitmapRefreshCycle = 1;
                 _webViewObject.devicePixelRatio = 1;
 
-                Debug.Log("WebViewController: WebView created successfully for HTML rendering");
-                Debug.Log($"WebViewController: WebView visibility: {_webViewObject.GetVisibility()}");
-                Debug.Log($"WebViewController: WebView initialized: {_webViewObject.IsInitialized()}");
+                Logger.Info("WebViewController: WebView created successfully for HTML rendering");
+                Logger.Info($"WebViewController: WebView visibility: {_webViewObject.GetVisibility()}");
+                Logger.Info($"WebViewController: WebView initialized: {_webViewObject.IsInitialized()}");
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"WebViewController: Failed to create WebView: {e.Message}");
+                Logger.InfoError($"WebViewController: Failed to create WebView: {e.Message}");
                 _onError?.Invoke(e.Message);
             }
         }
@@ -274,7 +296,7 @@ namespace BidscubeSDK
         /// <param name="message">Message from WebView</param>
         private void OnWebViewMessage(string message)
         {
-            Debug.Log($"WebViewController: WebView message: {message}");
+            Logger.Info($"WebViewController: WebView message: {message}");
             _onMessage?.Invoke(message);
         }
 
@@ -284,7 +306,7 @@ namespace BidscubeSDK
         /// <param name="url">Starting URL</param>
         private void OnWebViewStarted(string url)
         {
-            Debug.Log($"WebViewController: WebView started loading HTML");
+            Logger.Info($"WebViewController: WebView started loading HTML");
         }
 
         /// <summary>
@@ -293,7 +315,7 @@ namespace BidscubeSDK
         /// <param name="error">Error message</param>
         private void OnWebViewError(string error)
         {
-            Debug.LogError($"WebViewController: WebView error: {error}");
+            Logger.InfoError($"WebViewController: WebView error: {error}");
             _onError?.Invoke(error);
         }
 
@@ -303,7 +325,7 @@ namespace BidscubeSDK
         /// <param name="error">HTTP error message</param>
         private void OnWebViewHttpError(string error)
         {
-            Debug.LogError($"WebViewController: WebView HTTP error: {error}");
+            Logger.InfoError($"WebViewController: WebView HTTP error: {error}");
             _onError?.Invoke(error);
         }
 
@@ -313,10 +335,20 @@ namespace BidscubeSDK
         /// <param name="url">Loaded URL</param>
         private void OnWebViewLoaded(string url)
         {
-            Debug.Log($"WebViewController: HTML content loaded successfully");
-            Debug.Log($"WebViewController: Loaded URL: {url}");
-            Debug.Log($"WebViewController: WebView visibility: {_webViewObject.GetVisibility()}");
-            Debug.Log($"WebViewController: WebView initialized: {_webViewObject.IsInitialized()}");
+            Logger.Info($"WebViewController: HTML content loaded successfully");
+            Logger.Info($"WebViewController: Loaded URL: {url}");
+            Logger.Info($"WebViewController: WebView visibility: {_webViewObject.GetVisibility()}");
+            Logger.Info($"WebViewController: WebView initialized: {_webViewObject.IsInitialized()}");
+
+            // Ensure WebView is visible after loading
+            if (_webViewObject != null)
+            {
+                _webViewObject.SetVisibility(true);
+            }
+
+            // Refresh margins after HTML loads to ensure correct positioning
+            StartCoroutine(DelayedMarginRefresh());
+
             _onHtmlLoaded?.Invoke(url);
         }
 
@@ -326,7 +358,7 @@ namespace BidscubeSDK
         /// <param name="url">Hooked URL</param>
         private void OnWebViewHooked(string url)
         {
-            Debug.Log($"WebViewController: WebView hooked: {url}");
+            Logger.Info($"WebViewController: WebView hooked: {url}");
         }
 
         #endregion
@@ -337,6 +369,111 @@ namespace BidscubeSDK
         private void OnDestroy()
         {
             Destroy();
+        }
+
+        /// <summary>
+        /// Update WebView margins based on parent RectTransform's screen position
+        /// This ensures WebView renders within the ad container, not full screen
+        /// </summary>
+        private void UpdateWebViewMargins()
+        {
+            if (_webViewObject == null) return;
+
+            // Force canvas update to ensure layout is complete
+            Canvas.ForceUpdateCanvases();
+
+            // Get parent RectTransform (WebViewHost - this GameObject)
+            var rectTransform = GetComponent<RectTransform>();
+            if (rectTransform == null)
+            {
+                // Fallback to full screen if no RectTransform
+                _webViewObject.SetMargins(0, 0, 0, 0);
+                Logger.InfoError("[WebViewController] No RectTransform found, using full screen margins");
+                return;
+            }
+
+            // Get Canvas to convert RectTransform to screen coordinates
+            var canvas = GetComponentInParent<Canvas>();
+            if (canvas == null)
+            {
+                // Fallback to full screen if no Canvas
+                _webViewObject.SetMargins(0, 0, 0, 0);
+                Logger.InfoError("[WebViewController] No Canvas found, using full screen margins");
+                return;
+            }
+
+            // Log RectTransform details for debugging
+            Logger.Info($"[WebViewController] RectTransform details: rect={rectTransform.rect}, anchoredPosition={rectTransform.anchoredPosition}, sizeDelta={rectTransform.sizeDelta}, anchors=({rectTransform.anchorMin}, {rectTransform.anchorMax})");
+
+            // Convert RectTransform bounds to screen coordinates
+            Vector3[] corners = new Vector3[4];
+            rectTransform.GetWorldCorners(corners);
+
+            // Log world corners for debugging
+            Logger.Info($"[WebViewController] World corners: bottomLeft={corners[0]}, topLeft={corners[1]}, topRight={corners[2]}, bottomRight={corners[3]}");
+
+            // Get screen coordinates
+            Camera cam = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera ?? Camera.main;
+            Logger.Info($"[WebViewController] Canvas renderMode={canvas.renderMode}, Camera={(cam != null ? cam.name : "null")}, Screen size={Screen.width}x{Screen.height}");
+
+            Vector2 min = RectTransformUtility.WorldToScreenPoint(cam, corners[0]);
+            Vector2 max = RectTransformUtility.WorldToScreenPoint(cam, corners[2]);
+
+            Logger.Info($"[WebViewController] Screen coordinates before clamping: min={min}, max={max}");
+
+            // Ensure coordinates are valid (not negative or out of bounds)
+            min.x = Mathf.Max(0, Mathf.Min(min.x, Screen.width));
+            min.y = Mathf.Max(0, Mathf.Min(min.y, Screen.height));
+            max.x = Mathf.Max(0, Mathf.Min(max.x, Screen.width));
+            max.y = Mathf.Max(0, Mathf.Min(max.y, Screen.height));
+
+            Logger.Info($"[WebViewController] Screen coordinates after clamping: min={min}, max={max}");
+
+            // Calculate margins (left, top, right, bottom in screen pixels)
+            // Note: Unity's screen coordinates have (0,0) at bottom-left
+            int left = (int)min.x;
+            int bottom = (int)min.y;
+            int right = Screen.width - (int)max.x;
+            int top = Screen.height - (int)max.y;
+
+            // Clamp margins to valid range
+            left = Mathf.Max(0, left);
+            top = Mathf.Max(0, top);
+            right = Mathf.Max(0, right);
+            bottom = Mathf.Max(0, bottom);
+
+            // Check if calculated size is reasonable (not too small or invalid)
+            float calculatedWidth = max.x - min.x;
+            float calculatedHeight = max.y - min.y;
+
+            Logger.Info($"[WebViewController] Calculated margins: left={left}, top={top}, right={right}, bottom={bottom}, calculated size={calculatedWidth}x{calculatedHeight}, rectTransform size={rectTransform.rect.width}x{rectTransform.rect.height}");
+
+            // If calculated size is too small or invalid, use full screen as fallback
+            if (calculatedWidth < 10 || calculatedHeight < 10 ||
+                rectTransform.rect.width < 10 || rectTransform.rect.height < 10)
+            {
+                Logger.InfoError($"[WebViewController] Calculated size too small ({calculatedWidth}x{calculatedHeight}) or rectTransform size invalid ({rectTransform.rect.width}x{rectTransform.rect.height}), using full screen fallback");
+                _webViewObject.SetMargins(0, 0, 0, 0);
+            }
+            else
+            {
+                _webViewObject.SetMargins(left, top, right, bottom);
+                Logger.Info($"[WebViewController] Successfully set margins: left={left}, top={top}, right={right}, bottom={bottom}, WebView size={calculatedWidth}x{calculatedHeight}");
+            }
+
+            // Always ensure WebView is visible after setting margins
+            if (_webViewObject != null)
+            {
+                _webViewObject.SetVisibility(true);
+            }
+        }
+
+        /// <summary>
+        /// Call this when the parent RectTransform size/position changes
+        /// </summary>
+        public void RefreshMargins()
+        {
+            UpdateWebViewMargins();
         }
     }
 }

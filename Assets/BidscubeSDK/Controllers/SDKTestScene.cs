@@ -12,7 +12,7 @@ namespace BidscubeSDK.Controllers
     public class SDKTestScene : MonoBehaviour, IAdCallback
     {
         [Header("SDK Configuration")]
-        [SerializeField] private string _placementId = "19481";
+        [SerializeField] private string _placementId = "";
         private string _baseURL = Constants.BaseURL;
         [SerializeField] private bool _enableDebugMode = true;
         [SerializeField] private bool _enableLogging = true;
@@ -29,6 +29,7 @@ namespace BidscubeSDK.Controllers
         [SerializeField] private Button _videoAdButton;
         [SerializeField] private Button _nativeAdButton;
         [SerializeField] private Button _testLoggingButton;
+        [SerializeField] private Button _clearAllAdsButton;
         [SerializeField] private Toggle _useManualPositionToggle;
         [SerializeField] private TMP_Dropdown _positionDropdown;
         [SerializeField] private ScrollRect _logScrollRect;
@@ -51,12 +52,6 @@ namespace BidscubeSDK.Controllers
             SetupUI();
             UpdateStatus("SDK Status: Not Initialized");
             UpdateActiveBannersCount();
-
-            // Hide SDK content initially
-            if (_sdkContent != null)
-            {
-                _sdkContent.SetActive(false);
-            }
         }
 
         private void SetupUI()
@@ -80,6 +75,10 @@ namespace BidscubeSDK.Controllers
             if (_testLoggingButton != null)
                 _testLoggingButton.onClick.AddListener(TestLogging);
 
+            // Clear all ads button
+            if (_clearAllAdsButton != null)
+                _clearAllAdsButton.onClick.AddListener(ClearAllAds);
+
             // Position override toggle
             if (_useManualPositionToggle != null)
             {
@@ -100,10 +99,10 @@ namespace BidscubeSDK.Controllers
             if (_backToMainButton != null)
                 _backToMainButton.onClick.AddListener(() => GetComponent<SceneManager>()?.LoadMainScene());
 
-            // Placement ID input
+            // Placement ID input – start EMPTY so defaults are used unless user overrides
             if (_placementIdInput != null)
             {
-                _placementIdInput.text = _placementId;
+                _placementIdInput.text = string.Empty;
                 _placementIdInput.onEndEdit.AddListener(OnPlacementIdChanged);
             }
         }
@@ -170,10 +169,7 @@ namespace BidscubeSDK.Controllers
 
             LogMessage("Cleaning up SDK and removing all banners...");
 
-            // Remove all active banners
-            BidscubeSDK.RemoveAllBanners();
-
-            // Cleanup SDK
+            // Cleanup SDK (which will clear all ads)
             BidscubeSDK.Cleanup();
 
             _isSDKInitialized = false;
@@ -188,6 +184,14 @@ namespace BidscubeSDK.Controllers
             }
         }
 
+        private void ClearAllAds()
+        {
+            LogMessage("Clearing all ads (banners, images, natives, videos)...");
+            BidscubeSDK.ClearAllAds();
+            UpdateActiveBannersCount();
+            LogMessage("All ads cleared");
+        }
+
         private void ShowAd(AdType adType)
         {
             if (!_isSDKInitialized)
@@ -196,32 +200,56 @@ namespace BidscubeSDK.Controllers
                 return;
             }
 
-            string placementId = _placementIdInput != null ? _placementIdInput.text : _placementId;
-            if (string.IsNullOrEmpty(placementId))
-            {
-                LogMessage("Placement ID is required");
-                return;
-            }
+            string inputPlacement = _placementIdInput != null ? _placementIdInput.text.Trim() : string.Empty;
+            string placementId;
 
-            LogMessage($"Showing {adType} Ad...");
-
-            // Handle manual position override
-            if (_useManualPositionToggle != null && _useManualPositionToggle.isOn)
+            if (!string.IsNullOrEmpty(inputPlacement))
             {
-                BidscubeSDK.SetAdPosition(_selectedPosition);
-                LogMessage($"🔧 Using MANUAL position override: {_selectedPosition}");
+                placementId = inputPlacement;
             }
             else
             {
-                BidscubeSDK.SetAdPosition(AdPosition.Unknown);
+                switch (adType)
+                {
+                    case AdType.Image:
+                        placementId = "20212"; // default for Banner/Image
+                        break;
+                    case AdType.Video:
+                        placementId = "19483"; //"20213"; // default for Video
+                        break;
+                    case AdType.Native:
+                        placementId = "20214"; // default for Native
+                        break;
+                    default:
+                        placementId = _placementId; // fallback to serialized field
+                        break;
+                }
+
+                LogMessage($"Using default placement ID {placementId} for {adType} (input empty)");
+            }
+
+            LogMessage($"Showing {adType} Ad with placementId={placementId}...");
+
+            // Determine position: manual override from dropdown is highest priority
+            AdPosition positionToSend = AdPosition.Unknown;
+            if (_useManualPositionToggle != null && _useManualPositionToggle.isOn)
+            {
+                positionToSend = _selectedPosition;
+                LogMessage($"🔧 Using MANUAL position override: {positionToSend}");
+            }
+            else
+            {
                 LogMessage("🌐 Using SERVER RESPONSE position (default behavior)");
             }
+
+            // Set the determined position in the SDK so the AdViewController receives it
+            BidscubeSDK.SetAdPosition(positionToSend);
 
             // Show the ad based on type
             switch (adType)
             {
                 case AdType.Image:
-                    ShowImageAdWithWebView(placementId);
+                    BidscubeSDK.ShowImageAd(placementId, this);
                     break;
                 case AdType.Video:
                     BidscubeSDK.ShowVideoAd(placementId, this);

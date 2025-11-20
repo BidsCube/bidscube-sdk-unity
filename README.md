@@ -60,27 +60,27 @@ public class AdManager : MonoBehaviour, IAdCallback
 
     public void OnAdLoading(string placementId)
     {
-        Debug.Log($"Ad loading: {placementId}");
+        Logger.Info($"Ad loading: {placementId}");
     }
 
     public void OnAdLoaded(string placementId)
     {
-        Debug.Log($"Ad loaded: {placementId}");
+        Logger.Info($"Ad loaded: {placementId}");
     }
 
     public void OnAdDisplayed(string placementId)
     {
-        Debug.Log($"Ad displayed: {placementId}");
+        Logger.Info($"Ad displayed: {placementId}");
     }
 
     public void OnAdClicked(string placementId)
     {
-        Debug.Log($"Ad clicked: {placementId}");
+        Logger.Info($"Ad clicked: {placementId}");
     }
 
     public void OnAdFailed(string placementId, int errorCode, string errorMessage)
     {
-        Debug.Log($"Ad failed: {placementId}, Error: {errorMessage}");
+        Logger.Info($"Ad failed: {placementId}, Error: {errorMessage}");
     }
 
     // Implement other IAdCallback methods as needed
@@ -212,17 +212,17 @@ public class ConsentManager : MonoBehaviour, IConsentCallback
 
     public void OnConsentInfoUpdated()
     {
-        Debug.Log("Consent info updated");
+        Logger.Info("Consent info updated");
     }
 
     public void OnConsentGranted()
     {
-        Debug.Log("Consent granted");
+        Logger.Info("Consent granted");
     }
 
     public void OnConsentDenied()
     {
-        Debug.Log("Consent denied");
+        Logger.Info("Consent denied");
     }
 
     // Implement other IConsentCallback methods as needed
@@ -268,16 +268,16 @@ public void OnAdFailed(string placementId, int errorCode, string errorMessage)
     switch (errorCode)
     {
         case Constants.ErrorCodes.InvalidURL:
-            Debug.LogError("Invalid URL");
+            Logger.InfoError("Invalid URL");
             break;
         case Constants.ErrorCodes.NetworkError:
-            Debug.LogError("Network error");
+            Logger.InfoError("Network error");
             break;
         case Constants.ErrorCodes.TimeoutError:
-            Debug.LogError("Request timeout");
+            Logger.InfoError("Request timeout");
             break;
         default:
-            Debug.LogError($"Unknown error: {errorMessage}");
+            Logger.InfoError($"Unknown error: {errorMessage}");
             break;
     }
 }
@@ -301,4 +301,3 @@ For support and questions, please contact:
 ## License
 
 This SDK is licensed under the MIT License. See LICENSE file for details.
-

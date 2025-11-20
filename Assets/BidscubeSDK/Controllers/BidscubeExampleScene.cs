@@ -136,7 +136,9 @@ namespace BidscubeSDK.Controllers
             }
 
             LogMessage(" Showing Image Ad...");
-            BidscubeSDK.ShowImageAd(_placementId, this);
+            var adViewControllerObj = new GameObject("AdViewController");
+            var adViewController = adViewControllerObj.AddComponent<AdViewController>();
+            adViewController.Initialize(_placementId, AdType.Image, this);
         }
 
         private void ShowVideoAd()
@@ -259,7 +261,7 @@ namespace BidscubeSDK.Controllers
                 }
             }
 
-            Debug.Log($"[BidscubeExample] {message}");
+            Logger.Info($"[BidscubeExample] {message}");
         }
 
         #region IAdCallback Implementation
@@ -376,6 +378,3 @@ namespace BidscubeSDK.Controllers
         #endregion
     }
 }
-
-
-

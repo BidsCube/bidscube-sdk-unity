@@ -7,7 +7,7 @@ namespace BidscubeSDK
     {
         Unknown = 0,
         AboveTheFold = 1,
-        DependOnScreenSize = 2,
+        DependOnScreenSize = 2, // internal use
         BelowTheFold = 3,
         Header = 4,
         Footer = 5,
@@ -15,4 +15,3 @@ namespace BidscubeSDK
         FullScreen = 7
     }
 }
-

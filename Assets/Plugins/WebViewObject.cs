@@ -680,14 +680,14 @@ public class WebViewObject : MonoBehaviour
         Application.ExternalCall("unityWebView.init", name);
 #elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN || UNITY_EDITOR_LINUX || UNITY_SERVER
         //TODO: UNSUPPORTED
-        Debug.LogError("Webview is not supported on this platform.");
+        UnityEngine.Debug.LogError("[BidscubeSDK] Webview is not supported on this platform.");
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
         {
             var uri = new Uri(_CWebViewPlugin_GetAppPath());
             var info = File.ReadAllText(uri.LocalPath + "Contents/Info.plist");
             if (Regex.IsMatch(info, @"<key>CFBundleGetInfoString</key>\s*<string>Unity version [5-9]\.[3-9]")
                 && !Regex.IsMatch(info, @"<key>NSAppTransportSecurity</key>\s*<dict>\s*<key>NSAllowsArbitraryLoads</key>\s*<true/>\s*</dict>")) {
-                Debug.LogWarning("<color=yellow>WebViewObject: NSAppTransportSecurity isn't configured to allow HTTP. If you need to allow any HTTP access, please shutdown Unity and invoke:</color>\n/usr/libexec/PlistBuddy -c \"Add NSAppTransportSecurity:NSAllowsArbitraryLoads bool true\" /Applications/Unity/Unity.app/Contents/Info.plist");
+                UnityEngine.Debug.Log("<color=yellow>[BidscubeSDK] WebViewObject: NSAppTransportSecurity isn't configured to allow HTTP. If you need to allow any HTTP access, please shutdown Unity and invoke:</color>\n/usr/libexec/PlistBuddy -c \"Add NSAppTransportSecurity:NSAllowsArbitraryLoads bool true\" /Applications/Unity/Unity.app/Contents/Info.plist");
             }
         }
 #if UNITY_EDITOR_OSX
@@ -718,7 +718,7 @@ public class WebViewObject : MonoBehaviour
 #endif
         webView.Call("Init", name, transparent, zoom, androidForceDarkMode, ua, radius);
 #else
-        Debug.LogError("Webview is not supported on this platform.");
+        UnityEngine.Debug.LogError("[BidscubeSDK] Webview is not supported on this platform.");
 #endif
     }
 
@@ -1577,20 +1577,22 @@ public class WebViewObject : MonoBehaviour
 
     void Start()
     {
-        if (canvas != null)
-        {
-            var g = new GameObject(gameObject.name + "BG");
-            g.transform.parent = canvas.transform;
-            bg = g.AddComponent<Image>();
-            UpdateBGTransform();
-        }
+        // Background GameObject creation disabled - not needed
+        // if (canvas != null)
+        // {
+        //     var g = new GameObject(gameObject.name + "BG");
+        //     g.transform.parent = canvas.transform;
+        //     bg = g.AddComponent<Image>();
+        //     UpdateBGTransform();
+        // }
     }
 
     void Update()
     {
-        if (bg != null) {
-            bg.transform.SetAsLastSibling();
-        }
+        // Background GameObject handling disabled - not needed
+        // if (bg != null) {
+        //     bg.transform.SetAsLastSibling();
+        // }
         if (hasFocus) {
             inputString += Input.inputString;
         }

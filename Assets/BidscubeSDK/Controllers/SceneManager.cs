@@ -32,7 +32,7 @@ namespace BidscubeSDK.Controllers
         {
             if (!IsValid)
             {
-                Debug.LogError("SceneReference is not valid!");
+                Logger.InfoError("SceneReference is not valid!");
                 return;
             }
 
@@ -93,24 +93,24 @@ namespace BidscubeSDK.Controllers
         {
             if (sceneRef == null)
             {
-                Debug.LogError(" Scene reference is null!");
+                Logger.InfoError(" Scene reference is null!");
                 return;
             }
 
             if (!sceneRef.IsValid)
             {
-                Debug.LogError(" Scene reference is not valid!");
+                Logger.InfoError(" Scene reference is not valid!");
                 return;
             }
 
             try
             {
                 sceneRef.LoadScene();
-                Debug.Log($" Loaded scene: {sceneRef.SceneName}");
+                Logger.Info($" Loaded scene: {sceneRef.SceneName}");
             }
             catch (System.Exception e)
             {
-                Debug.LogError($" Failed to load scene {sceneRef.SceneName}: {e.Message}");
+                Logger.InfoError($" Failed to load scene {sceneRef.SceneName}: {e.Message}");
             }
         }
 

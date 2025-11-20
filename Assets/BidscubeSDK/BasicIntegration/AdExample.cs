@@ -72,7 +72,9 @@ namespace BidscubeSDK.Samples
                 return;
             }
 
-            BidscubeSDK.ShowImageAd(_placementId, this);
+            var adViewControllerObj = new GameObject("AdViewController");
+            var adViewController = adViewControllerObj.AddComponent<AdViewController>();
+            adViewController.Initialize(_placementId, AdType.Image, this);
             UpdateStatus("Loading image ad...");
         }
 
@@ -130,7 +132,7 @@ namespace BidscubeSDK.Samples
             {
                 _statusText.text = message;
             }
-            Debug.Log($"[AdExample] {message}");
+            Logger.Info($"[AdExample] {message}");
         }
 
         #region IAdCallback Implementation

@@ -28,7 +28,19 @@ namespace BidscubeSDK
         {
             if (_isEnabled)
             {
-                Debug.Log($"[BidscubeSDK] {message}");
+                UnityEngine.Debug.Log($"[BidscubeSDK] {message}");
+            }
+        }
+
+        /// <summary>
+        /// Log error message (alias for InfoError)
+        /// </summary>
+        /// <param name="message">Message to log</param>
+        public static void InfoError(string message)
+        {
+            if (_isEnabled)
+            {
+                UnityEngine.Debug.LogError($"[BidscubeSDK] {message}");
             }
         }
 
@@ -52,7 +64,7 @@ namespace BidscubeSDK
         {
             if (_isEnabled)
             {
-                Debug.LogWarning($"[BidscubeSDK] WARNING: {message}");
+                UnityEngine.Debug.LogWarning($"[BidscubeSDK] WARNING: {message}");
             }
         }
 
@@ -64,7 +76,7 @@ namespace BidscubeSDK
         {
             if (_isEnabled)
             {
-                Debug.LogError($"[BidscubeSDK] ERROR: {message}");
+                InfoError($"[BidscubeSDK] ERROR: {message}");
             }
         }
     }

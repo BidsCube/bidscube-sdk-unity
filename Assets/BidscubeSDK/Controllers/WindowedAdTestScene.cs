@@ -12,7 +12,7 @@ namespace BidscubeSDK.Controllers
     public class WindowedAdTestScene : MonoBehaviour, IAdCallback, IConsentCallback
     {
         [Header("SDK Configuration")]
-        [SerializeField] private string _imageAdPlacementId = "19481";
+        [SerializeField] private string _imageAdPlacementId = "20212";
         [SerializeField] private string _videoAdPlacementId = "19483";
         [SerializeField] private string _nativeAdPlacementId = "19487";
         [SerializeField] private string _baseURL = Constants.BaseURL;
@@ -207,7 +207,7 @@ namespace BidscubeSDK.Controllers
             }
 
             // Create a real image ad view
-            var adView = BidscubeSDK.GetImageAdView(_imageAdPlacementId, this);
+            var adView = BidscubeSDK.GetBannerAdView(_imageAdPlacementId, this);
             DisplayAdView(adView);
         }
 

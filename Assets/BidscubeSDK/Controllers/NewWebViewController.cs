@@ -21,6 +21,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Networking;
+using BidscubeSDK;
 
 public class NewWebViewController : MonoBehaviour
 {
@@ -34,7 +35,7 @@ public class NewWebViewController : MonoBehaviour
             _htmlAd = value;
             if (webViewObject != null && !string.IsNullOrEmpty(_htmlAd))
             {
-                Debug.Log($"Reloading WebView with new HTML content: {_htmlAd.Length} characters");
+                BidscubeSDK.Logger.Info($"Reloading WebView with new HTML content: {_htmlAd.Length} characters");
                 webViewObject.LoadHTML(_htmlAd, "");
             }
         }
@@ -77,13 +78,13 @@ public class NewWebViewController : MonoBehaviour
     {
         if (webViewObject != null && !string.IsNullOrEmpty(HTMLad))
         {
-            Debug.Log($"Manually reloading WebView content: {HTMLad.Length} characters");
+            BidscubeSDK.Logger.Info($"Manually reloading WebView content: {HTMLad.Length} characters");
             webViewObject.LoadHTML(HTMLad, "");
             SetVisibility(true);
         }
         else
         {
-            Debug.LogWarning("Cannot reload: WebViewObject is null or HTMLad is empty");
+            BidscubeSDK.Logger.Info("Cannot reload: WebViewObject is null or HTMLad is empty");
         }
     }
 
@@ -94,31 +95,31 @@ public class NewWebViewController : MonoBehaviour
         webViewObject.Init(
             cb: (msg) =>
             {
-                Debug.Log($"CallFromJS[{msg}]");
+                BidscubeSDK.Logger.Info($"CallFromJS[{msg}]");
             },
             err: (msg) =>
             {
-                Debug.LogError($"CallOnError[{msg}]");
+                BidscubeSDK.Logger.InfoError($"CallOnError[{msg}]");
             },
             httpErr: (msg) =>
             {
-                Debug.LogError($"CallOnHttpError[{msg}]");
+                BidscubeSDK.Logger.InfoError($"CallOnHttpError[{msg}]");
             },
             started: (msg) =>
             {
-                Debug.Log($"CallOnStarted[{msg}]");
+                BidscubeSDK.Logger.Info($"CallOnStarted[{msg}]");
             },
             hooked: (msg) =>
             {
-                Debug.Log($"CallOnHooked[{msg}]");
+                BidscubeSDK.Logger.Info($"CallOnHooked[{msg}]");
             },
             cookies: (msg) =>
             {
-                Debug.Log($"CallOnCookies[{msg}]");
+                BidscubeSDK.Logger.Info($"CallOnCookies[{msg}]");
             },
             ld: (msg) =>
             {
-                Debug.Log($"CallOnLoaded[{msg}]");
+                BidscubeSDK.Logger.Info($"CallOnLoaded[{msg}]");
 
 #if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX || UNITY_IOS
             var js = @"
@@ -149,12 +150,12 @@ public class NewWebViewController : MonoBehaviour
         // Load HTML content if available
         if (!string.IsNullOrEmpty(HTMLad))
         {
-            Debug.Log($"Loading initial HTML content: {HTMLad.Length} characters");
+            BidscubeSDK.Logger.Info($"Loading initial HTML content: {HTMLad.Length} characters");
             webViewObject.LoadHTML(HTMLad, "");
         }
         else
         {
-            Debug.Log("No HTML content available for initial load");
+            BidscubeSDK.Logger.Info("No HTML content available for initial load");
         }
 
         yield break;

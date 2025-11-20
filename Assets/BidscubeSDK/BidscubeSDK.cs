@@ -19,8 +19,28 @@ namespace BidscubeSDK
         private static bool _hasAdsConsentFlag = false;
         private static bool _hasAnalyticsConsentFlag = false;
         private static string _consentDebugDeviceId;
-        
+
         private static List<BannerAdView> _activeBanners = new List<BannerAdView>();
+        private static List<AdViewController> _activeControllers = new List<AdViewController>();
+
+        private static BidscubeSDK Instance
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    var go = new GameObject("BidscubeSDK");
+                    _instance = go.AddComponent<BidscubeSDK>();
+                    DontDestroyOnLoad(go);
+                }
+                return _instance;
+            }
+        }
+
+        private static Coroutine StartSDKCoroutine(IEnumerator routine)
+        {
+            return Instance.StartCoroutine(routine);
+        }
 
         /// <summary>
         /// Initialize the SDK with configuration
@@ -44,7 +64,7 @@ namespace BidscubeSDK
                 .DefaultAdTimeout(Constants.DefaultTimeoutMs)
                 .DefaultAdPosition(Constants.DefaultAdPosition)
                 .Build();
-            
+
             Initialize(config);
         }
 
@@ -62,8 +82,8 @@ namespace BidscubeSDK
         /// </summary>
         public static void Cleanup()
         {
-            RemoveAllBanners();
-            
+            ClearAllAds();
+
             _configuration = null;
             _manualAdPosition = AdPosition.Unknown;
             _responseAdPosition = AdPosition.Unknown;
@@ -80,13 +100,14 @@ namespace BidscubeSDK
         public static void SetAdPosition(AdPosition position)
         {
             _manualAdPosition = position;
+            _responseAdPosition = AdPosition.Unknown; // Reset server position when manual is set
         }
 
         /// <summary>
         /// Get current manual ad position
         /// </summary>
         /// <returns>Current ad position</returns>
-        public static AdPosition GetCurrentAdPosition()
+        public static AdPosition GetAdPosition()
         {
             return _manualAdPosition;
         }
@@ -106,6 +127,7 @@ namespace BidscubeSDK
         /// <param name="position">Ad position</param>
         public static void SetResponseAdPosition(AdPosition position)
         {
+            // This should only be set by the ad views based on server response
             _responseAdPosition = position;
         }
 
@@ -124,7 +146,7 @@ namespace BidscubeSDK
         /// <param name="callback">Consent callback</param>
         public static void RequestConsentInfoUpdate(IConsentCallback callback)
         {
-            StartCoroutine(DelayedConsentUpdate(callback));
+            StartSDKCoroutine(DelayedConsentUpdate(callback));
         }
 
         private static IEnumerator DelayedConsentUpdate(IConsentCallback callback)
@@ -139,7 +161,7 @@ namespace BidscubeSDK
         /// <param name="callback">Consent callback</param>
         public static void ShowConsentForm(IConsentCallback callback)
         {
-            StartCoroutine(DelayedConsentForm(callback));
+            StartSDKCoroutine(DelayedConsentForm(callback));
         }
 
         private static IEnumerator DelayedConsentForm(IConsentCallback callback)
@@ -214,144 +236,162 @@ namespace BidscubeSDK
         /// <param name="adType">Ad type</param>
         /// <param name="ctaText">CTA text (optional)</param>
         /// <returns>Request URL</returns>
-        public static string BuildRequestURL(string placementId, AdType adType, string ctaText = null)
+        public static string BuildRequestURL(string placementId, AdType adType, AdPosition position = AdPosition.Unknown)
         {
-            if (_configuration == null)
-            {
-                Logger.Error("SDK not initialized");
-                return null;
-            }
-
-            var timeout = _configuration.DefaultAdTimeoutMs;
-            var debug = _configuration.EnableDebugMode;
-            var position = GetEffectiveAdPosition();
-
             return URLBuilder.BuildAdRequestURL(
                 _configuration.BaseURL,
                 placementId,
                 adType,
                 position,
-                timeout,
-                debug,
-                ctaText
+                _configuration.DefaultAdTimeoutMs,
+                _configuration.EnableDebugMode
             );
         }
 
+        // Banner / Image helpers -------------------------------------------------
+
         /// <summary>
-        /// Show image ad - Identical to iOS
+        /// Show image ad (internally uses banner rendering)
         /// </summary>
-        /// <param name="placementId">Placement ID</param>
-        /// <param name="callback">Ad callback</param>
         public static void ShowImageAd(string placementId, IAdCallback callback = null)
         {
             if (!IsInitialized())
             {
-                Logger.Error("SDK not initialized. Call Initialize() first.");
+                Logger.Error("SDK not initialized. Please call BidscubeSDK.Initialize() first.");
                 return;
             }
 
-            Logger.Info($"ShowImageAd called for placement: {placementId}");
-
-            var effectivePosition = GetEffectiveAdPosition();
-            
-            // Create AdViewController like iOS
-            var adViewControllerObj = new GameObject("AdViewController");
-            var adViewController = adViewControllerObj.AddComponent<AdViewController>();
-            adViewController.Initialize(placementId, AdType.Image, callback, effectivePosition);
-
-            // Load ad from URL
-            var url = URLBuilder.BuildAdRequestURL(_configuration.BaseURL, placementId, AdType.Image, effectivePosition, _configuration.DefaultAdTimeoutMs, _configuration.EnableDebugMode);
-            Logger.Info($"Image ad request URL: {url}");
-
-            // Get the ImageAdView from the controller
-            var imageAdView = adViewControllerObj.GetComponentInChildren<ImageAdView>();
-            if (imageAdView != null)
-            {
-                imageAdView.LoadAdFromURL(url);
-            }
+            var position = _manualAdPosition != AdPosition.Unknown ? _manualAdPosition : _responseAdPosition;
+            CreateAdViewController(placementId, AdType.Image, callback, position);
         }
 
-        private static IEnumerator LoadImageAd(string placementId, string url, IAdCallback callback)
+        /// <summary>
+        /// Show header banner
+        /// </summary>
+        public static void ShowHeaderBanner(string placementId, IAdCallback callback)
         {
-            using (var request = UnityWebRequest.Get(url))
+            SetAdPosition(AdPosition.Header);
+            GetBannerAdView(placementId, callback);
+        }
+
+        /// <summary>
+        /// Show footer banner
+        /// </summary>
+        public static void ShowFooterBanner(string placementId, IAdCallback callback)
+        {
+            SetAdPosition(AdPosition.Footer);
+            GetBannerAdView(placementId, callback);
+        }
+
+        /// <summary>
+        /// Show sidebar banner
+        /// </summary>
+        public static void ShowSidebarBanner(string placementId, IAdCallback callback)
+        {
+            SetAdPosition(AdPosition.Sidebar);
+            GetBannerAdView(placementId, callback);
+        }
+
+        /// <summary>
+        /// Show custom banner with explicit position and size
+        /// </summary>
+        public static void ShowCustomBanner(string placementId, AdPosition position, int width, int height, IAdCallback callback)
+        {
+            SetAdPosition(position);
+            var bannerGO = GetBannerAdView(placementId, callback);
+            var rect = bannerGO.GetComponent<RectTransform>();
+            if (rect != null)
             {
-                yield return request.SendWebRequest();
-
-                if (request.result == UnityWebRequest.Result.Success)
-                {
-                    try
-                    {
-                        var json = JsonUtility.FromJson<AdResponse>(request.downloadHandler.text);
-                        if (json != null)
-                        {
-                            _responseAdPosition = (AdPosition)json.position;
-                        }
-                    }
-                    catch
-                    {
-                        _responseAdPosition = AdPosition.Unknown;
-                    }
-
-                    callback?.OnAdLoaded(placementId);
-                    callback?.OnAdDisplayed(placementId);
-                }
-                else
-                {
-                    callback?.OnAdFailed(placementId, Constants.ErrorCodes.NetworkError, request.error);
-                }
+                rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+                rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
             }
         }
 
         /// <summary>
-        /// Get image ad view
+        /// Remove and destroy all active banners
+        /// </summary>
+        /// <summary>
+        /// Remove all active banners (legacy method)
+        /// </summary>
+        public static void RemoveAllBanners()
+        {
+            ClearAllAds();
+        }
+
+        /// <summary>
+        /// Clear all ads (banners, images, natives, videos)
+        /// </summary>
+        public static void ClearAllAds()
+        {
+            Logger.Info($"Clearing all ads. Banners: {_activeBanners.Count}, Controllers: {_activeControllers.Count}");
+
+            // Remove all active banners
+            foreach (var banner in _activeBanners)
+            {
+                if (banner != null)
+                {
+                    // If BannerAdView has its own detach/cleanup, use it; otherwise destroy the GameObject
+                    banner.DetachFromScreen();
+                }
+            }
+            _activeBanners.Clear();
+
+            // Remove all active ad controllers (Image, Native, Video)
+            foreach (var controller in _activeControllers)
+            {
+                if (controller != null)
+                {
+                    // Destroy the controller GameObject (which will destroy all child ad views)
+                    UnityEngine.Object.Destroy(controller.gameObject);
+                }
+            }
+            _activeControllers.Clear();
+
+            Logger.Info("All ads cleared");
+        }
+
+        /// <summary>
+        /// Convenience wrapper for using banner as image ad view
+        /// </summary>
+        public static GameObject GetImageAdView(string placementId, IAdCallback callback = null)
+        {
+            return GetBannerAdView(placementId, callback);
+        }
+
+        /// <summary>
+        /// Get banner ad view
         /// </summary>
         /// <param name="placementId">Placement ID</param>
         /// <param name="callback">Ad callback</param>
-        /// <returns>Image ad view</returns>
-        public static GameObject GetImageAdView(string placementId, IAdCallback callback = null)
+        /// <returns>Banner ad view</returns>
+        public static GameObject GetBannerAdView(string placementId, IAdCallback callback = null)
         {
-            Logger.Info($"GetImageAdView called for placement: {placementId}");
+            Logger.Info($"GetBannerAdView called for placement: {placementId}");
 
             var effectivePosition = GetEffectiveAdPosition();
-            GameObject view;
 
-            if (effectivePosition == AdPosition.Header || effectivePosition == AdPosition.Footer || effectivePosition == AdPosition.Sidebar)
+            var bannerView = CreateBannerAdView(effectivePosition);
+            var view = bannerView.gameObject;
+
+            if (!_activeBanners.Contains(bannerView))
             {
-                var bannerView = CreateBannerAdView(effectivePosition);
-                view = bannerView.gameObject;
-            }
-            else
-            {
-                view = CreateImageAdView();
+                _activeBanners.Add(bannerView);
             }
 
             callback?.OnAdLoading(placementId);
 
-            var url = BuildRequestURL(placementId, AdType.Image);
+            var url = BuildRequestURL(placementId, AdType.Image); // Use AdType.Image for banners
             if (string.IsNullOrEmpty(url))
             {
-                Logger.Error("Failed to build request URL for image ad");
+                Logger.Error("Failed to build request URL for banner ad");
                 callback?.OnAdFailed(placementId, Constants.ErrorCodes.InvalidURL, Constants.ErrorMessages.FailedToBuildURL);
                 return view;
             }
 
-            var imageAdView = view.GetComponent<ImageAdView>();
-            if (imageAdView != null)
-            {
-                imageAdView.SetPlacementInfo(placementId, callback);
-                imageAdView.LoadAdFromURL(url);
-            }
-            else
-            {
-                var bannerAdView = view.GetComponent<BannerAdView>();
-                if (bannerAdView != null)
-                {
-                    bannerAdView.SetPlacementInfo(placementId, callback);
-                    bannerAdView.LoadAdFromURL(url);
-                }
-            }
+            bannerView.SetPlacementInfo(placementId, callback);
+            bannerView.LoadAdFromURL(url);
 
-            StartCoroutine(DelayedAdLoaded(placementId, callback));
+            StartSDKCoroutine(DelayedAdLoaded(placementId, callback));
             return view;
         }
 
@@ -371,9 +411,13 @@ namespace BidscubeSDK
             Logger.Info($"ShowVideoAd called for placement: {placementId}");
 
             var effectivePosition = GetEffectiveAdPosition();
-            
+
+            // Find or create SDKContent parent
+            GameObject parentObject = GetOrCreateSDKContent();
+
             // Create AdViewController like iOS
             var adViewControllerObj = new GameObject("AdViewController");
+            adViewControllerObj.transform.SetParent(parentObject.transform, false);
             var adViewController = adViewControllerObj.AddComponent<AdViewController>();
             adViewController.Initialize(placementId, AdType.Video, callback);
 
@@ -387,6 +431,14 @@ namespace BidscubeSDK
             {
                 videoAdView.LoadVideoAdFromURL(url);
             }
+        }
+
+        /// <summary>
+        /// Show skippable video ad (skip button text currently not used but kept for API parity)
+        /// </summary>
+        public static void ShowSkippableVideoAd(string placementId, string skipButtonText, IAdCallback callback)
+        {
+            ShowVideoAd(placementId, callback);
         }
 
         private static IEnumerator LoadVideoAd(string placementId, string url, IAdCallback callback)
@@ -431,7 +483,7 @@ namespace BidscubeSDK
         public static GameObject GetVideoAdView(string placementId, IAdCallback callback = null)
         {
             var view = CreateVideoAdView();
-            
+
             callback?.OnAdLoading(placementId);
 
             var url = BuildRequestURL(placementId, AdType.Video);
@@ -449,7 +501,7 @@ namespace BidscubeSDK
                 videoAdView.LoadVideoAdFromURL(url);
             }
 
-            StartCoroutine(DelayedVideoAdLoaded(placementId, callback));
+            StartSDKCoroutine(DelayedVideoAdLoaded(placementId, callback));
             return view;
         }
 
@@ -466,25 +518,8 @@ namespace BidscubeSDK
                 return;
             }
 
-            Logger.Info($"ShowNativeAd called for placement: {placementId}");
-
-            var effectivePosition = GetEffectiveAdPosition();
-            
-            // Create AdViewController like iOS
-            var adViewControllerObj = new GameObject("AdViewController");
-            var adViewController = adViewControllerObj.AddComponent<AdViewController>();
-            adViewController.Initialize(placementId, AdType.Native, callback);
-
-            // Load ad from URL
-            var url = URLBuilder.BuildAdRequestURL(_configuration.BaseURL, placementId, AdType.Native, effectivePosition, _configuration.DefaultAdTimeoutMs, _configuration.EnableDebugMode);
-            Logger.Info($"Native ad request URL: {url}");
-
-            // Get the NativeAdView from the controller
-            var nativeAdView = adViewControllerObj.GetComponentInChildren<NativeAdView>();
-            if (nativeAdView != null)
-            {
-                nativeAdView.LoadNativeAdFromURL(url);
-            }
+            var position = _manualAdPosition != AdPosition.Unknown ? _manualAdPosition : _responseAdPosition;
+            CreateAdViewController(placementId, AdType.Native, callback, position);
         }
 
         private static IEnumerator LoadNativeAd(string placementId, string url, IAdCallback callback)
@@ -526,10 +561,8 @@ namespace BidscubeSDK
         /// <returns>Native ad view</returns>
         public static GameObject GetNativeAdView(string placementId, IAdCallback callback = null)
         {
-            Logger.Info($"GetNativeAdView called for placement: {placementId}");
-
             var view = CreateNativeAdView();
-            
+
             callback?.OnAdLoading(placementId);
 
             var url = BuildRequestURL(placementId, AdType.Native);
@@ -547,7 +580,7 @@ namespace BidscubeSDK
                 nativeAdView.LoadNativeAdFromURL(url);
             }
 
-            StartCoroutine(DelayedAdLoaded(placementId, callback));
+            StartSDKCoroutine(DelayedAdLoaded(placementId, callback));
             return view;
         }
 
@@ -563,7 +596,8 @@ namespace BidscubeSDK
             Logger.Info($"GetBannerAdView called for placement: {placementId}, position: {position}");
 
             var bannerView = CreateBannerAdView(position);
-            
+            var view = bannerView.gameObject;
+
             callback?.OnAdLoading(placementId);
 
             var url = BuildRequestURL(placementId, AdType.Image);
@@ -577,166 +611,11 @@ namespace BidscubeSDK
             bannerView.SetPlacementInfo(placementId, callback);
             bannerView.LoadAdFromURL(url);
 
-            StartCoroutine(DelayedBannerAdLoaded(placementId, position, callback));
+            StartSDKCoroutine(DelayedAdLoaded(placementId, callback));
             return bannerView;
         }
 
-        /// <summary>
-        /// Show header banner - Identical to iOS
-        /// </summary>
-        /// <param name="placementId">Placement ID</param>
-        /// <param name="callback">Ad callback</param>
-        public static void ShowHeaderBanner(string placementId, IAdCallback callback = null)
-        {
-            if (!IsInitialized())
-            {
-                Logger.Error("SDK not initialized. Call Initialize() first.");
-                return;
-            }
-
-            Logger.Info($"ShowHeaderBanner called for placement: {placementId}");
-            
-            // Create banner view like iOS
-            var bannerObj = new GameObject("BannerAdView");
-            var bannerView = bannerObj.AddComponent<BannerAdView>();
-            bannerView.SetPlacementInfo(placementId, callback);
-            bannerView.SetBannerPosition(AdPosition.Header);
-            
-            // Track banner
-            TrackBanner(bannerView);
-            
-            // Attach to screen
-            var canvas = FindFirstObjectByType<Canvas>();
-            if (canvas != null)
-            {
-                bannerView.AttachToScreen(canvas.gameObject);
-            }
-            
-            // Load ad from URL
-            var url = URLBuilder.BuildAdRequestURL(_configuration.BaseURL, placementId, AdType.Image, AdPosition.Header, _configuration.DefaultAdTimeoutMs, _configuration.EnableDebugMode);
-            bannerView.LoadAdFromURL(url);
-        }
-
-        /// <summary>
-        /// Show footer banner - Identical to iOS
-        /// </summary>
-        /// <param name="placementId">Placement ID</param>
-        /// <param name="callback">Ad callback</param>
-        public static void ShowFooterBanner(string placementId, IAdCallback callback = null)
-        {
-            if (!IsInitialized())
-            {
-                Logger.Error("SDK not initialized. Call Initialize() first.");
-                return;
-            }
-
-            Logger.Info($"ShowFooterBanner called for placement: {placementId}");
-            
-            // Create banner view like iOS
-            var bannerObj = new GameObject("BannerAdView");
-            var bannerView = bannerObj.AddComponent<BannerAdView>();
-            bannerView.SetPlacementInfo(placementId, callback);
-            bannerView.SetBannerPosition(AdPosition.Footer);
-            
-            // Track banner
-            TrackBanner(bannerView);
-            
-            // Attach to screen
-            var canvas = FindFirstObjectByType<Canvas>();
-            if (canvas != null)
-            {
-                bannerView.AttachToScreen(canvas.gameObject);
-            }
-            
-            // Load ad from URL
-            var url = URLBuilder.BuildAdRequestURL(_configuration.BaseURL, placementId, AdType.Image, AdPosition.Footer, _configuration.DefaultAdTimeoutMs, _configuration.EnableDebugMode);
-            bannerView.LoadAdFromURL(url);
-        }
-
-        /// <summary>
-        /// Show sidebar banner - Identical to iOS
-        /// </summary>
-        /// <param name="placementId">Placement ID</param>
-        /// <param name="callback">Ad callback</param>
-        public static void ShowSidebarBanner(string placementId, IAdCallback callback = null)
-        {
-            if (!IsInitialized())
-            {
-                Logger.Error("SDK not initialized. Call Initialize() first.");
-                return;
-            }
-
-            Logger.Info($"ShowSidebarBanner called for placement: {placementId}");
-            
-            // Create banner view like iOS
-            var bannerObj = new GameObject("BannerAdView");
-            var bannerView = bannerObj.AddComponent<BannerAdView>();
-            bannerView.SetPlacementInfo(placementId, callback);
-            bannerView.SetBannerPosition(AdPosition.Sidebar);
-            
-            // Track banner
-            TrackBanner(bannerView);
-            
-            // Attach to screen
-            var canvas = FindFirstObjectByType<Canvas>();
-            if (canvas != null)
-            {
-                bannerView.AttachToScreen(canvas.gameObject);
-            }
-            
-            // Load ad from URL
-            var url = URLBuilder.BuildAdRequestURL(_configuration.BaseURL, placementId, AdType.Image, AdPosition.Sidebar, _configuration.DefaultAdTimeoutMs, _configuration.EnableDebugMode);
-            bannerView.LoadAdFromURL(url);
-        }
-
-        /// <summary>
-        /// Show custom banner - Identical to iOS
-        /// </summary>
-        /// <param name="placementId">Placement ID</param>
-        /// <param name="position">Ad position</param>
-        /// <param name="width">Banner width</param>
-        /// <param name="height">Banner height</param>
-        /// <param name="callback">Ad callback</param>
-        public static void ShowCustomBanner(string placementId, AdPosition position, float width, float height, IAdCallback callback = null)
-        {
-            if (!IsInitialized())
-            {
-                Logger.Error("SDK not initialized. Call Initialize() first.");
-                return;
-            }
-
-            Logger.Info($"ShowCustomBanner called for placement: {placementId}, position: {position}, size: {width}x{height}");
-            
-            // Create banner view like iOS
-            var bannerObj = new GameObject("BannerAdView");
-            var bannerView = bannerObj.AddComponent<BannerAdView>();
-            bannerView.SetPlacementInfo(placementId, callback);
-            bannerView.SetBannerPosition(position);
-            bannerView.SetBannerDimensions(width, height);
-            
-            // Track banner
-            TrackBanner(bannerView);
-            
-            // Attach to screen
-            var canvas = FindFirstObjectByType<Canvas>();
-            if (canvas != null)
-            {
-                bannerView.AttachToScreen(canvas.gameObject);
-            }
-            
-            // Load ad from URL
-            var url = URLBuilder.BuildAdRequestURL(_configuration.BaseURL, placementId, AdType.Image, position, _configuration.DefaultAdTimeoutMs, _configuration.EnableDebugMode);
-            bannerView.LoadAdFromURL(url);
-        }
-
         // Helper methods
-        private static GameObject CreateImageAdView()
-        {
-            var go = new GameObject("ImageAdView");
-            go.AddComponent<ImageAdView>();
-            return go;
-        }
-
         private static GameObject CreateVideoAdView()
         {
             var go = new GameObject("VideoAdView");
@@ -757,6 +636,61 @@ namespace BidscubeSDK
             var bannerView = go.AddComponent<BannerAdView>();
             bannerView.SetBannerPosition(position);
             return bannerView;
+        }
+
+        private static void CreateAdViewController(string placementId, AdType adType, IAdCallback callback, AdPosition position)
+        {
+            // Find or create SDKContent parent
+            GameObject parentObject = GetOrCreateSDKContent();
+
+            var controllerGO = new GameObject($"AdViewController_{placementId}");
+            controllerGO.transform.SetParent(parentObject.transform, false);
+
+            // Ensure scale is 1,1,1 before adding components
+            controllerGO.transform.localScale = Vector3.one;
+
+            var adController = controllerGO.AddComponent<AdViewController>();
+            adController.Initialize(placementId, adType, callback, position);
+            _activeControllers.Add(adController);
+        }
+
+        /// <summary>
+        /// Get or create SDKContent GameObject to parent all SDK objects
+        /// </summary>
+        /// <returns>SDKContent GameObject</returns>
+        private static GameObject GetOrCreateSDKContent()
+        {
+            // Try to find existing SDKContent
+            GameObject sdkContent = GameObject.Find("SDKContent");
+            if (sdkContent != null)
+            {
+                // Ensure scale is 1,1,1
+                sdkContent.transform.localScale = Vector3.one;
+                return sdkContent;
+            }
+
+            // Try to find existing Canvas first
+            Canvas existingCanvas = UnityEngine.Object.FindObjectOfType<Canvas>();
+            if (existingCanvas != null)
+            {
+                Logger.Info("[BidscubeSDK] Found existing Canvas, using it as parent");
+                // Ensure canvas scale is 1,1,1
+                existingCanvas.transform.localScale = Vector3.one;
+                return existingCanvas.gameObject;
+            }
+
+            // Create SDKContent GameObject
+            sdkContent = new GameObject("SDKContent");
+            sdkContent.transform.localScale = Vector3.one; // Ensure scale is 1,1,1
+            UnityEngine.Object.DontDestroyOnLoad(sdkContent);
+            Logger.Info("[BidscubeSDK] Created SDKContent GameObject as parent for SDK objects");
+
+            return sdkContent;
+        }
+
+        internal static void UnregisterAdViewController(AdViewController controller)
+        {
+            _activeControllers.Remove(controller);
         }
 
         private static IEnumerator DelayedAdLoaded(string placementId, IAdCallback callback)
@@ -802,22 +736,6 @@ namespace BidscubeSDK
         }
 
         /// <summary>
-        /// Remove all banners
-        /// </summary>
-        public static void RemoveAllBanners()
-        {
-            Logger.DebugLog($"Removing all active banners. Count: {_activeBanners.Count}");
-            
-            foreach (var banner in _activeBanners)
-            {
-                banner.DetachFromScreen();
-            }
-            
-            _activeBanners.Clear();
-            Logger.DebugLog("All banners removed");
-        }
-
-        /// <summary>
         /// Get active banner count
         /// </summary>
         /// <returns>Number of active banners</returns>
@@ -840,20 +758,13 @@ namespace BidscubeSDK
             }
         }
 
-        private static void StartCoroutine(IEnumerator coroutine)
-        {
-            if (_instance != null)
-            {
-                ((MonoBehaviour)_instance).StartCoroutine(coroutine);
-            }
-        }
 
         // Helper class for JSON deserialization
         [System.Serializable]
         private class AdResponse
         {
+            public string adm;
             public int position;
         }
     }
 }
-

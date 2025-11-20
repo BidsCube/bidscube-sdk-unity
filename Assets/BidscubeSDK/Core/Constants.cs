@@ -18,7 +18,7 @@ namespace BidscubeSDK
         /// <summary>
         /// Base URL for ad requests
         /// </summary>
-        public const string BaseURL = "https://ssp-bcc-ads.com/sdk";
+        public const string BaseURL = https://ssp-bcc-ads.com/sdk";
 
         /// <summary>
         /// User agent prefix
@@ -55,5 +55,28 @@ namespace BidscubeSDK
             public const string UnknownError = "Unknown error occurred";
         }
     }
-}
 
+    /// <summary>
+    /// Public error codes alias for documentation compatibility
+    /// </summary>
+    public static class ErrorCodes
+    {
+        public const int InvalidURL = Constants.ErrorCodes.InvalidURL;
+        public const int InvalidResponse = Constants.ErrorCodes.InvalidResponse;
+        public const int NetworkError = Constants.ErrorCodes.NetworkError;
+        public const int TimeoutError = Constants.ErrorCodes.TimeoutError;
+        public const int UnknownError = Constants.ErrorCodes.UnknownError;
+    }
+
+    /// <summary>
+    /// Public error messages alias for documentation compatibility
+    /// </summary>
+    public static class ErrorMessages
+    {
+        public const string FailedToBuildURL = Constants.ErrorMessages.FailedToBuildURL;
+        public const string InvalidResponse = Constants.ErrorMessages.InvalidResponse;
+        public const string NetworkError = Constants.ErrorMessages.NetworkError;
+        public const string TimeoutError = Constants.ErrorMessages.TimeoutError;
+        public const string UnknownError = Constants.ErrorMessages.UnknownError;
+    }
+}

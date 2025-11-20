@@ -109,7 +109,7 @@ public class UnityWebViewPostprocessBuild
 #endif
         if (changed) {
             androidManifest.Save();
-            Debug.Log("unitywebview: adjusted AndroidManifest.xml.");
+            UnityEngine.Debug.Log("[BidscubeSDK] unitywebview: adjusted AndroidManifest.xml.");
         }
     }
 #endif
@@ -163,7 +163,7 @@ public class UnityWebViewPostprocessBuild
             if (!File.Exists(manifest)) {
                 string manifest0 = Path.Combine(Application.dataPath, "../Temp/StagingArea/AndroidManifest-main.xml");
                 if (!File.Exists(manifest0)) {
-                    Debug.LogError("unitywebview: cannot find both Assets/Plugins/Android/AndroidManifest.xml and Temp/StagingArea/AndroidManifest-main.xml. please build the app to generate Assets/Plugins/Android/AndroidManifest.xml and then rebuild it again.");
+                    UnityEngine.Debug.LogError("[BidscubeSDK] unitywebview: cannot find both Assets/Plugins/Android/AndroidManifest.xml and Temp/StagingArea/AndroidManifest-main.xml. please build the app to generate Assets/Plugins/Android/AndroidManifest.xml and then rebuild it again.");
                     return;
                 } else {
                     File.Copy(manifest0, manifest, true);
@@ -222,7 +222,7 @@ public class UnityWebViewPostprocessBuild
 #endif
             if (changed) {
                 androidManifest.Save();
-                Debug.LogError("unitywebview: adjusted AndroidManifest.xml and/or WebView.aar. Please rebuild the app.");
+                UnityEngine.Debug.LogError("[BidscubeSDK] unitywebview: adjusted AndroidManifest.xml and/or WebView.aar. Please rebuild the app.");
             }
         }
 #endif
@@ -231,7 +231,7 @@ public class UnityWebViewPostprocessBuild
             var type = Type.GetType("UnityEditor.iOS.Xcode.PBXProject, UnityEditor.iOS.Extensions.Xcode");
             if (type == null)
             {
-                Debug.LogError("unitywebview: failed to get PBXProject. please install iOS build support.");
+                UnityEngine.Debug.LogError("[BidscubeSDK] unitywebview: failed to get PBXProject. please install iOS build support.");
                 return;
             }
             var src = File.ReadAllText(projPath);
