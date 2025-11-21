@@ -1,0 +1,99 @@
+name: Sync Assets to Runtime on Release
+
+on:
+  release:
+    types: [created, edited]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version number"
+        required: true
+        type: string
+
+jobs:
+  sync-files:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Extract version and tag
+        id: version_info
+        run: |
+          if [ "${{ github.event_name }}" == "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+            VERSION="${{ github.event.release.tag_name }}"
+            # Remove 'v' prefix if present
+            VERSION=${VERSION#v}
+          else
+            TAG="v${{ github.event.inputs.version }}"
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted tag: $TAG, version: $VERSION"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: master
+          fetch-depth: 0
+
+      - name: Setup Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git checkout master
+
+      - name: Install jq for JSON manipulation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Checkout tag files
+        run: |
+          TAG="${{ steps.version_info.outputs.tag }}"
+          echo "Checking out files from tag: $TAG"
+          git checkout $TAG -- Assets/BidscubeSDK/ Assets/Plugins/WebViewObject.cs 2>/dev/null || echo "Some files may not exist in tag, continuing..."
+
+      - name: Sync Assets to Runtime
+        run: |
+          chmod +x scripts/sync-assets-to-runtime.sh
+          ./scripts/sync-assets-to-runtime.sh
+
+      - name: Update package.json version
+        run: |
+          VERSION="${{ steps.version_info.outputs.version }}"
+          # Update version in package.json
+          if command -v jq &> /dev/null; then
+            jq --arg version "$VERSION" '.version = $version' package.json > package.json.tmp && mv package.json.tmp package.json
+          else
+            # Fallback using sed (works for simple JSON)
+            sed -i.bak "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package.json
+            rm -f package.json.bak
+          fi
+
+          echo "Updated package.json version to $VERSION"
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --exit-code || echo "has_changes=true" >> $GITHUB_OUTPUT
+          git status --short
+
+      - name: Commit and push changes
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git add Runtime/ package.json
+          git commit -m "chore: sync Assets to Runtime for version ${{ steps.version_info.outputs.version }}"
+          git push origin master
+
+      - name: Create summary
+        run: |
+          echo "## Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Synced files from \`Assets/BidscubeSDK/\` to \`Runtime/\`" >> $GITHUB_STEP_SUMMARY
+          echo "Updated package.json version to \`${{ steps.version_info.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Version: **${{ steps.version_info.outputs.version }}**" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,17 @@
+{
+    "name": "BidscubeSDK",
+    "rootNamespace": "BidscubeSDK",
+    "references": [
+        "com.bidscube.sdk",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

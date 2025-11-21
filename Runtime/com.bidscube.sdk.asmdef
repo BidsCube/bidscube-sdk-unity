@@ -1,9 +1,10 @@
 {
-    "name": "BidscubeSDK",
+    "name": "com.bidscube.sdk",
     "rootNamespace": "BidscubeSDK",
     "references": [
         "Unity.ugui",
         "Unity.Video",
+        "Unity.TextMeshPro",
         "System.Xml",
         "System"
     ],
