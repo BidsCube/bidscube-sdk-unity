@@ -20,6 +20,8 @@ The Bidscube Unity SDK provides a comprehensive advertising solution for Unity g
 2. Click the "+" button and select "Add package from git URL"
 3. Enter the package URL: `https://github.com/Bidscube/bidscube-sdk-unity.git`
 
+**Note:** The SDK will automatically install required dependencies (TextMeshPro, UGUI) when imported. No manual setup is required.
+
 ### Manual Installation
 
 1. Download the latest release
@@ -282,6 +284,15 @@ public void OnAdFailed(string placementId, int errorCode, string errorMessage)
     }
 }
 ```
+
+## Dependencies
+
+The SDK requires the following Unity packages (automatically installed when using Unity Package Manager):
+
+- **com.unity.ugui** (1.0.0) - Unity UI system
+- **com.unity.textmeshpro** (3.0.6) - TextMeshPro for UI text rendering
+
+These dependencies are declared in `package.json` and will be automatically resolved when the package is imported via Git URL.
 
 ## Requirements
 

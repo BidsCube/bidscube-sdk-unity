@@ -1,6 +1,6 @@
 {
   "name": "com.bidscube.sdk",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "displayName": "Bidscube SDK",
   "description": "Bidscube Unity SDK for mobile advertising",
   "unity": "2020.3",
@@ -16,7 +16,8 @@
     "url": "https://bidscube.com"
   },
   "dependencies": {
-    "com.unity.ugui": "1.0.0"
+    "com.unity.ugui": "2.0.0",
+    "com.unity.textmeshpro": "3.0.6"
   },
   "samples": []
 }
