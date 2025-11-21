@@ -97,7 +97,7 @@ If you prefer manual installation:
 1. Download the latest release from GitHub:  
    <https://github.com/BidsCube/bidscube-sdk-unity/releases>
 2. Extract the package to your Unity project's `Packages` folder
-3. In Unity, go to **Assets  Import Package  Custom Package**
+3. In Unity, go to **Assets -> Import Package -> Custom Package**
 4. Select the extracted package file
 
 ### Post-Installation Setup
@@ -116,7 +116,7 @@ The SDK requires the following Unity modules/packages:
 - **Unity iOS Build Support** (for iOS builds)
 - **Unity Android Build Support** (for Android builds)
 
-These are usually installed with Unity, but you can verify in **Window  Package Manager  Unity Registry**.
+These are usually installed with Unity, but you can verify in **Window -> Package Manager -> Unity Registry**.
 
 ## Quick Start
 
