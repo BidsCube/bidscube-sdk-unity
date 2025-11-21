@@ -18,7 +18,7 @@ namespace BidscubeSDK
         /// <summary>
         /// Base URL for ad requests
         /// </summary>
-        public const string BaseURL = https://ssp-bcc-ads.com/sdk";
+        public const string BaseURL = "https://ssp-bcc-ads.com/sdk";
 
         /// <summary>
         /// User agent prefix
@@ -28,7 +28,7 @@ namespace BidscubeSDK
         /// <summary>
         /// SDK version
         /// </summary>
-        public const string SdkVersion = "0.1.0";
+        public const string SdkVersion = "0.2.1";
 
         /// <summary>
         /// Error codes

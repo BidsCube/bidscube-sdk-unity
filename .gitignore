@@ -133,6 +133,12 @@ Unity Hub/
 # Exclude TextMesh Pro and UI Toolkit
 Assets/TextMesh Pro/
 Assets/UI Toolkit/
+
+# Exclude SDK Assets from package (only for local development)
+# Package should only contain Runtime/, Editor/, Documentation~/, Samples~/
+Assets/BidscubeSDK/
+Assets/Plugins/
+
 ProjectSettings
 Packages
 scripts
