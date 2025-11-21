@@ -4,6 +4,8 @@ using UnityEngine.Video;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.Networking;
+using System.Text.RegularExpressions;
+using System;
 
 namespace BidscubeSDK
 {
@@ -321,13 +323,12 @@ namespace BidscubeSDK
                             yield break;
                         }
 
-                        // Handle nested adm structure: {"adm":{"adm":"<VAST>...","position":7}}
+                        // Extract adm field (flat structure like BannerAdView)
                         string admValue = null;
-                        if (json != null && json.adm != null)
+                        if (json != null && !string.IsNullOrEmpty(json.adm))
                         {
-                            admValue = json.adm.adm;
-
-                            Logger.Info("[VideoAdView] Extracted adm from nested structure");
+                            admValue = json.adm;
+                            Logger.Info("[VideoAdView] Extracted adm from JSON response");
                         }
 
                         if (!string.IsNullOrEmpty(admValue))
@@ -356,6 +357,14 @@ namespace BidscubeSDK
                                 .Replace("\\r", "\r")
                                 .Replace("\\t", "\t")
                                 .Replace("\\/", "/");
+
+                            // Unescape Unicode sequences (e.g., \u003c -> <)
+                            // Unity's JsonUtility should handle this, but handle it explicitly to be safe
+                            admContent = System.Text.RegularExpressions.Regex.Replace(
+                                admContent,
+                                @"\\u([0-9A-Fa-f]{4})",
+                                m => ((char)Convert.ToInt32(m.Groups[1].Value, 16)).ToString()
+                            );
 
                             Logger.Info($"[VideoAdView] ========== PROCESSED ADM CONTENT ==========");
                             Logger.Info($"[VideoAdView] Processed adm length: {admContent.Length} chars");
@@ -498,14 +507,8 @@ namespace BidscubeSDK
         [System.Serializable]
         private class AdResponse
         {
-            public AdResponseInner adm; // Handle nested adm object: {"adm":{"adm":"<VAST>..."}}
-            public int? position;
-        }
-
-        [System.Serializable]
-        private class AdResponseInner
-        {
-            public string adm; // The actual VAST XML string
+            // Handle flat structure: {"adm":"<VAST>...", "position":0}
+            public string adm;
             public int? position;
         }
 

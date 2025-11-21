@@ -1,3 +1,23 @@
+## [0.2.2] - 2025-01-21
+
+### Changed
+
+- Removed hardcoded UI elements from AdViewController, BannerAdView, and VideoAdView
+- Added support for custom GameObjects and prefabs via inspector
+- Removed WebViewObjectBG background GameObject creation
+- Improved Unicode text handling in native ads (German text support)
+- Cleaned up Documentation~ folder to only include README.md
+
+### Fixed
+
+- Fixed Unicode encoding issues in native ads (German characters now display correctly)
+- Removed unnecessary WebViewObjectBG GameObject spawning
+- Removed loading label and WebViewHost from BannerAdView
+
+### Added
+
+- GitHub Actions workflow for automatic Assets to Runtime sync on release
+
 ## [0.2.0] - 2025-11-20
 
 ### Added

@@ -215,7 +215,7 @@ namespace BidscubeSDK.Controllers
                         placementId = "20212"; // default for Banner/Image
                         break;
                     case AdType.Video:
-                        placementId = "19483"; //"20213"; // default for Video
+                        placementId = "20213"; // default for Video
                         break;
                     case AdType.Native:
                         placementId = "20214"; // default for Native

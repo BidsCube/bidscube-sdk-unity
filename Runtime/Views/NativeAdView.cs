@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using System.Text.RegularExpressions;
+using System;
 
 namespace BidscubeSDK
 {
@@ -667,6 +669,19 @@ namespace BidscubeSDK
                             _adData = !string.IsNullOrEmpty(admJson)
                                 ? JsonUtility.FromJson<NativeAdData>(admJson)
                                 : JsonUtility.FromJson<NativeAdData>(json);
+
+                            // Unescape Unicode sequences in text fields
+                            if (_adData != null)
+                            {
+                                if (!string.IsNullOrEmpty(_adData.title))
+                                    _adData.title = UnescapeUnicode(_adData.title);
+                                if (!string.IsNullOrEmpty(_adData.description))
+                                    _adData.description = UnescapeUnicode(_adData.description);
+                                if (!string.IsNullOrEmpty(_adData.installButtonText))
+                                    _adData.installButtonText = UnescapeUnicode(_adData.installButtonText);
+                                if (!string.IsNullOrEmpty(_adData.advertiser))
+                                    _adData.advertiser = UnescapeUnicode(_adData.advertiser);
+                            }
                         }
 
                         if (_adData == null)
@@ -748,6 +763,9 @@ namespace BidscubeSDK
                              .Replace("\\t", "\t")
                              .Replace("\\/", "/");
 
+                    // Unescape Unicode sequences (e.g., \u00E4 -> ä, \u00FC -> ü)
+                    adm = UnescapeUnicode(adm);
+
                     return adm;
                 }
             }
@@ -773,6 +791,9 @@ namespace BidscubeSDK
                              .Replace("\\r", "\r")
                              .Replace("\\t", "\t")
                              .Replace("\\/", "/");
+
+                    // Unescape Unicode sequences
+                    adm = UnescapeUnicode(adm);
 
                     return adm;
                 }
@@ -814,15 +835,15 @@ namespace BidscubeSDK
                     {
                         case 2:
                             if (asset.title != null && !string.IsNullOrEmpty(asset.title.text))
-                                result.title = asset.title.text;
+                                result.title = UnescapeUnicode(asset.title.text);
                             break;
                         case 6:
                             if (asset.data != null && !string.IsNullOrEmpty(asset.data.value))
-                                result.description = asset.data.value;
+                                result.description = UnescapeUnicode(asset.data.value);
                             break;
                         case 1:
                             if (asset.data != null && !string.IsNullOrEmpty(asset.data.value))
-                                result.installButtonText = asset.data.value;
+                                result.installButtonText = UnescapeUnicode(asset.data.value);
                             break;
                         case 4:
                             if (asset.img != null && !string.IsNullOrEmpty(asset.img.url))
@@ -861,18 +882,34 @@ namespace BidscubeSDK
             }
         }
 
+        /// <summary>
+        /// Unescape Unicode escape sequences in JSON strings (e.g., \u00E4 -> ä, \u00FC -> ü)
+        /// </summary>
+        private string UnescapeUnicode(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return text;
+
+            // Unescape Unicode sequences (e.g., \u00E4 -> ä)
+            return Regex.Replace(
+                text,
+                @"\\u([0-9A-Fa-f]{4})",
+                m => ((char)Convert.ToInt32(m.Groups[1].Value, 16)).ToString()
+            );
+        }
+
         private void PopulateAdData()
         {
             if (_adData == null) return;
 
             if (_titleText != null && !string.IsNullOrEmpty(_adData.title))
-                _titleText.text = _adData.title;
+                _titleText.text = _adData.title; // Already unescaped in ParseOpenRtbNative or LoadNativeAdCoroutine
 
             if (_descriptionText != null && !string.IsNullOrEmpty(_adData.description))
-                _descriptionText.text = _adData.description;
+                _descriptionText.text = _adData.description; // Already unescaped
 
             if (_installButtonText != null && !string.IsNullOrEmpty(_adData.installButtonText))
-                _installButtonText.text = _adData.installButtonText;
+                _installButtonText.text = _adData.installButtonText; // Already unescaped
 
             if (!string.IsNullOrEmpty(_adData.iconUrl))
                 StartCoroutine(LoadImage(_adData.iconUrl, _iconImage));

@@ -28,7 +28,7 @@ namespace BidscubeSDK
         /// <summary>
         /// SDK version
         /// </summary>
-        public const string SdkVersion = "0.2.1";
+        public const string SdkVersion = "0.2.2";
 
         /// <summary>
         /// Error codes
@@ -68,7 +68,7 @@ namespace BidscubeSDK
         public const int UnknownError = Constants.ErrorCodes.UnknownError;
     }
 
-    /// <summary>
+    /// <summary>a
     /// Public error messages alias for documentation compatibility
     /// </summary>
     public static class ErrorMessages

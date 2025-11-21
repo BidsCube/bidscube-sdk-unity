@@ -19,7 +19,6 @@ namespace BidscubeSDK
         }
 
         [SerializeField] private RawImage _webView;
-        [SerializeField] private Text _loadingLabel;
         [SerializeField] private Button _clickButton;
         [SerializeField] private Canvas _canvas;
 
@@ -62,20 +61,7 @@ namespace BidscubeSDK
                 image.color = Color.clear; // Transparent background
             }
 
-            SetupLoadingLabel();
             SetupWebView();
-        }
-
-        private void SetupLoadingLabel()
-        {
-            var loadingObj = new GameObject("LoadingLabel");
-            loadingObj.transform.SetParent(transform);
-            _loadingLabel = loadingObj.AddComponent<Text>();
-            _loadingLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            _loadingLabel.fontSize = 12;
-            _loadingLabel.color = Color.white;
-            _loadingLabel.alignment = TextAnchor.MiddleCenter;
-            _loadingLabel.text = "Loading Banner...";
         }
 
         private void SetupWebView()
@@ -87,26 +73,12 @@ namespace BidscubeSDK
                 rectTransform = gameObject.AddComponent<RectTransform>();
             }
 
-            // Instead of only a RawImage, create a child for WebViewController
-            var webViewHost = new GameObject("WebViewHost");
-            webViewHost.transform.SetParent(transform, false);
-            webViewHost.transform.localScale = Vector3.one; // Ensure scale is 1,1,1
-
-            // Ensure RectTransform is available and configured to fill parent
-            var webViewRect = webViewHost.GetComponent<RectTransform>();
-            if (webViewRect == null)
+            // Add WebViewController directly to this GameObject (no WebViewHost wrapper)
+            if (_webViewController == null)
             {
-                webViewRect = webViewHost.AddComponent<RectTransform>();
+                _webViewController = gameObject.AddComponent<WebViewController>();
+                _webViewController.Initialize();
             }
-
-            // Configure RectTransform to fill the parent container
-            webViewRect.anchorMin = Vector2.zero;
-            webViewRect.anchorMax = Vector2.one;
-            webViewRect.offsetMin = Vector2.zero;
-            webViewRect.offsetMax = Vector2.zero;
-
-            _webViewController = webViewHost.AddComponent<WebViewController>();
-            _webViewController.Initialize();
 
             // RawImage is not needed since we already have Image component from SetupBannerView
             // and WebViewController handles the actual rendering
@@ -117,23 +89,13 @@ namespace BidscubeSDK
         {
             // The WebView should fill the entire BannerAdView, which in turn
             // fills the AdViewController's RectTransform.
-            var webViewRect = _webViewController.GetComponent<RectTransform>();
-            var loadingRect = _loadingLabel.GetComponent<RectTransform>();
-
+            var webViewRect = _webViewController?.GetComponent<RectTransform>();
             if (webViewRect != null)
             {
                 webViewRect.anchorMin = Vector2.zero;
                 webViewRect.anchorMax = Vector2.one;
                 webViewRect.offsetMin = Vector2.zero;
                 webViewRect.offsetMax = Vector2.zero;
-            }
-
-            if (loadingRect != null)
-            {
-                loadingRect.anchorMin = new Vector2(0.5f, 0.5f);
-                loadingRect.anchorMax = new Vector2(0.5f, 0.5f);
-                loadingRect.sizeDelta = new Vector2(100, 24);
-                loadingRect.anchoredPosition = Vector2.zero;
             }
         }
 
@@ -154,9 +116,6 @@ namespace BidscubeSDK
         /// <param name="url">Ad URL</param>
         public void LoadAdFromURL(string url)
         {
-            _loadingLabel.gameObject.SetActive(true);
-            _loadingLabel.text = "Loading Banner...";
-
             Logger.Info($" BannerAdView: Making HTTP request to: {url}");
             StartCoroutine(LoadAdCoroutine(url));
         }
@@ -174,7 +133,7 @@ namespace BidscubeSDK
 
                     if (string.IsNullOrWhiteSpace(responseText))
                     {
-                        _loadingLabel.text = "Error: Empty Response";
+                        Logger.InfoError("[BannerAdView] Error: Empty Response");
                         _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.NetworkError, "Empty response from server.");
                         yield break;
                     }
@@ -219,7 +178,7 @@ namespace BidscubeSDK
                 }
                 else
                 {
-                    _loadingLabel.text = $"Error: {request.error}";
+                    Logger.InfoError($"[BannerAdView] Error: {request.error}");
                     _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.NetworkError, request.error);
                 }
             }
@@ -231,7 +190,6 @@ namespace BidscubeSDK
         /// <param name="content">HTML content or JS adm (document.write(...))</param>
         public void LoadAdContent(string content)
         {
-            _loadingLabel.gameObject.SetActive(true);
             ExtractClickURLFromHTML(content);
             ExtractDimensionsFromHTML(content);
 
@@ -337,23 +295,8 @@ namespace BidscubeSDK
             if (_webViewController == null)
             {
                 Logger.Info("[BidscubeSDK] BannerAdView: WebViewController is null, creating on the fly.");
-                var webViewHost = new GameObject("WebViewHost");
-                webViewHost.transform.SetParent(transform, false);
-                webViewHost.transform.localScale = Vector3.one; // Ensure scale is 1,1,1
-
-                // Ensure RectTransform is available
-                var webViewRect = webViewHost.GetComponent<RectTransform>();
-                if (webViewRect == null)
-                {
-                    webViewRect = webViewHost.AddComponent<RectTransform>();
-                }
-                // Setup RectTransform to fill parent
-                webViewRect.anchorMin = Vector2.zero;
-                webViewRect.anchorMax = Vector2.one;
-                webViewRect.offsetMin = Vector2.zero;
-                webViewRect.offsetMax = Vector2.zero;
-
-                _webViewController = webViewHost.AddComponent<WebViewController>();
+                // Add WebViewController directly to this GameObject (no WebViewHost wrapper)
+                _webViewController = gameObject.AddComponent<WebViewController>();
                 _webViewController.Initialize();
             }
 
@@ -366,7 +309,6 @@ namespace BidscubeSDK
             }
 
             _isLoaded = true;
-            _loadingLabel.gameObject.SetActive(false);
 
             // Update size after loading if dimensions were extracted
             UpdateBannerSize();
@@ -570,7 +512,7 @@ namespace BidscubeSDK
         private IEnumerator HideLoadingAfterDelay(float delay)
         {
             yield return new WaitForSeconds(delay);
-            _loadingLabel.gameObject.SetActive(false);
+            // Loading label removed - no UI elements spawned
         }
 
         private IEnumerator FadeOutAndDetach()

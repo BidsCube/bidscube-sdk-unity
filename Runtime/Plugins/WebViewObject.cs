@@ -77,7 +77,7 @@ public class WebViewObject : MonoBehaviour
     bool mMarginRelativeComputed;
 #if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
     public GameObject canvas;
-    Image bg;
+    // Image bg; // Removed - WebViewObjectBG no longer created
     IntPtr webView;
     Rect rect;
     Texture2D texture;
@@ -733,9 +733,7 @@ public class WebViewObject : MonoBehaviour
 #elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN || UNITY_EDITOR_LINUX || UNITY_SERVER
         //TODO: UNSUPPORTED
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
-        if (bg != null) {
-            Destroy(bg.gameObject);
-        }
+        // bg GameObject removed - WebViewObjectBG no longer created
         if (webView == IntPtr.Zero)
             return;
         _CWebViewPlugin_Destroy(webView);
@@ -922,7 +920,7 @@ public class WebViewObject : MonoBehaviour
         int height = (int)(Screen.height - (mb + mt));
         _CWebViewPlugin_SetRect(webView, width, height);
         rect = new Rect(left, bottom, width, height);
-        UpdateBGTransform();
+        // UpdateBGTransform() removed - WebViewObjectBG no longer created
 #elif UNITY_IPHONE
         _CWebViewPlugin_SetMargins(webView, ml, mt, mr, mb, r);
 #elif UNITY_ANDROID
@@ -933,10 +931,7 @@ public class WebViewObject : MonoBehaviour
     public void SetVisibility(bool v)
     {
 #if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
-        if (bg != null)
-        {
-            bg.gameObject.active = v;
-        }
+        // bg GameObject removed - WebViewObjectBG no longer created
 #endif
         if (GetVisibility() && !v)
         {
@@ -1655,17 +1650,7 @@ public class WebViewObject : MonoBehaviour
         }
     }
 
-    void UpdateBGTransform()
-    {
-        if (bg != null) {
-            bg.rectTransform.anchorMin = Vector2.zero;
-            bg.rectTransform.anchorMax = Vector2.zero;
-            bg.rectTransform.pivot = Vector2.zero;
-            bg.rectTransform.position = rect.min;
-            bg.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, rect.size.x);
-            bg.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, rect.size.y);
-        }
-    }
+    // UpdateBGTransform() method removed - WebViewObjectBG no longer created
 
     public int bitmapRefreshCycle = 1;
     public int devicePixelRatio = 1;

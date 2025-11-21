@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace BidscubeSDK
 {
@@ -13,13 +14,16 @@ namespace BidscubeSDK
         [SerializeField] private AdType _adType;
         [SerializeField] private IAdCallback _callback;
         [SerializeField] private GameObject _adView;
-        [SerializeField] private Button _backButton;
-        [SerializeField] private Button _closeButton;
-        [SerializeField] private Text _positionLabel;
         [SerializeField] private AdPosition _currentPosition = AdPosition.Unknown;
         [SerializeField] private bool _hasAdLoaded = false;
         [SerializeField] private bool _isVideoPlaying = false;
         [SerializeField] private BannerAdView _imageAdView;
+        
+        [Header("Custom Overlay Objects")]
+        [Tooltip("GameObject prefabs with RectTransforms that will be instantiated over the ad when it loads. Can be 0 to many objects.")]
+        [SerializeField] private GameObject[] _overlayObjects;
+        
+        private List<GameObject> _instantiatedOverlays = new List<GameObject>();
 
         private Coroutine _loadingTimeoutCoroutine;
         private Coroutine _swipeGestureCoroutine;
@@ -158,27 +162,8 @@ namespace BidscubeSDK
                 }
             }
 
-            // Create background
-            var background = new GameObject("Background");
-            background.transform.SetParent(transform, false);
-            background.transform.localScale = Vector3.one; // Ensure scale is 1,1,1
-            var backgroundImage = background.AddComponent<Image>();
-            backgroundImage.color = Color.black;
-
-            var backgroundRect = background.GetComponent<RectTransform>();
-            backgroundRect.anchorMin = Vector2.zero;
-            backgroundRect.anchorMax = Vector2.one;
-            backgroundRect.offsetMin = Vector2.zero;
-            backgroundRect.offsetMax = Vector2.zero;
-
-            // Create back button
-            CreateBackButton();
-
-            // Create close button
-            CreateCloseButton();
-
-            // Create position label
-            CreatePositionLabel();
+            // Overlay objects will be instantiated when ad loads
+            // No hardcoded UI elements - everything is configurable via inspector
         }
 
         private void LateUpdate()
@@ -289,130 +274,73 @@ namespace BidscubeSDK
             var graphicRaycaster = gameObject.AddComponent<GraphicRaycaster>();
         }
 
-        private void CreateBackButton()
+        /// <summary>
+        /// Instantiate overlay objects from inspector-defined prefabs
+        /// </summary>
+        private void InstantiateOverlayObjects()
         {
-            var backButtonObj = new GameObject("BackButton");
-            backButtonObj.transform.SetParent(transform, false);
-            backButtonObj.transform.localScale = Vector3.one; // Ensure scale is 1,1,1
-
-            // Ensure RectTransform is available
-            var backButtonRect = backButtonObj.GetComponent<RectTransform>();
-            if (backButtonRect == null)
+            // Clear any previously instantiated overlays
+            ClearOverlayObjects();
+            
+            if (_overlayObjects == null || _overlayObjects.Length == 0)
             {
-                backButtonRect = backButtonObj.AddComponent<RectTransform>();
+                Logger.Info("[AdViewController] No overlay objects defined in inspector");
+                return;
             }
-
-            _backButton = backButtonObj.AddComponent<Button>();
-
-            // Position and size back button
-            backButtonRect.anchorMin = new Vector2(0, 1);
-            backButtonRect.anchorMax = new Vector2(0, 1);
-            backButtonRect.pivot = new Vector2(0, 1);
-            backButtonRect.sizeDelta = new Vector2(20, 20);
-            backButtonRect.anchoredPosition = new Vector2(20, -20);
-
-            var backButtonImage = backButtonObj.AddComponent<Image>();
-            backButtonImage.color = new Color(0.2f, 0.2f, 0.2f, 0.8f);
-
-            var backButtonText = new GameObject("Text");
-            backButtonText.transform.SetParent(backButtonObj.transform, false);
-            backButtonText.transform.localScale = Vector3.one; // Ensure scale is 1,1,1
-            var text = backButtonText.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-
-            // Make text 5x bigger for full screen mode
-            if (_currentPosition == AdPosition.FullScreen)
+            
+            foreach (var overlayPrefab in _overlayObjects)
             {
-                text.fontSize = 80;
+                if (overlayPrefab != null)
+                {
+                    var overlayInstance = Instantiate(overlayPrefab, transform, false);
+                    overlayInstance.name = overlayPrefab.name;
+                    overlayInstance.transform.localScale = Vector3.one;
+                    
+                    // Ensure RectTransform exists
+                    var rectTransform = overlayInstance.GetComponent<RectTransform>();
+                    if (rectTransform == null)
+                    {
+                        rectTransform = overlayInstance.AddComponent<RectTransform>();
+                        Logger.Info($"[AdViewController] Added RectTransform to overlay object: {overlayInstance.name}");
+                    }
+                    
+                    _instantiatedOverlays.Add(overlayInstance);
+                    Logger.Info($"[AdViewController] Instantiated overlay object: {overlayInstance.name}");
+                }
             }
-            else
-            {
-                text.fontSize = 80;
-            }
-
-            text.color = Color.white;
-            text.alignment = TextAnchor.MiddleCenter;
-            text.text = "Back";
-
-            var textRect = backButtonText.GetComponent<RectTransform>();
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = Vector2.zero;
-            textRect.offsetMax = Vector2.zero;
-
-            _backButton.onClick.AddListener(OnBackButtonClicked);
+            
+            // Ensure overlay objects render on top of ad content
+            EnsureOverlaysOnTop();
         }
-
-        private void CreateCloseButton()
+        
+        /// <summary>
+        /// Clear all instantiated overlay objects
+        /// </summary>
+        private void ClearOverlayObjects()
         {
-            var closeButtonObj = new GameObject("CloseButton");
-            closeButtonObj.transform.SetParent(transform, false);
-            closeButtonObj.transform.localScale = Vector3.one; // Ensure scale is 1,1,1
-
-            // Ensure RectTransform is available
-            var closeButtonRect = closeButtonObj.GetComponent<RectTransform>();
-            if (closeButtonRect == null)
+            foreach (var overlay in _instantiatedOverlays)
             {
-                closeButtonRect = closeButtonObj.AddComponent<RectTransform>();
+                if (overlay != null)
+                {
+                    Destroy(overlay);
+                }
             }
-
-            _closeButton = closeButtonObj.AddComponent<Button>();
-
-            // Position close button
-            closeButtonRect.anchorMin = new Vector2(1, 1);
-            closeButtonRect.anchorMax = new Vector2(1, 1);
-            closeButtonRect.pivot = new Vector2(1, 1);
-            closeButtonRect.sizeDelta = new Vector2(50, 50);
-            closeButtonRect.anchoredPosition = new Vector2(-20, -20);
-
-            var closeButtonImage = closeButtonObj.AddComponent<Image>();
-            closeButtonImage.color = new Color(0.8f, 0.2f, 0.2f, 0.8f);
-
-            var closeButtonText = new GameObject("Text");
-            closeButtonText.transform.SetParent(closeButtonObj.transform, false);
-            closeButtonText.transform.localScale = Vector3.one; // Ensure scale is 1,1,1
-            var text = closeButtonText.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = 80;
-            text.color = Color.white;
-            text.alignment = TextAnchor.MiddleCenter;
-            text.text = "×";
-
-            var textRect = closeButtonText.GetComponent<RectTransform>();
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = Vector2.zero;
-            textRect.offsetMax = Vector2.zero;
-
-            _closeButton.onClick.AddListener(OnCloseButtonClicked);
-            _closeButton.gameObject.SetActive(false);
+            _instantiatedOverlays.Clear();
         }
-
-        private void CreatePositionLabel()
+        
+        /// <summary>
+        /// Ensure overlay objects render on top of ad content
+        /// </summary>
+        private void EnsureOverlaysOnTop()
         {
-            var positionLabelObj = new GameObject("PositionLabel");
-            positionLabelObj.transform.SetParent(transform, false);
-            positionLabelObj.transform.localScale = Vector3.one; // Ensure scale is 1,1,1
-
-            // Ensure RectTransform is available
-            var positionLabelRect = positionLabelObj.GetComponent<RectTransform>();
-            if (positionLabelRect == null)
+            // Move overlay objects to the end of sibling list so they render on top
+            foreach (var overlay in _instantiatedOverlays)
             {
-                positionLabelRect = positionLabelObj.AddComponent<RectTransform>();
+                if (overlay != null)
+                {
+                    overlay.transform.SetAsLastSibling();
+                }
             }
-
-            _positionLabel = positionLabelObj.AddComponent<Text>();
-            positionLabelRect.anchorMin = new Vector2(0.5f, 1f);
-            positionLabelRect.anchorMax = new Vector2(0.5f, 1f);
-            positionLabelRect.pivot = new Vector2(0.5f, 1f);
-            positionLabelRect.sizeDelta = new Vector2(400, 60);
-            positionLabelRect.anchoredPosition = new Vector2(0, -80);
-
-            _positionLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            _positionLabel.fontSize = 100;
-            _positionLabel.color = Color.white;
-            _positionLabel.alignment = TextAnchor.MiddleLeft;
-            _positionLabel.text = $"Position: {_currentPosition}";
         }
 
         private void LoadAd()
@@ -454,8 +382,7 @@ namespace BidscubeSDK
                 bannerAdView.LoadAdFromURL(url);
             }
 
-            // Ensure buttons/text render above the ad content
-            EnsureButtonsOnTop();
+            // Overlay objects will be instantiated when ad loads
         }
 
         /// <summary>
@@ -552,8 +479,7 @@ namespace BidscubeSDK
             }
             _adView = nativeAdView.gameObject;
 
-            // Ensure buttons/text render above the ad content
-            EnsureButtonsOnTop();
+            // Overlay objects will be instantiated when ad loads
         }
 
         private IEnumerator LoadingTimeout()
@@ -567,57 +493,59 @@ namespace BidscubeSDK
             }
         }
 
-        private void OnBackButtonClicked()
-        {
-            Logger.Info(" AdViewController: Back button clicked");
-            _callback?.OnAdClosed(_placementId);
-            BidscubeSDK.UnregisterAdViewController(this);
-            Destroy(gameObject);
-        }
-
-        private void OnCloseButtonClicked()
-        {
-            Logger.Info(" AdViewController: Close button clicked");
-            _callback?.OnAdClosed(_placementId);
-            BidscubeSDK.UnregisterAdViewController(this);
-            Destroy(gameObject);
-        }
-
         /// <summary>
-        /// Show close button - Identical to iOS showCloseButton
+        /// Show overlay objects - can be used to show/hide custom UI elements
         /// </summary>
-        public void ShowCloseButton()
+        public void ShowOverlayObjects()
         {
-            if (_closeButton != null)
+            foreach (var overlay in _instantiatedOverlays)
             {
-                _closeButton.gameObject.SetActive(true);
+                if (overlay != null)
+                {
+                    overlay.SetActive(true);
+                }
             }
         }
 
         /// <summary>
-        /// Show close button on complete - Identical to iOS showCloseButtonOnComplete
+        /// Hide overlay objects - can be used to show/hide custom UI elements
         /// </summary>
-        public void ShowCloseButtonOnComplete()
+        public void HideOverlayObjects()
         {
-            if (_closeButton != null)
+            foreach (var overlay in _instantiatedOverlays)
             {
-                _closeButton.gameObject.SetActive(true);
+                if (overlay != null)
+                {
+                    overlay.SetActive(false);
+                }
             }
+        }
+        
+        /// <summary>
+        /// Get overlay object by name - useful for accessing custom UI elements
+        /// </summary>
+        public GameObject GetOverlayObject(string name)
+        {
+            foreach (var overlay in _instantiatedOverlays)
+            {
+                if (overlay != null && overlay.name == name)
+                {
+                    return overlay;
+                }
+            }
+            return null;
+        }
+        
+        /// <summary>
+        /// Get all overlay objects
+        /// </summary>
+        public List<GameObject> GetOverlayObjects()
+        {
+            return new List<GameObject>(_instantiatedOverlays);
         }
 
         /// <summary>
-        /// Hide close button - Identical to iOS hideCloseButton
-        /// </summary>
-        public void HideCloseButton()
-        {
-            if (_closeButton != null)
-            {
-                _closeButton.gameObject.SetActive(false);
-            }
-        }
-
-        /// <summary>
-        /// Update position label
+        /// Update position
         /// </summary>
         /// <param name="position">New position</param>
         public void UpdatePosition(AdPosition position)
@@ -632,10 +560,6 @@ namespace BidscubeSDK
             // Always update position even if it's the same, to ensure it's correctly positioned
             // (dimensions might have changed after ad loads)
             _currentPosition = position;
-            if (_positionLabel != null)
-            {
-                _positionLabel.text = $"Position: {position}";
-            }
 
             Logger.Info($"[AdViewController] Updating position to: {position}");
             ApplyPositioning(position);
@@ -807,19 +731,22 @@ namespace BidscubeSDK
                 _loadingTimeoutCoroutine = null;
             }
 
+            // Instantiate overlay objects when ad is loaded
+            InstantiateOverlayObjects();
+
             // Video ads are always full screen
             if (_adType == AdType.Video)
             {
                 Logger.Info("[AdViewController] Video ad detected - forcing full screen position");
                 _currentPosition = AdPosition.FullScreen;
                 ApplyPositioning(AdPosition.FullScreen);
-                EnsureButtonsOnTop();
+                EnsureOverlaysOnTop();
                 RefreshWebViewMargins();
                 return;
             }
 
-            // Ensure buttons/text render above the ad content after ad is loaded
-            EnsureButtonsOnTop();
+            // Ensure overlay objects render above the ad content after ad is loaded
+            EnsureOverlaysOnTop();
 
             // Position priority: Server response first, then manual override (if set)
             // 1. First, check if server provided a position (default behavior)
@@ -864,32 +791,10 @@ namespace BidscubeSDK
             }
         }
 
-        /// <summary>
-        /// Ensure buttons and text are rendered above ad content by moving them to the end of sibling list
-        /// </summary>
-        private void EnsureButtonsOnTop()
+        private void OnDestroy()
         {
-            // In Unity UI, objects that appear later in the hierarchy render on top
-            // Move button GameObjects to the end so they render above ad content
-            if (_backButton != null && _backButton.gameObject != null)
-            {
-                _backButton.transform.SetAsLastSibling();
-            }
-            if (_closeButton != null && _closeButton.gameObject != null)
-            {
-                _closeButton.transform.SetAsLastSibling();
-            }
-            if (_positionLabel != null && _positionLabel.gameObject != null)
-            {
-                _positionLabel.transform.SetAsLastSibling();
-            }
-
-            // Also ensure Background is at the bottom (renders first/behind everything)
-            var background = transform.Find("Background");
-            if (background != null)
-            {
-                background.SetAsFirstSibling();
-            }
+            // Clean up overlay objects when AdViewController is destroyed
+            ClearOverlayObjects();
         }
 
         /// <summary>
