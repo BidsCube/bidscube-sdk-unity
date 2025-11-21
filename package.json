@@ -18,11 +18,5 @@
   "dependencies": {
     "com.unity.ugui": "1.0.0"
   },
-  "samples": [
-    {
-      "displayName": "Basic Integration",
-      "description": "Basic SDK integration example",
-      "path": "Samples~/BasicIntegration"
-    }
-  ]
+  "samples": []
 }
