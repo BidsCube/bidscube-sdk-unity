@@ -1,6 +1,6 @@
 {
   "name": "com.bidscube.sdk",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "displayName": "Bidscube SDK",
   "description": "Bidscube Unity SDK for mobile advertising",
   "unity": "2020.3",

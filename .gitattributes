@@ -1,0 +1,10 @@
+# Unity meta files - track for Assets, ignore for documentation
+*.meta text eol=lf
+
+# Documentation files don't need meta files
+CHANGELOG.md -diff -merge
+README.md -diff -merge
+Integration_GUIDE.md -diff -merge
+LICENSE -diff -merge
+docs/** -diff -merge
+

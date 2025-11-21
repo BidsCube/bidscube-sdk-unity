@@ -23,8 +23,6 @@ MonoBehaviour:
   - m_enabled: 1
     m_path: Assets/BidscubeSDK/Scenes/Bidscube Example Scene.unity
   - m_enabled: 1
-    m_path: Assets/BidscubeSDK/Scenes/SDK Test Scene.unity
-  - m_enabled: 1
     m_path: Assets/BidscubeSDK/Scenes/Consent Test Scene.unity
   - m_enabled: 1
     m_path: Assets/BidscubeSDK/Scenes/Windowed Ad Scene.unity

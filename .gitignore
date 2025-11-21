@@ -82,6 +82,9 @@ Thumbs.db
 *.swp
 *.swo
 *~
+# Allow Unity package folders with ~ suffix
+!Documentation~/
+!Samples~/
 
 # Unity specific
 *.tmp
