@@ -137,3 +137,21 @@ Assets/
 ProjectSettings
 Packages
 *.code-workspace
+
+/Runtime/TextMesh Pro/
+/Runtime/UI Toolkit/
+/Runtime/WebGLTemplates/
+/Runtime/WebPlayerTemplates/
+/Runtime/TestAssemblies/
+/Runtime/TestRunner/
+/Runtime/TestRunner.meta
+/Runtime/TestRunner.asmdef
+/Runtime/TestRunner.asmref
+/Runtime/TestRunner.asmref.meta
+/Runtime/TestRunner.asmref.asmdef
+/Runtime/TestRunner.asmref.asmdef.meta
+
+/Runtime/TextMesh Pro.meta
+/Runtime/UI Toolkit.meta
+/Runtime/WebGLTemplates.meta
+/Runtime/WebPlayerTemplates.meta
