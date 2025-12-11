@@ -96,6 +96,15 @@ namespace BidscubeSDK
     }
 
     /// <summary>
+    /// Optional interface: implement this if you want to override SDK rendering of 'adm' content.
+    /// Return true to indicate you handled rendering and the SDK should skip default rendering.
+    /// </summary>
+    public interface IAdRenderOverride
+    {
+        bool OnAdRenderOverride(string placementId, string adm, AdType adType, int position);
+    }
+
+    /// <summary>
     /// Consent callback interface
     /// </summary>
     public interface IConsentCallback

@@ -1,3 +1,26 @@
+## [1.2.1] - 2025-12-11
+
+### Added
+
+- AdSizeSettings ScriptableObject (Assets/Settings) to configure default ad sizes per AdType via the editor.
+- Optional IAdRenderOverride callback to allow consumers to fully handle rendering (placementId, adm JSON, AdType, position).
+
+### Fixed
+
+- Improved the copy-to-runtime tooling to compute repo root reliably and to support dry-run, flattening, and excluding the Editor folder by default.
+
+## [1.1.0] - 2025-11-25
+
+### Changed
+- Refactored AdViewController 
+- Improved BannerAdView and VideoAdView to support custom UI elements via inspector
+- Updated sample scenes to demonstrate new customization options
+### Fixed
+
+- Various fixes to native ad parsing and banner sizing logic that previously caused oversized or clipped native/banner views on some layouts.
+- Resolved several editor-only compilation warnings and cleaned up sample scene wiring.
+
+
 ## [0.2.2] - 2025-01-21
 
 ### Changed
@@ -37,4 +60,4 @@
 - Basic error handling and logging hooks.
 - Unity Package Manager distribution via Git URL:
   - `https://github.com/BidsCube/bidscube-sdk-unity.git`
-- Integration examples and quick-start guide in `README.md`.
+- Integration examples and quick-start guide in `README.md`

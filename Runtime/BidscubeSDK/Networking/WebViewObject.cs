@@ -1805,7 +1805,7 @@ public class WebViewObject : MonoBehaviour
         buttonRectTransform.anchorMax = Vector2.one;
         buttonRectTransform.offsetMin = Vector2.zero;
         buttonRectTransform.offsetMax = Vector2.zero;
-        
+
         var buttonImage = buttonGO.AddComponent<UnityEngine.UI.Image>();
         buttonImage.color = new Color(0, 0, 0, 0); // Transparent
         _windowsClickButton = buttonGO.AddComponent<UnityEngine.UI.Button>();
@@ -1814,7 +1814,7 @@ public class WebViewObject : MonoBehaviour
 
         // Set initial visibility
         _windowsWebViewContainer.SetActive(visibility);
-        
+
         Debug.Log($"[BidscubeSDK] WebView: Windows WebView container initialized. Parent: {transform.parent?.name}, Container size: {rectTransform.rect.width}x{rectTransform.rect.height}");
 #else
         Debug.LogError("[BidscubeSDK] WebView: Windows fields not available on this platform");
@@ -1847,10 +1847,20 @@ public class WebViewObject : MonoBehaviour
         if (string.IsNullOrEmpty(html))
             return;
 
-        // Extract image URLs from HTML, but ignore 1x1 tracking pixels
-        var imgPattern = new System.Text.RegularExpressions.Regex(@"<img[^>]+src\s*=\s*[""']([^""']+)[""']", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        var matches = imgPattern.Matches(html);
-        
+
+
+        var imgPattern = new System.Text.RegularExpressions.Regex(@"<img[^>]+src\s*=\s*['""]([^'""]+)['""]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var urlFuncPattern = new System.Text.RegularExpressions.Regex(@"url\(['""]?([^'""\)]+)['""]?\)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var bgPattern = new System.Text.RegularExpressions.Regex(@"background-image\s*:\s*url\(['""]?([^'""\)]+)['""]?\)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        // Normalize HTML for consistent regex matching
+        var normalizedHtml = System.Text.RegularExpressions.Regex.Unescape(html ?? string.Empty);
+        normalizedHtml = normalizedHtml.Replace("\\/", "/");
+
+        // Find matches in the normalized HTML
+        var matches = imgPattern.Matches(normalizedHtml);
+        var bgMatches = bgPattern.Matches(normalizedHtml);
+        var urlFuncMatches = urlFuncPattern.Matches(normalizedHtml);
+
         string imageUrl = null;
         
         // Find the first non-tracking-pixel image (ignore 1x1 images)
@@ -1880,10 +1890,40 @@ public class WebViewObject : MonoBehaviour
             }
         }
         
-        // If no non-tracking image found, use the first image
-        if (string.IsNullOrEmpty(imageUrl) && matches.Count > 0)
+        // If no non-tracking image found, prefer background-image entries, then generic url() pattern, then <img>
+        if (string.IsNullOrEmpty(imageUrl))
         {
-            imageUrl = matches[0].Groups[1].Value;
+            if (bgMatches != null && bgMatches.Count > 0)
+            {
+                imageUrl = bgMatches[0].Groups[1].Value;
+                Debug.Log($"[BidscubeSDK] WebView: Using background-image URL extracted from CSS: {imageUrl}");
+            }
+            else if (urlFuncMatches != null && urlFuncMatches.Count > 0)
+            {
+                imageUrl = urlFuncMatches[0].Groups[1].Value;
+                Debug.Log($"[BidscubeSDK] WebView: Using url(...) pattern match for image: {imageUrl}");
+            }
+            else if (matches != null && matches.Count > 0)
+            {
+                imageUrl = matches[0].Groups[1].Value;
+                Debug.Log($"[BidscubeSDK] WebView: Using <img> src match for image: {imageUrl}");
+            }
+            else
+            {
+                Debug.LogWarning($"[BidscubeSDK] WebView: No image matches found. imgMatches={matches?.Count ?? 0}, bgMatches={bgMatches?.Count ?? 0}, urlFuncMatches={urlFuncMatches?.Count ?? 0}");
+            }
+        }
+
+        // Fallback: If no image found by regex, try to extract any URL with common image extensions
+        if (string.IsNullOrEmpty(imageUrl))
+        {
+            var extPattern = new System.Text.RegularExpressions.Regex("https?://[^\\s\'\"]+\\.(?:png|jpg|jpeg|gif|webp)(?:\\?[^\\s\'\"]*)?", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var extMatch = extPattern.Match(normalizedHtml);
+            if (extMatch.Success)
+            {
+                imageUrl = extMatch.Value;
+                Debug.Log($"[BidscubeSDK] WebView: Fallback image URL extracted by extension regex: {imageUrl}");
+            }
         }
         
         if (!string.IsNullOrEmpty(imageUrl))
@@ -1893,7 +1933,7 @@ public class WebViewObject : MonoBehaviour
             
             // Try to extract from click handler script
             var clickScriptPattern = new System.Text.RegularExpressions.Regex(@"https?://[^\s""']+", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            var scriptMatches = clickScriptPattern.Matches(html);
+            var scriptMatches = clickScriptPattern.Matches(normalizedHtml);
             foreach (System.Text.RegularExpressions.Match match in scriptMatches)
             {
                 string url = match.Value;
@@ -1908,8 +1948,8 @@ public class WebViewObject : MonoBehaviour
             // If no click URL from script, try anchor tag
             if (string.IsNullOrEmpty(_windowsCurrentURL))
             {
-                var linkPattern = new System.Text.RegularExpressions.Regex(@"<a[^>]+href\s*=\s*[""']([^""']+)[""']", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                var linkMatch = linkPattern.Match(html);
+                var linkPattern = new System.Text.RegularExpressions.Regex("<a[^>]+href\\s*=\\s*[\"']([^\"']+)[\"']", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                var linkMatch = linkPattern.Match(normalizedHtml);
                 if (linkMatch.Success)
                 {
                     _windowsCurrentURL = linkMatch.Groups[1].Value;
@@ -1939,20 +1979,20 @@ public class WebViewObject : MonoBehaviour
             _windowsLoadCoroutine = LoadImageWindows(imageUrl);
             StartCoroutine(_windowsLoadCoroutine);
 
-            // Trigger loaded callback
-            if (onLoaded != null)
-            {
-                onLoaded(imageUrl);
-            }
-        }
-        else
-        {
-            Debug.LogWarning("[BidscubeSDK] WebView: No images found in HTML content for Windows fallback");
-            if (onError != null)
-            {
-                onError("No images found in HTML content");
-            }
-        }
+             // Trigger loaded callback
+             if (onLoaded != null)
+             {
+                 onLoaded(imageUrl);
+             }
+         }
+         else
+         {
+             Debug.LogWarning("[BidscubeSDK] WebView: No images found in HTML content for Windows fallback");
+             if (onError != null)
+             {
+                 onError("No images found in HTML content");
+             }
+         }
 #else
         Debug.LogError("[BidscubeSDK] WebView: LoadHTMLWindows called but Windows fields not available");
 #endif

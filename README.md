@@ -285,6 +285,111 @@ public void OnAdFailed(string placementId, int errorCode, string errorMessage)
 }
 ```
 
+
+## Optional callback: IAdRenderOverride (new)
+
+The SDK supports an optional callback interface that lets your app fully override SDK rendering for a specific ad response. If your callback implements `IAdRenderOverride` and you pass that callback object when requesting an ad (for example, via `BidscubeSDK.ShowNativeAd(placementId, callback)` or `GetBannerAdView(placementId, position, callback)`), the SDK will call the override before it attempts its own rendering.
+
+Interface signature
+
+```csharp
+public interface IAdRenderOverride
+{
+    /// <summary>
+    /// Called by the SDK before default rendering. Return true if you handled rendering
+    /// (SDK will skip default rendering). Return false to let the SDK render normally.
+    /// </summary>
+    /// <param name="placementId">Placement id provided to SDK</param>
+    /// <param name="adm">Raw adm payload (may be OpenRTB JSON, HTML fragment, or full HTML document)</param>
+    /// <param name="adType">Ad type (Image, Native, Video)</param>
+    /// <param name="position">Numeric ad position (AdPosition enum value)</param>
+    /// <returns>true if override handled rendering and SDK should not render; false to let SDK render</returns>
+    bool OnAdRenderOverride(string placementId, string adm, AdType adType, int position);
+}
+```
+
+When it's called
+
+- The SDK will call this method when it detects that a callback passed to the ad request implements `IAdRenderOverride`.
+- The `adm` argument contains the raw ad markup or JSON from the server. It may be:
+    - A full HTML document (starts with `<!DOCTYPE` or `<html>`), or
+    - An HTML fragment (starts with `<`), or
+    - A JSON-ad payload (OpenRTB native JSON, or a custom JSON structure).
+- For HTML payloads you can load them directly into your own webview instance. For JSON you can parse and render with Unity UI.
+
+Return semantics
+
+- Return `true` to indicate you handled rendering: the SDK will stop and will NOT perform its built-in rendering for that ad (no webview or default UI will be created).
+- Return `false` to indicate you did not handle rendering: the SDK will continue with its default rendering flow.
+
+Example usage (simple HTML handler)
+
+```csharp
+public class CustomAdRenderController : MonoBehaviour, IAdCallback, IAdRenderOverride
+{
+    public NewWebViewController webViewPrefab; // reuse existing controller in project
+
+    public bool OnAdRenderOverride(string placementId, string adm, AdType adType, int position)
+    {
+        if (string.IsNullOrEmpty(adm)) return false;
+
+        var trimmed = adm.TrimStart();
+        if (trimmed.StartsWith("<"))
+        {
+            var go = new GameObject($"AdWebHost_{placementId}");
+            var ctrl = go.AddComponent<NewWebViewController>();
+            ctrl.HTMLad = adm; // use existing API
+            ctrl.SetVisibility(true);
+            return true;
+        }
+        return false;
+    }
+
+    // implement IAdCallback as needed
+}
+```
+
+How to wire it
+
+- When you request an ad, pass your controller object as the `IAdCallback`/override callback parameter. If it implements `IAdRenderOverride`, the SDK will call it automatically.
+
+```csharp
+var controller = FindObjectOfType<CustomAdRenderController>();
+BidscubeSDK.BidscubeSDK.ShowNativeAd("placementId", controller);
+```
+
+---
+
+## `AdSizeSettings` (editor ScriptableObject)
+
+You can define project-wide default sizes for banners, native, and video ads using the `AdSizeSettings` ScriptableObject. This is useful to enforce consistent sizes across your UI and the SDK.
+
+- Create an asset: `Assets -> Create -> BidscubeSDK -> Ad Size Settings`.
+- Default fields (recommended defaults in this SDK version):
+    - `defaultBannerSize`: Vector2 — default 1080x150 (Header/Footer banners typically use screen width, height used is 150px)
+    - `defaultNativeSize`: Vector2 — default 1080x400
+    - `defaultVideoSize`: Vector2 — default Vector2.zero (0,0) means full-screen
+
+Apply AdSizeSettings
+
+- Assign the `AdSizeSettings` object to an `AdViewController`/`NativeAdView` via inspector (if you have an exposed field). Or call `ApplyAdSizeSettings()` at runtime on the `NativeAdView` instance:
+
+```csharp
+// example: find the NativeAdView component and apply settings loaded from resources
+var settings = Resources.Load<BidscubeSDK.AdSizeSettings>("AdSizeSettings");
+var nativeView = FindObjectOfType<BidscubeSDK.NativeAdView>();
+if (settings != null && nativeView != null)
+{
+    nativeView.ApplyAdSizeSettings(settings);
+}
+```
+
+Notes
+
+- If you apply `AdSizeSettings`, the view will prefer those values over sizes reported by the adm/response (unless the SDK code is configured to allow server override). You can toggle this behavior in the view by calling the view's API (see `NativeAdView.ApplyAdSizeSettings`).
+- Header/Footer banners are commonly clamped to a smaller height (e.g., 50px) depending on `AdPosition`. The SDK will clamp heights for Header/Footer to a sane maximum when appropriate.
+
+
 ## Dependencies
 
 The SDK requires the following Unity packages (automatically installed when using Unity Package Manager):

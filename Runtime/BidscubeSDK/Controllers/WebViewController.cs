@@ -272,7 +272,7 @@ namespace BidscubeSDK
                     else
                     {
                         // Direct assignment on macOS where field is definitely available
-                        _webViewObject.canvas = canvas.gameObject;
+                    _webViewObject.canvas = canvas.gameObject;
                     }
 #endif
                 }
@@ -314,7 +314,7 @@ namespace BidscubeSDK
                 else
                 {
                     // Direct assignment on macOS where field is definitely available
-                    _webViewObject.bitmapRefreshCycle = 1;
+                _webViewObject.bitmapRefreshCycle = 1;
                 }
 #endif
                 
@@ -326,7 +326,7 @@ namespace BidscubeSDK
                 else
                 {
                     // Direct assignment on macOS where field is definitely available
-                    _webViewObject.devicePixelRatio = 1;
+                _webViewObject.devicePixelRatio = 1;
                 }
 #endif
 
@@ -360,7 +360,7 @@ namespace BidscubeSDK
             }
             else
             {
-                _onMessage?.Invoke(message);
+            _onMessage?.Invoke(message);
             }
         }
         
@@ -460,7 +460,7 @@ namespace BidscubeSDK
 
             _onHtmlLoaded?.Invoke(url);
         }
-        
+
         /// <summary>
         /// Inject JavaScript to intercept link clicks and open in external browser
         /// </summary>

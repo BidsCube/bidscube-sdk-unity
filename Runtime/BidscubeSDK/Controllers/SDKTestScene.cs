@@ -17,6 +17,8 @@ namespace BidscubeSDK.Controllers
         [SerializeField] private bool _enableDebugMode = true;
         [SerializeField] private bool _enableLogging = true;
         [SerializeField] private float _bannerCornerRadius = 6.0f;
+        [Tooltip("Optional: Ad size settings asset to control default ad sizes")]
+        [SerializeField] private AdSizeSettings _adSizeSettings = null;
 
         [Header("UI References")]
         [SerializeField] private TextMeshProUGUI _sdkStatusText;
@@ -128,6 +130,7 @@ namespace BidscubeSDK.Controllers
                 .BaseURL(_baseURL)
                 .DefaultAdTimeout(30000)
                 .DefaultAdPosition(AdPosition.Unknown)
+                .AdSizeSettings(_adSizeSettings)
                 .Build();
 
             BidscubeSDK.Initialize(config);
@@ -578,128 +581,128 @@ namespace BidscubeSDK.Controllers
 
             // Wrap content in proper HTML structure with responsive full-screen support
             return $@"<!DOCTYPE html>
-<html lang='en'>
-<head>
-    <meta charset='UTF-8'>
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <title>Ad Content</title>
-    <style>
-        * {{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }}
-        
-        body {{
-            width: 100vw;
-            height: 100vh;
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            background-color: transparent;
-            overflow: hidden;
-        }}
-        
-        .ad-container {{
-            width: 100vw;
-            height: 100vh;
-            position: absolute;
-            top: 0;
-            left: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }}
-        
-        .ad-content {{
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }}
-        
-        /* Force all content to be full screen */
-        .ad-content > div {{
-            width: 100vw !important;
-            height: 100vh !important;
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }}
-        
-        /* Force images to be full screen */
-        img {{
-            width: 100vw !important;
-            height: 100vh !important;
-            object-fit: cover;
-            display: block;
-        }}
-        
-        /* Force links to be full screen */
-        a {{
-            width: 100vw !important;
-            height: 100vh !important;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            text-decoration: none;
-            color: inherit;
-        }}
-        
-        /* Override any fixed dimensions */
-        div[style*='width:300px'], div[style*='width: 300px'] {{
-            width: 100vw !important;
-            height: 100vh !important;
-        }}
-        
-        div[style*='height:250px'], div[style*='height: 250px'] {{
-            width: 100vw !important;
-            height: 100vh !important;
-        }}
-        
-        /* Ensure divs are properly displayed and full screen */
-        div {{
-            box-sizing: border-box;
-        }}
-        
-        /* Full screen specific styles - ALWAYS APPLIED FOR NOW */
-        {(isFullScreen ? @"
-        .ad-container {
-            width: 100vw;
-            height: 100vh;
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-        
-        .ad-content {
-            width: 100vw;
-            height: 100vh;
-        }
-        
-        .ad-content > div {
-            width: 100vw !important;
-            height: 100vh !important;
-        }
-        
-        img {
-            width: 100vw !important;
-            height: 100vh !important;
-            object-fit: cover;
-        }
-        " : "")}
-    </style>
-</head>
-<body>
-    <div class='ad-container'>
-        <div class='ad-content'>
-            {admContent}
-        </div>
-    </div>
-</body>
-</html>";
+        <html lang='en'>
+        <head>
+            <meta charset='UTF-8'>
+            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+            <title>Ad Content</title>
+            <style>
+                * {{
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }}
+
+                body {{
+                    width: 100vw;
+                    height: 100vh;
+                    margin: 0;
+                    padding: 0;
+                    font-family: Arial, sans-serif;
+                    background-color: transparent;
+                    overflow: hidden;
+                }}
+
+                .ad-container {{
+                    width: 100vw;
+                    height: 100vh;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                }}
+
+                .ad-content {{
+                    width: 100vw;
+                    height: 100vh;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                }}
+
+                /* Force all content to be full screen */
+                .ad-content > div {{
+                    width: 100vw !important;
+                    height: 100vh !important;
+                    position: relative;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                }}
+
+                /* Force images to be full screen */
+                img {{
+                    width: 100vw !important;
+                    height: 100vh !important;
+                    object-fit: cover;
+                    display: block;
+                }}
+
+                /* Force links to be full screen */
+                a {{
+                    width: 100vw !important;
+                    height: 100vh !important;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    text-decoration: none;
+                    color: inherit;
+                }}
+
+                /* Override any fixed dimensions */
+                div[style*='width:300px'], div[style*='width: 300px'] {{
+                    width: 100vw !important;
+                    height: 100vh !important;
+                }}
+
+                div[style*='height:150px'], div[style*='height: 150px'] {{
+                    width: 100vw !important;
+                    height: 100vh !important;
+                }}
+
+                /* Ensure divs are properly displayed and full screen */
+                div {{
+                    box-sizing: border-box;
+                }}
+
+                /* Full screen specific styles - ALWAYS APPLIED FOR NOW */
+                {(isFullScreen ? @"
+                .ad-container {
+                    width: 100vw;
+                    height: 100vh;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                }
+
+                .ad-content {
+                    width: 100vw;
+                    height: 100vh;
+                }
+
+                .ad-content > div {
+                    width: 100vw !important;
+                    height: 100vh !important;
+                }
+
+                img {
+                    width: 100vw !important;
+                    height: 100vh !important;
+                    object-fit: cover;
+                }
+                " : "")}
+            </style>
+        </head>
+        <body>
+            <div class='ad-container'>
+                <div class='ad-content'>
+                    {admContent}
+                </div>
+            </div>
+        </body>
+        </html>";
         }
 
         /// <summary>
@@ -848,6 +851,14 @@ namespace BidscubeSDK.Controllers
         public void OnInstallButtonClicked(string placementId, string buttonText)
         {
             LogMessage($"Install button clicked: {placementId} - {buttonText}");
+        }
+
+        // Added missing OnAdRenderOverride (IAdCallback)
+        public bool OnAdRenderOverride(string adm, int position)
+        {
+            int admLen = adm != null ? adm.Length : 0;
+            LogMessage($"OnAdRenderOverride called: position={position}, admLength={admLen}");
+            return false; // Let SDK render by default
         }
     }
 }

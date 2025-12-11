@@ -11,7 +11,8 @@ namespace BidscubeSDK.Controllers
         Main,
         SDKTest,
         ConsentTest,
-        WindowedAd
+        WindowedAd,
+        CustomAdRender
     }
 
     /// <summary>
@@ -56,7 +57,7 @@ namespace BidscubeSDK.Controllers
         [SerializeField] private SceneReference sdkTestScene;
         [SerializeField] private SceneReference consentTestScene;
         [SerializeField] private SceneReference windowedAdScene;
-
+        [SerializeField] private SceneReference customAdRenderScene;
         /// <summary>
         /// Load the main Bidscube Example Scene
         /// </summary>
@@ -87,6 +88,14 @@ namespace BidscubeSDK.Controllers
         public void LoadWindowedAdScene()
         {
             LoadScene(windowedAdScene);
+        }
+
+        /// <summary>
+        /// Load the Custom Ad Render Test Scene
+        /// </summary>
+        public void CustomAdRenderScene()
+        {
+            LoadScene(customAdRenderScene);
         }
 
         private void LoadScene(SceneReference sceneRef)
@@ -145,6 +154,8 @@ namespace BidscubeSDK.Controllers
                     return consentTestScene;
                 case SceneType.WindowedAd:
                     return windowedAdScene;
+                case SceneType.CustomAdRender:
+                    return customAdRenderScene;
                 default:
                     return null;
             }

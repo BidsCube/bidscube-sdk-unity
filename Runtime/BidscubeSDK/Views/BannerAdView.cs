@@ -34,6 +34,25 @@ namespace BidscubeSDK
         private float _cornerRadius = 0f;
         private float _bannerHeight = 40f;
         private float _bannerWidth = 320f;
+        // If true, do not accept dimensions extracted from ADM/HTML; configured size applied.
+        private bool _useConfiguredSize = false;
+
+        /// <summary>
+        /// Apply AdSizeSettings defaults to this banner view. This enforces configured sizes
+        /// instead of server-provided sizes when the SDK desires centralized sizing.
+        /// </summary>
+        public void ApplyAdSizeSettings(AdSizeSettings settings)
+        {
+            if (settings == null) return;
+            var cfg = settings.GetDefaultSize(AdType.Image);
+            if (cfg.x > 0f) _bannerWidth = cfg.x;
+            if (cfg.y > 0f) _bannerHeight = cfg.y;
+            _useConfiguredSize = true;
+            Logger.Info($"[BannerAdView] Applied AdSizeSettings: {_bannerWidth}x{_bannerHeight}");
+            // Notify parent controller (if any) that dimensions changed
+            NotifyDimensionsUpdated();
+        }
+
         private string _clickURL;
         private WebViewObject _webViewObject;
 
@@ -78,20 +97,12 @@ namespace BidscubeSDK
                 rectTransform = gameObject.AddComponent<RectTransform>();
             }
 
-            // Add WebViewController directly to this GameObject (no WebViewHost wrapper)
-            if (_webViewController == null)
-            {
-                _webViewController = gameObject.AddComponent<WebViewController>();
-                // Initialize with callbacks - handle clicks via message callback
-                _webViewController.Initialize(
-                    onHtmlLoaded: null,
-                    onError: null,
-                    onMessage: OnWebViewMessage
-                );
-            }
+            // NOTE: Do not create WebViewController here anymore. Creation is deferred until
+            // the SDK decides to render the ad (after calling IAdRenderOverride). This avoids
+            // initializing platform WebView components when the app provides a custom renderer.
 
             // RawImage is not needed since we already have Image component from SetupBannerView
-            // and WebViewController handles the actual rendering
+            // and WebViewController handles the actual rendering when created lazily.
             // _webView is kept as null - it's not used for WebView rendering anymore
         }
 
@@ -160,6 +171,24 @@ namespace BidscubeSDK
                                 Logger.Info("[BidscubeSDK] BannerAdView: Parsed JSON response. Processing 'adm' field.");
                                 Logger.Info($"[BidscubeSDK] BannerAdView: Raw JSON position value: {json.position}");
 
+                                // If an app implemented IAdRenderOverride, give it the raw adm (as received from JSON) first
+                                string rawAdm = json.adm;
+                                int respPosRaw = json.position != 0 ? json.position : (int)BidscubeSDK.GetResponseAdPosition();
+                                if (!string.IsNullOrEmpty(rawAdm) && _callback is IAdRenderOverride adRenderOverride)
+                                {
+                                    Logger.Info("[BidscubeSDK] BannerAdView: IAdRenderOverride detected, invoking override with raw adm.");
+                                    if (adRenderOverride.OnAdRenderOverride(_placementId, rawAdm, AdType.Image, respPosRaw))
+                                    {
+                                        Logger.Info("[BidscubeSDK] BannerAdView: Render override handled by caller, skipping SDK rendering.");
+                                        yield break; // Caller handled rendering
+                                    }
+                                    else
+                                    {
+                                        Logger.Info("[BidscubeSDK] BannerAdView: Render override returned false, proceeding with default rendering.");
+                                    }
+                                }
+
+                                // Continue with existing processing using json.adm
                                 // Check if position is set (0 is Unknown, so any non-zero value is valid)
                                 // Unity JsonUtility will set it to 0 if not present in JSON
                                 if (json.position != 0)
@@ -297,7 +326,6 @@ namespace BidscubeSDK
             max-height: 100%;
             box-sizing: border-box;
         }}
-        /* Ensure content fits within container, not viewport */
         * {{
             box-sizing: border-box;
         }}
@@ -310,6 +338,25 @@ namespace BidscubeSDK
 
             Logger.Info($"[BidscubeSDK] BannerAdView: Final HTML to load: {fullHTML}");
 
+            // Before loading HTML, check if callback implements IAdRenderOverride
+            if (_callback is IAdRenderOverride adRenderOverride)
+            {
+                Logger.Info("[BidscubeSDK] BannerAdView: IAdRenderOverride detected, calling to check render override.");
+                int respPos = (int)BidscubeSDK.GetResponseAdPosition();
+                string admForCallback = bodyHtml; // pass the processed HTML/ad content
+                // Call the override method, if it returns true, skip the default rendering
+                if (adRenderOverride.OnAdRenderOverride(_placementId, admForCallback, AdType.Image, respPos))
+                {
+                    Logger.Info("[BidscubeSDK] BannerAdView: Render override successful, skipping default rendering.");
+                    return; // Skip SDK default rendering
+                }
+                else
+                {
+                    Logger.Info("[BidscubeSDK] BannerAdView: Render override returned false, proceeding with default rendering.");
+                }
+            }
+
+            // At this point we will perform SDK default rendering, create WebViewController lazily
             if (_webViewController == null)
             {
                 Logger.Info("[BidscubeSDK] BannerAdView: WebViewController is null, creating on the fly.");
@@ -402,13 +449,16 @@ namespace BidscubeSDK
             // Try div style first (most reliable)
             var divStyleWidthMatch = divStyleWidthPattern.Match(htmlContent);
             var divStyleHeightMatch = divStyleHeightPattern.Match(htmlContent);
-            if (divStyleWidthMatch.Success && float.TryParse(divStyleWidthMatch.Groups[1].Value, out extractedWidth))
+            if (!_useConfiguredSize)
             {
-                _bannerWidth = extractedWidth;
-            }
-            if (divStyleHeightMatch.Success && float.TryParse(divStyleHeightMatch.Groups[1].Value, out extractedHeight))
-            {
-                _bannerHeight = extractedHeight;
+                if (divStyleWidthMatch.Success && float.TryParse(divStyleWidthMatch.Groups[1].Value, out extractedWidth))
+                {
+                    _bannerWidth = extractedWidth;
+                }
+                if (divStyleHeightMatch.Success && float.TryParse(divStyleHeightMatch.Groups[1].Value, out extractedHeight))
+                {
+                    _bannerHeight = extractedHeight;
+                }
             }
 
             // If div style didn't work, try general style attributes
@@ -458,18 +508,6 @@ namespace BidscubeSDK
                     _bannerHeight = imgHeight;
                     extractedHeight = imgHeight;
                 }
-            }
-
-            // If still no dimensions found, use defaults
-            if (_bannerWidth <= 0f || _bannerHeight <= 0f)
-            {
-                _bannerWidth = 320f;
-                _bannerHeight = 250f;
-                Logger.Info($"[BidscubeSDK] BannerAdView: Could not extract dimensions from HTML, using defaults: {_bannerWidth}x{_bannerHeight}");
-            }
-            else
-            {
-                Logger.Info($"[BidscubeSDK] BannerAdView: Extracted dimensions from HTML: {_bannerWidth}x{_bannerHeight}");
             }
             
             // Always notify parent if dimensions were set (even if defaults)

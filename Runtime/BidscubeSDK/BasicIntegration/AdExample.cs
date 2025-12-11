@@ -192,6 +192,14 @@ namespace BidscubeSDK.Samples
             UpdateStatus($"Install button clicked: {placementId}, Text: {buttonText}");
         }
 
+        // Added missing OnAdRenderOverride (IAdCallback)
+        public bool OnAdRenderOverride(string adm, int position)
+        {
+            int admLen = adm != null ? adm.Length : 0;
+            UpdateStatus($"OnAdRenderOverride called: position={position}, admLength={admLen}");
+            return false; // Let SDK render by default
+        }
+
         #endregion
 
         #region IConsentCallback Implementation
