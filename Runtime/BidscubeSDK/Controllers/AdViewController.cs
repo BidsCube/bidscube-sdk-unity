@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace BidscubeSDK
 {
     /// <summary>
-    /// Ad view controller - Identical to iOS AdViewController
+    /// Ad view controller - Handles the ad view and its positioning
     /// </summary>
     public class AdViewController : MonoBehaviour
     {
@@ -18,7 +18,19 @@ namespace BidscubeSDK
         [SerializeField] private bool _hasAdLoaded = false;
         [SerializeField] private bool _isVideoPlaying = false;
         [SerializeField] private BannerAdView _imageAdView;
-        
+        [Header("Ad Size Settings")]
+        [Tooltip("Optional: ScriptableObject with default ad sizes per AdType. If null, hardcoded defaults are used.")]
+        [SerializeField] private AdSizeSettings _adSizeSettings = null;
+
+        /// <summary>
+        /// Allow runtime injection of AdSizeSettings (used by BidscubeSDK when creating controllers)
+        /// </summary>
+        public void SetAdSizeSettings(AdSizeSettings settings)
+        {
+            _adSizeSettings = settings;
+            Logger.Info("[AdViewController] AdSizeSettings applied at runtime");
+        }
+
         [Header("Custom Overlay Objects")]
         [Tooltip("GameObject prefabs with RectTransforms that will be instantiated over the ad when it loads. Can be 0 to many objects.")]
         [SerializeField] private GameObject[] _overlayObjects;
@@ -360,6 +372,11 @@ namespace BidscubeSDK
             // AdViewController will now handle its own positioning.
             // The BannerAdView will just fill the AdViewController's rect.
             var bannerAdView = gameObject.AddComponent<BannerAdView>();
+            // Apply configured ad size settings if present before loading content
+            if (_adSizeSettings != null)
+            {
+                bannerAdView.ApplyAdSizeSettings(_adSizeSettings);
+            }
             bannerAdView.SetPlacementInfo(_placementId, _callback);
 
             // Assign to both _adView and _imageAdView
@@ -460,6 +477,11 @@ namespace BidscubeSDK
             // AdViewController will handle positioning.
             // The NativeAdView will fill the AdViewController's rect.
             var nativeAdView = gameObject.AddComponent<NativeAdView>();
+            // Apply configured ad size settings when available
+            if (_adSizeSettings != null)
+            {
+                nativeAdView.ApplyAdSizeSettings(_adSizeSettings);
+            }
             nativeAdView.SetPlacementInfo(_placementId, _callback);
 
             var url = BidscubeSDK.BuildRequestURL(_placementId, AdType.Native, _currentPosition);
@@ -558,6 +580,18 @@ namespace BidscubeSDK
             RefreshWebViewMargins();
         }
 
+        /// <summary>
+        /// Called by ad views (e.g., NativeAdView) to inform controller that ad content size changed.
+        /// Triggers re-layout and WebView margin refresh.
+        /// </summary>
+        public void SetAdSize(float width, float height)
+        {
+            Logger.Info($"[AdViewController] SetAdSize called: {width}x{height}");
+            // Re-apply current positioning so the controller recalculates bounds using new child sizes
+            ApplyPositioning(_currentPosition);
+            RefreshWebViewMargins();
+        }
+
         private void ApplyPositioning(AdPosition position)
         {
             var rectTransform = GetComponent<RectTransform>();
@@ -571,45 +605,57 @@ namespace BidscubeSDK
             }
 
             // Get actual banner dimensions from the ad view
-            float bannerHeight = 40f;
-            float bannerWidth = 320f;
+            // Default sizes come from AdSizeSettings when available (clean architecture - configurable defaults)
+            Vector2 defaultSize = _adSizeSettings != null ? _adSizeSettings.GetDefaultSize(_adType) : Vector2.zero;
+            float bannerHeight = defaultSize.y > 0 ? defaultSize.y : 40f;
+            float bannerWidth = defaultSize.x > 0 ? defaultSize.x : 320f;
 
-            // Try to get dimensions from BannerAdView (check both _imageAdView and GetComponent)
-            if (_imageAdView != null)
+            // If AdSizeSettings is provided, always use it (ignore any ad/ADM-provided dimensions)
+            if (_adSizeSettings != null)
             {
-                var dimensions = _imageAdView.GetBannerDimensions();
-                if (dimensions.x > 0f && dimensions.y > 0f)
-                {
-                    bannerWidth = dimensions.x;
-                    bannerHeight = dimensions.y;
-                    Logger.Info($"[AdViewController] Using actual banner dimensions from _imageAdView: {bannerWidth}x{bannerHeight}");
-                }
+                var cfg = _adSizeSettings.GetDefaultSize(_adType);
+                if (cfg.x > 0f) bannerWidth = cfg.x;
+                if (cfg.y > 0f) bannerHeight = cfg.y;
+                Logger.Info($"[AdViewController] Using AdSizeSettings for sizing: {bannerWidth}x{bannerHeight}");
             }
             else
             {
-                var bannerAdView = GetComponent<BannerAdView>();
-                if (bannerAdView != null)
+                // No AdSizeSettings provided - try to read sizes from ad views (ADM) as before
+                if (_imageAdView != null)
                 {
-                    var dimensions = bannerAdView.GetBannerDimensions();
+                    var dimensions = _imageAdView.GetBannerDimensions();
                     if (dimensions.x > 0f && dimensions.y > 0f)
                     {
                         bannerWidth = dimensions.x;
                         bannerHeight = dimensions.y;
-                        Logger.Info($"[AdViewController] Using actual banner dimensions: {bannerWidth}x{bannerHeight}");
+                        Logger.Info($"[AdViewController] Using actual banner dimensions from _imageAdView: {bannerWidth}x{bannerHeight}");
                     }
                 }
-            }
-
-            // Try to get dimensions from NativeAdView
-            var nativeAdView = GetComponent<NativeAdView>();
-            if (nativeAdView != null)
-            {
-                var dimensions = nativeAdView.GetNativeAdDimensions();
-                if (dimensions.x > 0f && dimensions.y > 0f)
+                else
                 {
-                    bannerWidth = dimensions.x;
-                    bannerHeight = dimensions.y;
-                    Logger.Info($"[AdViewController] Using actual native ad dimensions: {bannerWidth}x{bannerHeight}");
+                    var bannerAdView = GetComponent<BannerAdView>();
+                    if (bannerAdView != null)
+                    {
+                        var dimensions = bannerAdView.GetBannerDimensions();
+                        if (dimensions.x > 0f && dimensions.y > 0f)
+                        {
+                            bannerWidth = dimensions.x;
+                            bannerHeight = dimensions.y;
+                            Logger.Info($"[AdViewController] Using actual banner dimensions: {bannerWidth}x{bannerHeight}");
+                        }
+                    }
+                }
+
+                var nativeAdView = GetComponent<NativeAdView>();
+                if (nativeAdView != null)
+                {
+                    var dimensions = nativeAdView.GetNativeAdDimensions();
+                    if (dimensions.x > 0f && dimensions.y > 0f)
+                    {
+                        bannerWidth = dimensions.x;
+                        bannerHeight = dimensions.y;
+                        Logger.Info($"[AdViewController] Using actual native ad dimensions: {bannerWidth}x{bannerHeight}");
+                    }
                 }
             }
 
@@ -688,7 +734,7 @@ namespace BidscubeSDK
                     rectTransform.anchorMin = new Vector2(1f, 0.5f);
                     rectTransform.anchorMax = new Vector2(1f, 0.5f);
                     rectTransform.pivot = new Vector2(1f, 0.5f);
-                    rectTransform.sizeDelta = new Vector2(bannerWidth > 0 ? bannerWidth : 120, bannerHeight > 0 ? bannerHeight : 250);
+                    rectTransform.sizeDelta = new Vector2(bannerWidth > 0 ? bannerWidth : 120, bannerHeight > 0 ? bannerHeight : (_adSizeSettings != null ? _adSizeSettings.defaultBannerSize.y : 150f));
                     rectTransform.anchoredPosition = Vector2.zero;
                     Logger.Info($"[AdViewController] Positioned at Sidebar with size {rectTransform.sizeDelta.x}x{rectTransform.sizeDelta.y}");
                     break;
@@ -746,9 +792,9 @@ namespace BidscubeSDK
             
             var manualPosition = BidscubeSDK.GetAdPosition();
             var serverPosition = BidscubeSDK.GetResponseAdPosition();
-            
+
             Logger.Info($"[AdViewController] MarkAdAsLoaded - Checking position: manualPosition={manualPosition} (value: {(int)manualPosition}), serverPosition={serverPosition} (value: {(int)serverPosition})");
-            
+
             AdPosition positionToUse;
 
             if (manualPosition != AdPosition.Unknown)
@@ -810,3 +856,4 @@ namespace BidscubeSDK
         }
     }
 }
+

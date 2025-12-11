@@ -13,6 +13,9 @@ namespace BidscubeSDK
     {
         private static BidscubeSDK _instance;
         private static SDKConfig _configuration;
+        // Optional runtime AdSizeSettings if SDKConfig doesn't include it
+        private static AdSizeSettings _runtimeAdSizeSettings;
+
         private static AdPosition _manualAdPosition;
         private static AdPosition _responseAdPosition = AdPosition.Unknown;
         private static bool _consentRequired = false;
@@ -263,7 +266,14 @@ namespace BidscubeSDK
             }
 
             var position = _manualAdPosition != AdPosition.Unknown ? _manualAdPosition : _responseAdPosition;
-            CreateAdViewController(placementId, AdType.Image, callback, position);
+            // If SDK configuration contains AdSizeSettings, pass default image size to the controller
+            Vector2? configuredSize = null;
+            if (_configuration != null && _configuration.AdSizeSettings != null)
+            {
+                var s = _configuration.AdSizeSettings.GetDefaultSize(AdType.Image);
+                if (s.x > 0 || s.y > 0) configuredSize = s;
+            }
+            CreateAdViewController(placementId, AdType.Image, callback, position, configuredSize);
         }
 
         /// <summary>
@@ -520,7 +530,14 @@ namespace BidscubeSDK
             }
 
             var position = _manualAdPosition != AdPosition.Unknown ? _manualAdPosition : _responseAdPosition;
-            CreateAdViewController(placementId, AdType.Native, callback, position);
+            // Pass configured native default size when available
+            Vector2? configuredNativeSize = null;
+            if (_configuration != null && _configuration.AdSizeSettings != null)
+            {
+                var s = _configuration.AdSizeSettings.GetDefaultSize(AdType.Native);
+                if (s.x > 0 || s.y > 0) configuredNativeSize = s;
+            }
+            CreateAdViewController(placementId, AdType.Native, callback, position, configuredNativeSize);
         }
 
         private static IEnumerator LoadNativeAd(string placementId, string url, IAdCallback callback)
@@ -619,27 +636,42 @@ namespace BidscubeSDK
         // Helper methods
         private static GameObject CreateVideoAdView()
         {
-            var go = new GameObject("VideoAdView");
+            var go = new GameObject("VideoAdView", typeof(RectTransform));
+            // Ensure RectTransform exists for UI parenting operations
+            if (go.GetComponent<RectTransform>() == null)
+                go.AddComponent<RectTransform>();
             go.AddComponent<VideoAdView>();
             return go;
         }
 
         private static GameObject CreateNativeAdView()
         {
-            var go = new GameObject("NativeAdView");
+            var go = new GameObject("NativeAdView", typeof(RectTransform));
+            if (go.GetComponent<RectTransform>() == null)
+                go.AddComponent<RectTransform>();
             go.AddComponent<NativeAdView>();
             return go;
         }
 
         private static BannerAdView CreateBannerAdView(AdPosition position)
         {
-            var go = new GameObject("BannerAdView");
+            var go = new GameObject("BannerAdView", typeof(RectTransform));
+            if (go.GetComponent<RectTransform>() == null)
+                go.AddComponent<RectTransform>();
             var bannerView = go.AddComponent<BannerAdView>();
+            // Determine active AdSizeSettings: first prefer configuration, then runtime setter
+            AdSizeSettings activeSettings = _configuration != null && _configuration.AdSizeSettings != null
+                ? _configuration.AdSizeSettings
+                : _runtimeAdSizeSettings;
+            if (activeSettings != null)
+            {
+                bannerView.ApplyAdSizeSettings(activeSettings);
+            }
             bannerView.SetBannerPosition(position);
             return bannerView;
         }
 
-        private static void CreateAdViewController(string placementId, AdType adType, IAdCallback callback, AdPosition position)
+        private static void CreateAdViewController(string placementId, AdType adType, IAdCallback callback, AdPosition position, Vector2? adSize = null)
         {
             // Find or create SDKContent parent
             GameObject parentObject = GetOrCreateSDKContent();
@@ -651,7 +683,25 @@ namespace BidscubeSDK
             controllerGO.transform.localScale = Vector3.one;
 
             var adController = controllerGO.AddComponent<AdViewController>();
+            // Inject AdSizeSettings from SDK configuration or runtime setting so controller always uses configured defaults
+            AdSizeSettings activeSettings = _configuration != null && _configuration.AdSizeSettings != null
+                ? _configuration.AdSizeSettings
+                : _runtimeAdSizeSettings;
+            if (activeSettings != null)
+            {
+                adController.SetAdSizeSettings(activeSettings);
+            }
             adController.Initialize(placementId, adType, callback, position);
+
+            // If caller provided an explicit size (for example a GameObject's RectTransform), apply it
+            if (adSize.HasValue)
+            {
+                var size = adSize.Value;
+                // SetAdSize will re-apply positioning and refresh webview margins
+                adController.SetAdSize(size.x, size.y);
+                Logger.Info($"[BidscubeSDK] CreateAdViewController: Applied caller-provided ad size {size.x}x{size.y} for placement {placementId}");
+            }
+
             _activeControllers.Add(adController);
         }
 

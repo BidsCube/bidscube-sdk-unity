@@ -14,15 +14,17 @@ namespace BidscubeSDK
         public int DefaultAdTimeoutMs { get; private set; }
         public AdPosition DefaultAdPosition { get; private set; }
         public string BaseURL { get; private set; }
+        public AdSizeSettings AdSizeSettings { get; private set; }
 
         private SDKConfig(bool enableLogging, bool enableDebugMode, int defaultAdTimeoutMs, 
-                         AdPosition defaultAdPosition, string baseURL)
+                         AdPosition defaultAdPosition, string baseURL, AdSizeSettings adSizeSettings)
         {
             EnableLogging = enableLogging;
             EnableDebugMode = enableDebugMode;
             DefaultAdTimeoutMs = defaultAdTimeoutMs;
             DefaultAdPosition = defaultAdPosition;
             BaseURL = baseURL;
+            AdSizeSettings = adSizeSettings;
         }
 
         /// <summary>
@@ -35,6 +37,7 @@ namespace BidscubeSDK
             private int _defaultAdTimeoutMs = 30000;
             private AdPosition _defaultAdPosition = AdPosition.Unknown;
             private string _baseURL = Constants.BaseURL;
+            private AdSizeSettings _adSizeSettings = null;
 
             public Builder() { }
 
@@ -94,6 +97,15 @@ namespace BidscubeSDK
             }
 
             /// <summary>
+            /// Set AdSizeSettings asset to provide default ad sizes
+            /// </summary>
+            public Builder AdSizeSettings(AdSizeSettings settings)
+            {
+                _adSizeSettings = settings;
+                return this;
+            }
+
+            /// <summary>
             /// Build SDK configuration
             /// </summary>
             /// <returns>SDK configuration</returns>
@@ -104,7 +116,8 @@ namespace BidscubeSDK
                     _enableDebugMode,
                     _defaultAdTimeoutMs,
                     _defaultAdPosition,
-                    _baseURL
+                    _baseURL,
+                    _adSizeSettings
                 );
             }
         }
@@ -165,4 +178,3 @@ namespace BidscubeSDK
         }
     }
 }
-

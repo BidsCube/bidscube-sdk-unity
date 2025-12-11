@@ -43,7 +43,8 @@ namespace BidscubeSDK
 
         private void Awake()
         {
-            SetupUI();
+            // Defer creating UI/video player until we know the SDK will render the ad.
+            // SetupUI() will be called lazily in LoadVideoAdCoroutine after render-override checks.
         }
 
         private void SetupUI()
@@ -331,8 +332,35 @@ namespace BidscubeSDK
                             Logger.Info("[VideoAdView] Extracted adm from JSON response");
                         }
 
+                        // If callback implements IAdRenderOverride, let it inspect the raw adm JSON first
+                        if (!string.IsNullOrEmpty(admValue) && _callback is IAdRenderOverride rawOverride)
+                        {
+                            int rawPos = json != null && json.position.HasValue ? json.position.Value : (int)BidscubeSDK.GetResponseAdPosition();
+                            Logger.Info("[VideoAdView] IAdRenderOverride detected, invoking override with raw adm JSON...");
+                            bool handledRaw = false;
+                            try
+                            {
+                                handledRaw = rawOverride.OnAdRenderOverride(_placementId, admValue, AdType.Video, rawPos);
+                            }
+                            catch (System.Exception e)
+                            {
+                                Logger.InfoError($"[VideoAdView] OnAdRenderOverride threw: {e.Message}");
+                            }
+
+                            if (handledRaw)
+                            {
+                                Logger.Info("[VideoAdView] Ad render overridden by app (raw adm); skipping SDK processing.");
+                                yield break;
+                            }
+                            else
+                            {
+                                Logger.Info("[VideoAdView] OnAdRenderOverride returned false for raw adm; continuing SDK processing.");
+                            }
+                        }
+
                         if (!string.IsNullOrEmpty(admValue))
                         {
+
                             // Log the raw adm field as received
                             Logger.Info($"[VideoAdView] ========== RAW ADM FIELD RECEIVED ==========");
                             Logger.Info($"[VideoAdView] Raw adm length: {admValue.Length} chars");
@@ -370,6 +398,9 @@ namespace BidscubeSDK
                             Logger.Info($"[VideoAdView] Processed adm length: {admContent.Length} chars");
                             Logger.Info($"[VideoAdView] Full processed adm content:\n{admContent}");
                             Logger.Info($"[VideoAdView] ============================================");
+
+                            // AD RENDER OVERRIDE HOOK: if the app implements IAdRenderOverride, give it the admContent
+                            // Note: render-override was already invoked with the raw adm JSON earlier; do not call it again here.
 
                             // Check if adm is VAST XML
                             if (admContent.TrimStart().StartsWith("<VAST") || admContent.Contains("<VAST"))
@@ -470,6 +501,12 @@ namespace BidscubeSDK
                     Logger.InfoError("[VideoAdView] No video URL available to play");
                     _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.InvalidResponse, "No video URL found in response");
                     yield break;
+                }
+
+                // Ensure UI/video player are initialized (lazy) before preparing/playing
+                if (_videoPlayer == null)
+                {
+                    SetupUI();
                 }
 
                 Logger.Info($"[VideoAdView] Preparing video player with URL: {_videoPlayer.url}");
@@ -839,3 +876,4 @@ namespace BidscubeSDK
         }
     }
 }
+

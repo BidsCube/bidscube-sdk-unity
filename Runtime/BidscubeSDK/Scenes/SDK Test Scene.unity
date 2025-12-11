@@ -4075,6 +4075,7 @@ MonoBehaviour:
   _enableDebugMode: 1
   _enableLogging: 1
   _bannerCornerRadius: 0
+  _adSizeSettings: {fileID: 11400000, guid: e7fcc3039ce757c4296c1452f8b659ac, type: 2}
   _sdkStatusText: {fileID: 2026979297}
   _placementIdInput: {fileID: 802283611}
   _currentAdPositionText: {fileID: 1194831988}
@@ -4116,6 +4117,9 @@ MonoBehaviour:
   windowedAdScene:
     sceneName: Windowed Ad Scene
     sceneIndex: 3
+  customAdRenderScene:
+    sceneName: 
+    sceneIndex: -1
 --- !u!1 &1297341932
 GameObject:
   m_ObjectHideFlags: 0
