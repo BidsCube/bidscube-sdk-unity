@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using System.Collections;
 using System.Text.RegularExpressions;
 using System;
+using System.Collections.Generic;
 
 namespace BidscubeSDK
 {
@@ -23,6 +24,8 @@ namespace BidscubeSDK
         private IAdCallback _callback;
         private bool _isLoaded = false;
         private NativeAdData _adData;
+        private readonly List<string> _impressionTrackingUrls = new List<string>();
+        private bool _hasFiredImpressionTracking = false;
 
         private const float LogicalWidth = 1080f;
         private const float LogicalHeight = 800f;
@@ -47,6 +50,7 @@ namespace BidscubeSDK
             public string ver;
             public OpenRtbAsset[] assets;
             public OpenRtbLink link;
+            public string[] imptrackers;
         }
 
         [System.Serializable]
@@ -485,6 +489,8 @@ namespace BidscubeSDK
 
         private IEnumerator LoadNativeAdCoroutine(string url)
         {
+            _hasFiredImpressionTracking = false;
+            _impressionTrackingUrls.Clear();
             using (var request = UnityEngine.Networking.UnityWebRequest.Get(url))
             {
                 yield return request.SendWebRequest();
@@ -597,6 +603,7 @@ namespace BidscubeSDK
                                     parentControllerRaw?.MarkAdAsLoaded();
                                     _isLoaded = true;
                                     _callback?.OnAdLoaded(_placementId);
+                                    FireNativeImpressionTrackers();
                                     _callback?.OnAdDisplayed(_placementId);
 
                                     // We've handled the rendering using the raw HTML — done
@@ -661,6 +668,7 @@ namespace BidscubeSDK
                         }
 
                         _callback?.OnAdLoaded(_placementId);
+                        FireNativeImpressionTrackers();
                         _callback?.OnAdDisplayed(_placementId);
                     }
                     catch (System.Exception e)
@@ -806,6 +814,18 @@ namespace BidscubeSDK
 
                 var data = new NativeAdData();
                 data.storeUrl = root.native.link?.url;
+                _impressionTrackingUrls.Clear();
+                if (root.native.imptrackers != null && root.native.imptrackers.Length > 0)
+                {
+                    foreach (var tracker in root.native.imptrackers)
+                    {
+                        if (!string.IsNullOrWhiteSpace(tracker))
+                        {
+                            _impressionTrackingUrls.Add(tracker.Trim());
+                        }
+                    }
+                    Logger.Info($"[BidscubeSDK] NativeAdView: Parsed {_impressionTrackingUrls.Count} native imptrackers");
+                }
 
                 foreach (var asset in root.native.assets)
                 {
@@ -912,6 +932,21 @@ namespace BidscubeSDK
 
             Application.OpenURL(_adData.storeUrl);
             _callback?.OnAdClicked(_placementId);
+        }
+
+        private void FireNativeImpressionTrackers()
+        {
+            if (_hasFiredImpressionTracking) return;
+            _hasFiredImpressionTracking = true;
+
+            if (_impressionTrackingUrls.Count == 0)
+            {
+                Logger.Info("[BidscubeSDK] NativeAdView: No imptrackers to fire");
+                return;
+            }
+
+            VASTParser.FireTrackingUrls(_impressionTrackingUrls);
+            Logger.Info($"[BidscubeSDK] NativeAdView: Fired {_impressionTrackingUrls.Count} native imptrackers");
         }
 
         private string UnescapeUnicode(string str)
