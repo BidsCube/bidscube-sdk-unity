@@ -981,8 +981,9 @@ namespace BidscubeSDK
 
             try
             {
-                // Fire tracking URL asynchronously
-                UnityEngine.Networking.UnityWebRequest.Get(url).SendWebRequest();
+                var request = UnityEngine.Networking.UnityWebRequest.Get(url);
+                request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
+                request.SendWebRequest();
                 Logger.Info($"[VASTParser] Fired tracking URL: {url}");
             }
             catch (Exception e)

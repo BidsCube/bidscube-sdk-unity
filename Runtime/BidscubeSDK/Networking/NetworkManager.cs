@@ -66,7 +66,7 @@ namespace BidscubeSDK
             {
                 request.timeout = (int)_timeout;
                 request.SetRequestHeader("Accept", "application/json");
-                request.SetRequestHeader("User-Agent", $"{Constants.UserAgentPrefix}/{Constants.SdkVersion}");
+                request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
 
                 yield return request.SendWebRequest();
 
@@ -90,7 +90,7 @@ namespace BidscubeSDK
                 request.timeout = (int)_timeout;
                 request.SetRequestHeader("Content-Type", "application/json");
                 request.SetRequestHeader("Accept", "application/json");
-                request.SetRequestHeader("User-Agent", $"{Constants.UserAgentPrefix}/{Constants.SdkVersion}");
+                request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
 
                 var bodyRaw = System.Text.Encoding.UTF8.GetBytes(data);
                 request.uploadHandler = new UploadHandlerRaw(bodyRaw);

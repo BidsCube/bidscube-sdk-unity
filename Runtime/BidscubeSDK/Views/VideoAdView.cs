@@ -255,6 +255,7 @@ namespace BidscubeSDK
             // First, fetch the content from URL
             using (var request = UnityWebRequest.Get(url))
             {
+                request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
                 yield return request.SendWebRequest();
 
                 if (request.result != UnityWebRequest.Result.Success)
@@ -617,6 +618,7 @@ namespace BidscubeSDK
 
             using (var nestedRequest = UnityWebRequest.Get(vastAdTagUri))
             {
+                nestedRequest.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
                 yield return nestedRequest.SendWebRequest();
 
                 if (nestedRequest.result == UnityWebRequest.Result.Success)

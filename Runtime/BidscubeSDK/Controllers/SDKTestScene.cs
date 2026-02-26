@@ -479,6 +479,7 @@ namespace BidscubeSDK.Controllers
             // Make HTTP request to get ad response
             using (var request = UnityEngine.Networking.UnityWebRequest.Get(adUrl))
             {
+                request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
                 yield return request.SendWebRequest();
 
                 if (request.result == UnityEngine.Networking.UnityWebRequest.Result.Success)

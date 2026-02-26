@@ -45,18 +45,27 @@ namespace BidscubeSDK
         public static string Language => Application.systemLanguage.ToString();
 
         /// <summary>
-        /// Get user agent
+        /// Get user agent (browser-style, matches web SDK for consistent ad serving)
         /// </summary>
         public static string UserAgent
         {
             get
             {
-                var appName = AppName;
-                var appVersion = AppVersion;
-                var unityVersion = Application.unityVersion;
-                var os = SystemInfo.operatingSystem;
-                
-                return $"{appName}/{appVersion} (Unity {unityVersion}; {os})";
+#if UNITY_ANDROID && !UNITY_EDITOR
+                var version = SystemInfo.operatingSystem.Replace("Android ", "").Split(' ')[0];
+                var model = SystemInfo.deviceModel ?? "Mobile";
+                return $"Mozilla/5.0 (Linux; Android {version}; {model}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+#elif UNITY_IOS && !UNITY_EDITOR
+                var raw = SystemInfo.operatingSystem.Replace("iPhone OS ", "").Split(';')[0].Trim();
+                var osVer = raw.Replace(".", "_");
+                return $"Mozilla/5.0 (iPhone; CPU iPhone OS {osVer} like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+#elif UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
+                return "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+#elif UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
+                return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+#else
+                return "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+#endif
             }
         }
 

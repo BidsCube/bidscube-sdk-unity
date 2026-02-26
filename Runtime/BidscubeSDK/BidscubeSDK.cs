@@ -456,6 +456,7 @@ namespace BidscubeSDK
         {
             using (var request = UnityWebRequest.Get(url))
             {
+                request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
                 yield return request.SendWebRequest();
 
                 if (request.result == UnityWebRequest.Result.Success)
@@ -544,6 +545,7 @@ namespace BidscubeSDK
         {
             using (var request = UnityWebRequest.Get(url))
             {
+                request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
                 yield return request.SendWebRequest();
 
                 if (request.result == UnityWebRequest.Result.Success)
