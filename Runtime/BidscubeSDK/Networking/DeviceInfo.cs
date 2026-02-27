@@ -30,14 +30,40 @@ namespace BidscubeSDK
         public static string AppStoreURL => "https://play.google.com/store"; // Default for Unity
 
         /// <summary>
-        /// Get device width
+        /// Get device width (horizontal viewport dimension).
+        /// Corrects for orientation: in portrait width &lt; height, in landscape width &gt; height.
         /// </summary>
-        public static int DeviceWidth => Screen.width;
+        public static int DeviceWidth => GetOrientationCorrectedDimensions().width;
 
         /// <summary>
-        /// Get device height
+        /// Get device height (vertical viewport dimension).
+        /// Corrects for orientation: in portrait width &lt; height, in landscape width &gt; height.
         /// </summary>
-        public static int DeviceHeight => Screen.height;
+        public static int DeviceHeight => GetOrientationCorrectedDimensions().height;
+
+        /// <summary>
+        /// Returns width/height corrected for screen orientation.
+        /// On some devices Screen.width/height can be swapped at startup; this fixes it.
+        /// </summary>
+        private static (int width, int height) GetOrientationCorrectedDimensions()
+        {
+            var w = Screen.width;
+            var h = Screen.height;
+            var orientation = Screen.orientation;
+
+            // Portrait: width (horizontal) should be less than height (vertical)
+            if (orientation == ScreenOrientation.Portrait || orientation == ScreenOrientation.PortraitUpsideDown)
+            {
+                if (w > h) return (h, w); // swapped, correct it
+            }
+            // Landscape: width should be greater than height
+            else if (orientation == ScreenOrientation.LandscapeLeft || orientation == ScreenOrientation.LandscapeRight)
+            {
+                if (w < h) return (h, w); // swapped, correct it
+            }
+            // Unknown/auto: trust Screen values
+            return (w, h);
+        }
 
         /// <summary>
         /// Get language
