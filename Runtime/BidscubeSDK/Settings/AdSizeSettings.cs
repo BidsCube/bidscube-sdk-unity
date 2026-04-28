@@ -15,7 +15,7 @@ namespace BidscubeSDK
         public Vector2 defaultBannerSize = new Vector2(1080f, 150f);
 
         [Tooltip("Default native ad size (logical points; slot scales with canvas).")]
-        public Vector2 defaultNativeSize = new Vector2(728f, 260f);
+        public Vector2 defaultNativeSize = new Vector2(728f, 400f);
 
         [Tooltip("Default video size. Set to (0,0) to indicate full-screen.")]
         public Vector2 defaultVideoSize = Vector2.zero;

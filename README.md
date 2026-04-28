@@ -233,7 +233,7 @@ public class ConsentManager : MonoBehaviour, IConsentCallback
 
 ## Banner Ad Management
 
-The SDK provides comprehensive banner ad management.
+The SDK provides comprehensive banner ad management. Banner and image helpers (`ShowImageAd`, `ShowHeaderBanner`, `GetBannerAdView`, etc.) render through `AdViewController`, which loads the ad URL inside the controller (same as `ShowImageAd`). `GetBannerAdView(placementId, callback)` returns the creative root `GameObject` when available (`GetAdViewGameObject()`), or the controller `GameObject` as a fallback — or `null` if `BidscubeSDK.Initialize()` was not called.
 
 ```csharp
 public class BannerManager : MonoBehaviour
@@ -366,8 +366,8 @@ You can define project-wide default sizes for banners, native, and video ads usi
 
 - Create an asset: `Assets -> Create -> BidscubeSDK -> Ad Size Settings`.
 - Default fields (recommended defaults in this SDK version):
-    - `defaultBannerSize`: Vector2 — default 1080x150 (Header/Footer banners typically use screen width, height used is 150px)
-    - `defaultNativeSize`: Vector2 — default 1080x400
+    - `defaultBannerSize`: Vector2 — default 1080×150 (Header/Footer banners typically use screen width; height used is 150px)
+    - `defaultNativeSize`: Vector2 — default 728×400 (matches native logical layout defaults)
     - `defaultVideoSize`: Vector2 — default Vector2.zero (0,0) means full-screen
 
 Apply AdSizeSettings

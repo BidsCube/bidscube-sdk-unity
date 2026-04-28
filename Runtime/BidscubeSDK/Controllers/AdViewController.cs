@@ -31,6 +31,14 @@ namespace BidscubeSDK
             Logger.Info("[AdViewController] AdSizeSettings applied at runtime");
         }
 
+        /// <summary>
+        /// Root GameObject for the creative (e.g. BannerContent host for image ads).
+        /// </summary>
+        public GameObject GetAdViewGameObject()
+        {
+            return _adView;
+        }
+
         [Header("Custom Overlay Objects")]
         [Tooltip("GameObject prefabs with RectTransforms that will be instantiated over the ad when it loads. Can be 0 to many objects.")]
         [SerializeField] private GameObject[] _overlayObjects;

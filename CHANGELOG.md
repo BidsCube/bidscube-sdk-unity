@@ -1,3 +1,13 @@
+## [1.2.5] - 2026-04-30
+
+### Changed
+
+- **Banners / image:** `GetBannerAdView` now builds the same path as `ShowImageAd` via `AdViewController` (load inside `CreateImageAdView`); returns the creative root from `GetAdViewGameObject()` or the controller `GameObject`, and `null` if the SDK is not initialized.
+- **WebView:** `UpdateWebViewMargins` uses `FindBestCanvasFallback()` (highest `sortingOrder` among active canvases) when the webview is not under a `Canvas` in the hierarchy.
+- **Banner HTML:** In `LoadAdContent`, embedded layout slots (`AdViewsParentUsesLayoutSlotSizing`) use `flex-start` for vertical alignment; footer without a slot still uses `flex-end`.
+- **Video:** Full-screen black `VideoBackdrop` behind the `VideoTexture`; sibling order: backdrop, video, then skip/close on top.
+- **Native / defaults:** `LogicalHeight` and `AdSizeSettings.defaultNativeSize` default height increased to 400; native template CSS `min-height` for vertical/fullscreen image regions adjusted accordingly.
+
 ## [1.2.4] - 2026-04-29
 
 ### Added

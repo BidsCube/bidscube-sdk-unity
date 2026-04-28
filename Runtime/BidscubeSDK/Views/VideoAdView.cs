@@ -22,6 +22,7 @@ namespace BidscubeSDK
         [SerializeField] private Text _skipText;
         [SerializeField] private Slider _progressSlider;
         [SerializeField] private RawImage _videoTexture;
+        private Image _videoBackdrop;
 
         private string _placementId;
         private IAdCallback _callback;
@@ -73,6 +74,20 @@ namespace BidscubeSDK
             // Setup full screen canvas
             SetupFullScreenCanvas();
 
+            if (_videoBackdrop == null)
+            {
+                var backdropGo = new GameObject("VideoBackdrop");
+                backdropGo.transform.SetParent(transform, false);
+                var bdRt = backdropGo.AddComponent<RectTransform>();
+                bdRt.anchorMin = Vector2.zero;
+                bdRt.anchorMax = Vector2.one;
+                bdRt.offsetMin = Vector2.zero;
+                bdRt.offsetMax = Vector2.zero;
+                _videoBackdrop = backdropGo.AddComponent<Image>();
+                _videoBackdrop.color = Color.black;
+                _videoBackdrop.raycastTarget = false;
+            }
+
             // Video area: RawImage + Button (tap-through for click tracking). Avoid a full-screen transparent Image on top of the video — on Android it often composites as opaque black over RenderTexture playback.
             if (_videoTexture == null)
             {
@@ -86,7 +101,6 @@ namespace BidscubeSDK
                 vRect.anchorMax = Vector2.one;
                 vRect.offsetMin = Vector2.zero;
                 vRect.offsetMax = Vector2.zero;
-                textureObj.transform.SetAsFirstSibling();
 
                 var tapBtn = textureObj.AddComponent<Button>();
                 tapBtn.targetGraphic = _videoTexture;
@@ -201,8 +215,10 @@ namespace BidscubeSDK
                 sliderRect.anchoredPosition = new Vector2(0, 10);
             }
 
+            if (_videoBackdrop != null)
+                _videoBackdrop.transform.SetAsFirstSibling();
             if (_videoTexture != null)
-                _videoTexture.transform.SetAsFirstSibling();
+                _videoTexture.transform.SetSiblingIndex(1);
             if (_skipButton != null)
                 _skipButton.transform.SetAsLastSibling();
             if (_closeButton != null)

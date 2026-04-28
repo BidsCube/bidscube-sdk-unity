@@ -437,6 +437,8 @@ namespace BidscubeSDK
         {
             SetAdPosition(position);
             var bannerGO = GetBannerAdView(placementId, callback);
+            if (bannerGO == null)
+                return;
             var rect = bannerGO.GetComponent<RectTransform>();
             if (rect != null)
             {
@@ -518,31 +520,23 @@ namespace BidscubeSDK
         {
             Logger.Info($"GetBannerAdView called for placement: {placementId}");
 
-            var effectivePosition = GetEffectiveAdPosition();
-
-            var bannerView = CreateBannerAdView(effectivePosition);
-            var view = bannerView.gameObject;
-
-            if (!_activeBanners.Contains(bannerView))
+            if (!IsInitialized())
             {
-                _activeBanners.Add(bannerView);
+                Logger.Error("SDK not initialized. Please call BidscubeSDK.Initialize() first.");
+                return null;
             }
 
-            callback?.OnAdLoading(placementId);
-
-            var url = BuildRequestURL(placementId, AdType.Image); // Use AdType.Image for banners
-            if (string.IsNullOrEmpty(url))
+            var position = ResolveSlotPositionForNonVideoAds();
+            Vector2? configuredSize = null;
+            if (_configuration != null && _configuration.AdSizeSettings != null)
             {
-                Logger.Error("Failed to build request URL for banner ad");
-                callback?.OnAdFailed(placementId, Constants.ErrorCodes.InvalidURL, Constants.ErrorMessages.FailedToBuildURL);
-                return view;
+                var s = _configuration.AdSizeSettings.GetDefaultSize(AdType.Image);
+                if (s.x > 0 || s.y > 0) configuredSize = s;
             }
 
-            bannerView.SetPlacementInfo(placementId, callback);
-            bannerView.LoadAdFromURL(url);
-
-            StartSDKCoroutine(DelayedAdLoaded(placementId, callback));
-            return view;
+            var adController = CreateAdViewController(placementId, AdType.Image, callback, position, configuredSize);
+            var root = adController.GetAdViewGameObject();
+            return root != null ? root : adController.gameObject;
         }
 
         /// <summary>
@@ -765,24 +759,21 @@ namespace BidscubeSDK
         {
             Logger.Info($"GetBannerAdView called for placement: {placementId}, position: {position}");
 
-            var bannerView = CreateBannerAdView(position);
-            var view = bannerView.gameObject;
-
-            callback?.OnAdLoading(placementId);
-
-            var url = BuildRequestURL(placementId, AdType.Image);
-            if (string.IsNullOrEmpty(url))
+            if (!IsInitialized())
             {
-                Logger.Error("Failed to build request URL for banner ad");
-                callback?.OnAdFailed(placementId, Constants.ErrorCodes.InvalidURL, Constants.ErrorMessages.FailedToBuildURL);
-                return bannerView;
+                Logger.Error("SDK not initialized. Please call BidscubeSDK.Initialize() first.");
+                return null;
             }
 
-            bannerView.SetPlacementInfo(placementId, callback);
-            bannerView.LoadAdFromURL(url);
+            Vector2? configuredSize = null;
+            if (_configuration != null && _configuration.AdSizeSettings != null)
+            {
+                var s = _configuration.AdSizeSettings.GetDefaultSize(AdType.Image);
+                if (s.x > 0 || s.y > 0) configuredSize = s;
+            }
 
-            StartSDKCoroutine(DelayedAdLoaded(placementId, callback));
-            return bannerView;
+            var adController = CreateAdViewController(placementId, AdType.Image, callback, position, configuredSize);
+            return adController.GetComponentInChildren<BannerAdView>(true);
         }
 
         // Helper methods
@@ -823,7 +814,7 @@ namespace BidscubeSDK
             return bannerView;
         }
 
-        private static void CreateAdViewController(string placementId, AdType adType, IAdCallback callback, AdPosition position, Vector2? adSize = null)
+        private static AdViewController CreateAdViewController(string placementId, AdType adType, IAdCallback callback, AdPosition position, Vector2? adSize = null)
         {
             Transform parentTransform = adType == AdType.Video
                 ? GetOrCreateSDKContent().transform
@@ -856,6 +847,7 @@ namespace BidscubeSDK
             }
 
             _activeControllers.Add(adController);
+            return adController;
         }
 
         /// <summary>

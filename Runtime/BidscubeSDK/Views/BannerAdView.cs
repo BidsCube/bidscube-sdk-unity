@@ -431,7 +431,13 @@ namespace BidscubeSDK
             var slotPos = BidscubeSDK.GetEffectiveAdPosition();
             if (slotPos == AdPosition.Unknown)
                 slotPos = BidscubeSDK.GetResponseAdPosition();
-            string flexJustify = slotPos == AdPosition.Footer ? "flex-end" : "flex-start";
+            string flexJustify;
+            if (BidscubeSDK.AdViewsParentUsesLayoutSlotSizing())
+                flexJustify = "flex-start";
+            else if (slotPos == AdPosition.Footer)
+                flexJustify = "flex-end";
+            else
+                flexJustify = "flex-start";
 
             // Native WebView is full-screen; HTML pins the creative along the main axis (overlay).
             // Transparent body uses pointer-events:none so touches pass through except on the ad root.

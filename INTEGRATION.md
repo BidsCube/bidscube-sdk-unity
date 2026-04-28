@@ -35,7 +35,7 @@ The Bidscube Unity SDK can be installed in two ways:
 2. Click the `+` button in the top-left corner
 3. Select `Add package from git URL...`
 4. Enter the repository URL: `https://github.com/Bidscube/bidscube-sdk-unity.git`
-5. Optionally, specify a version tag: `https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.4`
+5. Optionally, specify a version tag: `https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.5`
 6. Click `Add`
 7. The SDK will be added as a package dependency
 
@@ -44,7 +44,7 @@ The Bidscube Unity SDK can be installed in two ways:
 ```json
 {
   "dependencies": {
-    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.4"
+    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.5"
   }
 }
 ```
@@ -179,6 +179,8 @@ BidscubeSDK.BidscubeSDK.ShowCustomBanner(
     new MyAdCallback()
 );
 ```
+
+**Implementation notes (1.2.5+):** `GetBannerAdView` uses the same `AdViewController` → `CreateImageAdView` flow as `ShowImageAd` (no separate URL fetch before the controller). It returns the creative root (`BannerContent`) when available, or the controller `GameObject`; it returns `null` if the SDK is not initialized — guard your UI code accordingly (e.g. `ShowCustomBanner` exits early when the returned object is null). With `SetAdViewsParentTransform(..., layoutSlotSizing: true)`, banner HTML aligns creatives to the top of the slot (`flex-start`). WebViews that are not parented under a Canvas fall back to the scene Canvas with the highest `sortingOrder` when computing margins.
 
 ### Video Ads
 

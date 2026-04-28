@@ -28,7 +28,7 @@ namespace BidscubeSDK
         private bool _hasFiredImpressionTracking = false;
 
         private const float LogicalWidth = 728f;
-        private const float LogicalHeight = 260f;
+        private const float LogicalHeight = 400f;
         private float _nativeAdWidth = LogicalWidth;
         private float _nativeAdHeight = LogicalHeight;
         // When true, do not override dimensions from server/adm; use configured asset size
@@ -242,7 +242,7 @@ namespace BidscubeSDK
                 .image img.main-img {{ width: auto; max-width: 100%; max-height: 100%; object-fit:contain; display:block; }}
                 .content {{ flex: 2 1 auto; padding: 6px; display: flex; flex-direction: column; justify-content: flex-start; gap:4px; overflow:auto; }}
 
-                .layout-fullscreen .image {{ flex: 4; min-height: 300px; }}
+                .layout-fullscreen .image {{ flex: 4; min-height: 460px; }}
                 .layout-fullscreen .content {{ flex: 3; padding: 16px; }}
                 .layout-fullscreen .title {{ font-size: 24px; }}
                 .layout-fullscreen .desc {{ font-size: 16px; }}
@@ -254,7 +254,7 @@ namespace BidscubeSDK
                 .layout-horizontal .desc {{ font-size: 11px; margin-bottom: 4px; -webkit-line-clamp: 1; }}
 
                 .layout-vertical {{ flex-direction: column; }}
-                .layout-vertical .image {{ flex: 2; min-height: 96px; }}
+                .layout-vertical .image {{ flex: 2; min-height: 148px; }}
                 .layout-vertical .content {{ flex: 3; padding: 6px; }}
 
                 .size-small .title {{ font-size: 13px; }}

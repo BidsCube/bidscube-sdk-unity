@@ -10,6 +10,28 @@ namespace BidscubeSDK
     /// </summary>
     public class WebViewController : MonoBehaviour
     {
+        /// <summary>
+        /// Best-effort Canvas when this hierarchy is not under one (e.g. orphaned WebViewHost): pick an active Canvas with the highest sorting order.
+        /// </summary>
+        public static Canvas FindBestCanvasFallback()
+        {
+            var canvases = Object.FindObjectsOfType<Canvas>();
+            Canvas best = null;
+            var bestOrder = int.MinValue;
+            for (var i = 0; i < canvases.Length; i++)
+            {
+                var c = canvases[i];
+                if (c == null || !c.gameObject.activeInHierarchy)
+                    continue;
+                if (c.sortingOrder >= bestOrder)
+                {
+                    bestOrder = c.sortingOrder;
+                    best = c;
+                }
+            }
+            return best;
+        }
+
         [Header("WebView Settings")]
         [SerializeField] private WebViewObject _webViewObject;
         [SerializeField] private string _html;
@@ -616,10 +638,11 @@ namespace BidscubeSDK
             // Get Canvas to convert RectTransform to screen coordinates
             var canvas = GetComponentInParent<Canvas>();
             if (canvas == null)
+                canvas = FindBestCanvasFallback();
+            if (canvas == null)
             {
-                // Fallback to full screen if no Canvas
                 _webViewObject.SetMargins(0, 0, 0, 0);
-                Logger.InfoError("[WebViewController] No Canvas found, using full screen margins");
+                Logger.InfoError("[WebViewController] No Canvas found (including fallback), using full screen margins");
                 return;
             }
 
