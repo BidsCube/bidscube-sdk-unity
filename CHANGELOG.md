@@ -1,3 +1,9 @@
+## [1.2.4] - 2026-04-29
+
+### Added
+
+- GitHub Actions workflow to create a GitHub Release when a version tag (`v*`) is pushed (tag must match `package.json`).
+
 ## [1.2.3] - 2026-04-29
 
 ### Changed
