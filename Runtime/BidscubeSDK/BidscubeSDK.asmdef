@@ -2,7 +2,6 @@
     "name": "BidscubeSDK",
     "rootNamespace": "BidscubeSDK",
     "references": [
-        "com.bidscube.sdk",
         "Unity.TextMeshPro"
     ],
     "includePlatforms": [],

@@ -14,8 +14,8 @@ namespace BidscubeSDK
         [Tooltip("Default banner size. Width is typically overridden to screen width for Header/Footer but used for Sidebar/centered placements.")]
         public Vector2 defaultBannerSize = new Vector2(1080f, 150f);
 
-        [Tooltip("Default native ad size.")]
-        public Vector2 defaultNativeSize = new Vector2(1080f, 400f);
+        [Tooltip("Default native ad size (logical points; slot scales with canvas).")]
+        public Vector2 defaultNativeSize = new Vector2(728f, 260f);
 
         [Tooltip("Default video size. Set to (0,0) to indicate full-screen.")]
         public Vector2 defaultVideoSize = Vector2.zero;

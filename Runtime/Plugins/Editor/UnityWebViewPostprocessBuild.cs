@@ -10,13 +10,14 @@ using System;
 using UnityEditor.Android;
 #if UNITY_2018_1_OR_NEWER
 using UnityEditor.Build;
+using UnityEditor.Build.Reporting;
 #endif
 using UnityEditor.Callbacks;
 using UnityEditor;
 using UnityEngine;
 
 #if UNITY_2018_1_OR_NEWER
-public class UnityWebViewPostprocessBuild : IPreprocessBuild, IPostGenerateGradleAndroidProject
+public class UnityWebViewPostprocessBuild : IPreprocessBuildWithReport, IPostGenerateGradleAndroidProject
 #else
 public class UnityWebViewPostprocessBuild
 #endif
@@ -28,20 +29,43 @@ public class UnityWebViewPostprocessBuild
     //// cf. https://github.com/Over17/UnityAndroidManifestCallback
 
 #if UNITY_2018_1_OR_NEWER
-    public void OnPreprocessBuild(BuildTarget buildTarget, string path) {
-        if (buildTarget == BuildTarget.Android) {
-            var dev = "Packages/net.gree.unity-webview/Assets/Plugins/Android/WebViewPlugin-development.aar.tmpl";
-            var rel = "Packages/net.gree.unity-webview/Assets/Plugins/Android/WebViewPlugin-release.aar.tmpl";
+    public void OnPreprocessBuild(BuildReport report) {
+        if (report.summary.platform != BuildTarget.Android) {
+            return;
+        }
+
+        string dev = null;
+        string rel = null;
+
+        var pkg = UnityEditor.PackageManager.PackageInfo.FindForPackageName("com.bidscube.sdk");
+        if (pkg != null) {
+            var androidDir = Path.Combine(pkg.resolvedPath, "Runtime", "Plugins", "Android");
+            var d = Path.Combine(androidDir, "WebViewPlugin-development.aar.tmpl");
+            var r = Path.Combine(androidDir, "WebViewPlugin-release.aar.tmpl");
+            if (File.Exists(d) && File.Exists(r)) {
+                dev = d;
+                rel = r;
+            }
+        }
+
+        if (dev == null || rel == null) {
+            dev = "Packages/net.gree.unity-webview/Assets/Plugins/Android/WebViewPlugin-development.aar.tmpl";
+            rel = "Packages/net.gree.unity-webview/Assets/Plugins/Android/WebViewPlugin-release.aar.tmpl";
             if (!File.Exists(dev) || !File.Exists(rel)) {
                 dev = "Assets/Plugins/Android/WebViewPlugin-development.aar.tmpl";
                 rel = "Assets/Plugins/Android/WebViewPlugin-release.aar.tmpl";
             }
-            var src = (EditorUserBuildSettings.development) ? dev : rel;
-            //Directory.CreateDirectory("Temp/StagingArea/aar");
-            //File.Copy(src, "Temp/StagingArea/aar/WebViewPlugin.aar", true);
-            Directory.CreateDirectory("Assets/Plugins/Android");
-            File.Copy(src, "Assets/Plugins/Android/WebViewPlugin.aar", true);
         }
+
+        var src = EditorUserBuildSettings.development ? dev : rel;
+        if (!File.Exists(src)) {
+            throw new FileNotFoundException(
+                "[BidscubeSDK] WebView Android .aar.tmpl not found. Expected com.bidscube.sdk under Runtime/Plugins/Android, or legacy net.gree.unity-webview / Assets/Plugins/Android paths.",
+                src);
+        }
+
+        Directory.CreateDirectory("Assets/Plugins/Android");
+        File.Copy(src, "Assets/Plugins/Android/WebViewPlugin.aar", true);
     }
 
     public void OnPostGenerateGradleAndroidProject(string basePath) {

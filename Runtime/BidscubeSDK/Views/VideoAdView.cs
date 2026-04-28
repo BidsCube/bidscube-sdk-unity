@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using UnityEngine.Networking;
 using System.Text.RegularExpressions;
 using System;
+using System.IO;
 
 namespace BidscubeSDK
 {
@@ -41,6 +42,13 @@ namespace BidscubeSDK
         private IMAVideoPlayer _imaPlayer;
         private bool _useIMA = false;
 
+        private bool _videoHadError = false;
+        private string _videoError = null;
+
+        private bool _cacheDownloadStarted = false;
+        private bool _cacheReady = false;
+        private string _cacheLocalUrl = null;
+
         private void Awake()
         {
             // Defer creating UI/video player until we know the SDK will render the ad.
@@ -65,17 +73,26 @@ namespace BidscubeSDK
             // Setup full screen canvas
             SetupFullScreenCanvas();
 
-            // Create video texture for rendering
+            // Video area: RawImage + Button (tap-through for click tracking). Avoid a full-screen transparent Image on top of the video — on Android it often composites as opaque black over RenderTexture playback.
             if (_videoTexture == null)
             {
                 var textureObj = new GameObject("VideoTexture");
                 textureObj.transform.SetParent(transform, false);
                 _videoTexture = textureObj.AddComponent<RawImage>();
-                var rectTransform = _videoTexture.GetComponent<RectTransform>();
-                rectTransform.anchorMin = Vector2.zero;
-                rectTransform.anchorMax = Vector2.one;
-                rectTransform.offsetMin = Vector2.zero;
-                rectTransform.offsetMax = Vector2.zero;
+                _videoTexture.color = Color.white;
+                _videoTexture.raycastTarget = true;
+                var vRect = _videoTexture.GetComponent<RectTransform>();
+                vRect.anchorMin = Vector2.zero;
+                vRect.anchorMax = Vector2.one;
+                vRect.offsetMin = Vector2.zero;
+                vRect.offsetMax = Vector2.zero;
+                textureObj.transform.SetAsFirstSibling();
+
+                var tapBtn = textureObj.AddComponent<Button>();
+                tapBtn.targetGraphic = _videoTexture;
+                tapBtn.transition = Selectable.Transition.None;
+                tapBtn.onClick.AddListener(OnVideoClicked);
+                _clickButton = tapBtn;
             }
 
             // Create video player
@@ -85,34 +102,73 @@ namespace BidscubeSDK
                 _videoPlayer.playOnAwake = false;
                 _videoPlayer.isLooping = false;
                 _videoPlayer.renderMode = VideoRenderMode.RenderTexture;
+                _videoPlayer.waitForFirstFrame = true;
+                _videoPlayer.aspectRatio = VideoAspectRatio.FitInside;
+                _videoPlayer.audioOutputMode = VideoAudioOutputMode.None;
 
-                // Create render texture
-                var renderTexture = new RenderTexture(Screen.width, Screen.height, 0);
+                int rw = Mathf.Max(16, Screen.width);
+                int rh = Mathf.Max(16, Screen.height);
+                var renderTexture = new RenderTexture(rw, rh, 0, RenderTextureFormat.ARGB32);
+                renderTexture.Create();
                 _videoPlayer.targetTexture = renderTexture;
                 _videoTexture.texture = renderTexture;
 
                 _videoPlayer.prepareCompleted += OnVideoPrepared;
                 _videoPlayer.started += OnVideoStarted;
                 _videoPlayer.loopPointReached += OnVideoCompleted;
+                _videoPlayer.errorReceived += OnVideoError;
             }
 
-            // Create skip button
+            // Create skip button (top-left when skippable)
             if (_skipButton == null)
             {
-                var skipObj = new GameObject("SkipButton");
-                skipObj.transform.SetParent(transform);
+                var skipObj = new GameObject("SkipButton", typeof(RectTransform), typeof(Image));
+                skipObj.transform.SetParent(transform, false);
+                var skipRt = skipObj.GetComponent<RectTransform>();
+                skipRt.anchorMin = new Vector2(0f, 1f);
+                skipRt.anchorMax = new Vector2(0f, 1f);
+                skipRt.pivot = new Vector2(0f, 1f);
+                skipRt.sizeDelta = new Vector2(168f, 52f);
+                skipRt.anchoredPosition = new Vector2(12f, -12f);
+                var skipImg = skipObj.GetComponent<Image>();
+                skipImg.color = new Color(0f, 0f, 0f, 0.55f);
                 _skipButton = skipObj.AddComponent<Button>();
+                _skipButton.targetGraphic = skipImg;
                 _skipButton.onClick.AddListener(OnSkipClicked);
                 _skipButton.gameObject.SetActive(false);
             }
 
-            // Create close button
+            // Close — top-right, always visible
             if (_closeButton == null)
             {
-                var closeObj = new GameObject("CloseButton");
-                closeObj.transform.SetParent(transform);
+                var closeObj = new GameObject("CloseButton", typeof(RectTransform), typeof(Image));
+                closeObj.transform.SetParent(transform, false);
+                var closeRt = closeObj.GetComponent<RectTransform>();
+                closeRt.anchorMin = new Vector2(1f, 1f);
+                closeRt.anchorMax = new Vector2(1f, 1f);
+                closeRt.pivot = new Vector2(1f, 1f);
+                closeRt.sizeDelta = new Vector2(72f, 72f);
+                closeRt.anchoredPosition = new Vector2(-10f, -10f);
+                var closeImg = closeObj.GetComponent<Image>();
+                closeImg.color = new Color(0.12f, 0.12f, 0.14f, 0.94f);
                 _closeButton = closeObj.AddComponent<Button>();
+                _closeButton.targetGraphic = closeImg;
                 _closeButton.onClick.AddListener(OnCloseClicked);
+
+                var closeLabelGo = new GameObject("Label", typeof(RectTransform), typeof(Text));
+                closeLabelGo.transform.SetParent(closeObj.transform, false);
+                var closeLblRt = closeLabelGo.GetComponent<RectTransform>();
+                closeLblRt.anchorMin = Vector2.zero;
+                closeLblRt.anchorMax = Vector2.one;
+                closeLblRt.offsetMin = Vector2.zero;
+                closeLblRt.offsetMax = Vector2.zero;
+                var closeTxt = closeLabelGo.GetComponent<Text>();
+                closeTxt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                closeTxt.fontSize = 28;
+                closeTxt.color = Color.white;
+                closeTxt.alignment = TextAnchor.MiddleCenter;
+                closeTxt.text = "\u2715";
+                closeTxt.raycastTarget = false;
             }
 
             // Create skip text
@@ -131,8 +187,8 @@ namespace BidscubeSDK
             // Create progress slider
             if (_progressSlider == null)
             {
-                var sliderObj = new GameObject("ProgressSlider");
-                sliderObj.transform.SetParent(transform);
+                var sliderObj = new GameObject("ProgressSlider", typeof(RectTransform));
+                sliderObj.transform.SetParent(transform, false);
                 _progressSlider = sliderObj.AddComponent<Slider>();
                 _progressSlider.minValue = 0;
                 _progressSlider.maxValue = 1;
@@ -145,31 +201,12 @@ namespace BidscubeSDK
                 sliderRect.anchoredPosition = new Vector2(0, 10);
             }
 
-            // Create full screen click button for click-through
-            if (_clickButton == null)
-            {
-                var clickObj = new GameObject("ClickButton");
-                clickObj.transform.SetParent(transform, false);
-
-                // Ensure RectTransform exists (Button requires it)
-                var clickRect = clickObj.GetComponent<RectTransform>();
-                if (clickRect == null)
-                {
-                    clickRect = clickObj.AddComponent<RectTransform>();
-                }
-
-                _clickButton = clickObj.AddComponent<Button>();
-                _clickButton.onClick.AddListener(OnVideoClicked);
-
-                clickRect.anchorMin = Vector2.zero;
-                clickRect.anchorMax = Vector2.one;
-                clickRect.offsetMin = Vector2.zero;
-                clickRect.offsetMax = Vector2.zero;
-
-                // Make button transparent but clickable
-                var image = clickObj.AddComponent<Image>();
-                image.color = new Color(0, 0, 0, 0);
-            }
+            if (_videoTexture != null)
+                _videoTexture.transform.SetAsFirstSibling();
+            if (_skipButton != null)
+                _skipButton.transform.SetAsLastSibling();
+            if (_closeButton != null)
+                _closeButton.transform.SetAsLastSibling();
         }
 
         private void SetupFullScreenCanvas()
@@ -252,14 +289,25 @@ namespace BidscubeSDK
 
         private IEnumerator LoadVideoAdCoroutine(string url)
         {
+            // VideoPlayer / canvas / RawImage must exist before any branch assigns _videoPlayer.url or reads _videoPlayer.url.
+            SetupUI();
+
             // First, fetch the content from URL
             using (var request = UnityWebRequest.Get(url))
             {
                 request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
+                BidscubeSDK.ApplyConfiguredTimeoutTo(request);
                 yield return request.SendWebRequest();
 
                 if (request.result != UnityWebRequest.Result.Success)
                 {
+                    // #region agent log
+                    AgentNdjsonDebugLog.Write(
+                        "VideoAdView.LoadVideoAdCoroutine",
+                        "http_fail",
+                        "H2",
+                        "{\"placementId\":\"" + _placementId + "\",\"error\":\"" + AgentNdjsonDebugLog.EscapeForData(request.error ?? "") + "\"}");
+                    // #endregion
                     Logger.InfoError($"[VideoAdView] Failed to load ad from URL: {request.error}");
                     _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.NetworkError, request.error);
                     yield break;
@@ -267,26 +315,19 @@ namespace BidscubeSDK
 
                 var responseText = request.downloadHandler.text;
                 Logger.Info($"[VideoAdView] Received response ({responseText.Length} chars)");
-                Logger.Info($"[VideoAdView] Full response content:\n{responseText}");
+                Logger.DebugLog($"[VideoAdView] Response preview: {(responseText.Length <= 400 ? responseText : responseText.Substring(0, 400) + "…")}");
 
                 // Check if response is VAST XML
                 if (responseText.TrimStart().StartsWith("<VAST") || responseText.Contains("<VAST"))
                 {
                     Logger.Info("[VideoAdView] Detected VAST XML, parsing...");
-
-                    // First test with default VAST to ensure parser is working
-                    Logger.Info("[VideoAdView] Testing parser with default VAST XML first...");
-                    bool testSuccess = VASTParser.TestDefaultVAST();
-                    if (!testSuccess)
-                    {
-                        Logger.InfoError("[VideoAdView] Parser test failed, but continuing with actual VAST...");
-                    }
-
-                    // Now parse the actual VAST from server
                     _vastData = VASTParser.Parse(responseText);
 
                     if (_vastData == null || string.IsNullOrEmpty(_vastData.videoUrl))
                     {
+                        // #region agent log
+                        AgentNdjsonDebugLog.Write("VideoAdView.LoadVideoAdCoroutine", "vast_parse_fail", "H3", "{\"placementId\":\"" + _placementId + "\"}");
+                        // #endregion
                         Logger.InfoError("[VideoAdView] Failed to parse VAST or no video URL found");
                         _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.InvalidResponse, "Failed to parse VAST XML");
                         yield break;
@@ -310,33 +351,41 @@ namespace BidscubeSDK
                     // Direct video URL or JSON response
                     Logger.Info("[VideoAdView] Treating as direct video URL or JSON response");
 
-                    // Try to parse as JSON first (similar to BannerAdView)
+                    // JSON: flat adm, nested adm, or OpenRTB seatbid[].bid[].adm (same as Android SDK envelope)
                     if (responseText.TrimStart().StartsWith("{"))
                     {
-                        AdResponse json = null;
-                        try
-                        {
-                            json = JsonUtility.FromJson<AdResponse>(responseText);
-                        }
-                        catch (System.Exception e)
-                        {
-                            Logger.InfoError($"[VideoAdView] JSON parsing failed: {e.Message}");
-                            _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.InvalidResponse, $"JSON parsing failed: {e.Message}");
-                            yield break;
-                        }
-
-                        // Extract adm field (flat structure like BannerAdView)
                         string admValue = null;
-                        if (json != null && !string.IsNullOrEmpty(json.adm))
+                        AdResponse jsonEnvelope = null;
+                        if (AdMarkupExtractor.TryExtractMarkup(responseText, out var extracted, out _, out _))
                         {
-                            admValue = json.adm;
-                            Logger.Info("[VideoAdView] Extracted adm from JSON response");
+                            admValue = extracted;
+                            Logger.Info("[VideoAdView] Extracted adm from JSON (flat or OpenRTB seatbid)");
+                        }
+                        else
+                        {
+                            try
+                            {
+                                jsonEnvelope = JsonUtility.FromJson<AdResponse>(responseText);
+                                if (jsonEnvelope != null)
+                                    admValue = jsonEnvelope.GetAdmString();
+                            }
+                            catch (System.Exception e)
+                            {
+                                Logger.InfoError($"[VideoAdView] JSON parsing failed: {e.Message}");
+                                _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.InvalidResponse, $"JSON parsing failed: {e.Message}");
+                                yield break;
+                            }
+
+                            if (!string.IsNullOrEmpty(admValue))
+                                Logger.Info("[VideoAdView] Extracted adm from JSON envelope (JsonUtility)");
                         }
 
                         // If callback implements IAdRenderOverride, let it inspect the raw adm JSON first
                         if (!string.IsNullOrEmpty(admValue) && _callback is IAdRenderOverride rawOverride)
                         {
-                            int rawPos = json != null && json.position.HasValue ? json.position.Value : (int)BidscubeSDK.GetResponseAdPosition();
+                            int rawPos = jsonEnvelope != null
+                                ? jsonEnvelope.GetPosition()
+                                : (int)BidscubeSDK.GetResponseAdPosition();
                             Logger.Info("[VideoAdView] IAdRenderOverride detected, invoking override with raw adm JSON...");
                             bool handledRaw = false;
                             try
@@ -363,10 +412,8 @@ namespace BidscubeSDK
                         {
 
                             // Log the raw adm field as received
-                            Logger.Info($"[VideoAdView] ========== RAW ADM FIELD RECEIVED ==========");
-                            Logger.Info($"[VideoAdView] Raw adm length: {admValue.Length} chars");
-                            Logger.Info($"[VideoAdView] Raw adm content:\n{admValue}");
-                            Logger.Info($"[VideoAdView] ============================================");
+                            Logger.Info($"[VideoAdView] Raw adm field: {admValue.Length} chars");
+                            Logger.DebugLog($"[VideoAdView] Raw adm preview:\n{(admValue.Length <= 500 ? admValue : admValue.Substring(0, 500) + "…")}");
 
                             // Extract and unescape adm field (similar to BannerAdView)
                             string admContent = admValue.Trim();
@@ -395,10 +442,8 @@ namespace BidscubeSDK
                                 m => ((char)Convert.ToInt32(m.Groups[1].Value, 16)).ToString()
                             );
 
-                            Logger.Info($"[VideoAdView] ========== PROCESSED ADM CONTENT ==========");
-                            Logger.Info($"[VideoAdView] Processed adm length: {admContent.Length} chars");
-                            Logger.Info($"[VideoAdView] Full processed adm content:\n{admContent}");
-                            Logger.Info($"[VideoAdView] ============================================");
+                            Logger.Info($"[VideoAdView] Processed adm: {admContent.Length} chars");
+                            Logger.DebugLog($"[VideoAdView] Processed adm preview:\n{(admContent.Length <= 500 ? admContent : admContent.Substring(0, 500) + "…")}");
 
                             // AD RENDER OVERRIDE HOOK: if the app implements IAdRenderOverride, give it the admContent
                             // Note: render-override was already invoked with the raw adm JSON earlier; do not call it again here.
@@ -407,14 +452,6 @@ namespace BidscubeSDK
                             if (admContent.TrimStart().StartsWith("<VAST") || admContent.Contains("<VAST"))
                             {
                                 Logger.Info("[VideoAdView] Detected VAST XML in adm field, parsing...");
-
-                                // First test with default VAST to ensure parser is working
-                                Logger.Info("[VideoAdView] Testing parser with default VAST XML first...");
-                                bool testSuccess = VASTParser.TestDefaultVAST();
-                                if (!testSuccess)
-                                {
-                                    Logger.InfoError("[VideoAdView] Parser test failed, but continuing with actual VAST...");
-                                }
 
                                 // Check if it's a Wrapper VAST (needs to fetch nested VAST)
                                 if (VASTParser.IsWrapperVAST(admContent))
@@ -497,38 +534,92 @@ namespace BidscubeSDK
                 }
 
                 // Validate video URL before preparing
-                if (string.IsNullOrEmpty(_videoPlayer.url))
+                if (_videoPlayer == null || string.IsNullOrEmpty(_videoPlayer.url))
                 {
                     Logger.InfoError("[VideoAdView] No video URL available to play");
                     _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.InvalidResponse, "No video URL found in response");
                     yield break;
                 }
 
-                // Ensure UI/video player are initialized (lazy) before preparing/playing
-                if (_videoPlayer == null)
+                // Validate that the media URL is actually reachable (some demo VASTs include URLs that return 403).
+                if (_videoPlayer.url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                 {
-                    SetupUI();
+                    using (var head = UnityWebRequest.Head(_videoPlayer.url))
+                    {
+                        head.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
+                        BidscubeSDK.ApplyConfiguredTimeoutTo(head);
+                        yield return head.SendWebRequest();
+
+                        // UnityWebRequest.Head can report Success even for some error codes; check responseCode.
+                        if (head.result != UnityWebRequest.Result.Success || head.responseCode >= 400)
+                        {
+                            var msg = $"Media URL not reachable (HTTP {head.responseCode}): {head.error}";
+                            Logger.InfoError($"[VideoAdView] {msg}");
+                            _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.NetworkError, msg);
+                            yield break;
+                        }
+                    }
+                }
+
+                // Android: VideoPlayer часто падає на HTTPS стрімах (NuCachedSource2 error -1) без errorReceived.
+                // Тому стартуємо кеш-скачування одразу, щоб мати file:// фолбек.
+                ResetCacheState();
+                if (Application.platform == RuntimePlatform.Android)
+                {
+                    TryStartLocalCacheFallback(_videoPlayer.url);
                 }
 
                 Logger.Info($"[VideoAdView] Preparing video player with URL: {_videoPlayer.url}");
 
                 // Prepare video
+                _videoHadError = false;
+                _videoError = null;
                 _videoPlayer.Prepare();
 
-                float timeout = 30f; // 30 second timeout
+                float timeout = Mathf.Max(1f, BidscubeSDK.GetConfiguredAdTimeoutMs() / 1000f);
                 float elapsed = 0f;
 
-                while (!_videoPlayer.isPrepared && elapsed < timeout)
+                while (!_videoPlayer.isPrepared && !_videoHadError && elapsed < timeout)
                 {
+                    // Якщо стрім не готується, але кеш уже готовий — перемикаємось на локальний файл і готуємо знову.
+                    if (_cacheReady && !string.IsNullOrEmpty(_cacheLocalUrl) &&
+                        _videoPlayer != null && !string.Equals(_videoPlayer.url, _cacheLocalUrl, StringComparison.Ordinal))
+                    {
+                        Logger.Info($"[VideoAdView] Switching to cached file during prepare loop: {_cacheLocalUrl}");
+                        _videoHadError = false;
+                        _videoError = null;
+                        _videoPlayer.url = _cacheLocalUrl;
+                        _videoPlayer.Prepare();
+                    }
+
                     elapsed += Time.deltaTime;
                     yield return null;
                 }
 
-                if (!_videoPlayer.isPrepared)
+                if (_videoHadError || !_videoPlayer.isPrepared)
                 {
-                    Logger.InfoError("[VideoAdView] Video preparation timeout");
-                    _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.Timeout, "Video preparation timeout");
-                    yield break;
+                    // Android VideoPlayer frequently fails for some HTTPS streams (e.g. NuCachedSource2 error -1).
+                    // Fallback: download MP4 and replay from a local cached file.
+                    if (TryStartLocalCacheFallback(_videoPlayer.url))
+                    {
+                        elapsed = 0f;
+                        while (!_videoPlayer.isPrepared && !_videoHadError && elapsed < timeout)
+                        {
+                            elapsed += Time.deltaTime;
+                            yield return null;
+                        }
+                    }
+
+                    if (!_videoPlayer.isPrepared)
+                    {
+                        var msg = _videoHadError ? (_videoError ?? "Video error") : "Video preparation timeout";
+                        Logger.InfoError($"[VideoAdView] Video failed: {msg}");
+                        _callback?.OnAdFailed(
+                            _placementId,
+                            _videoHadError ? Constants.ErrorCodes.NetworkError : Constants.ErrorCodes.Timeout,
+                            msg);
+                        yield break;
+                    }
                 }
 
                 _isLoaded = true;
@@ -542,14 +633,6 @@ namespace BidscubeSDK
             }
         }
 
-        [System.Serializable]
-        private class AdResponse
-        {
-            // Handle flat structure: {"adm":"<VAST>...", "position":0}
-            public string adm;
-            public int? position;
-        }
-
         private void OnVideoPrepared(VideoPlayer source)
         {
             _isLoaded = true;
@@ -561,6 +644,90 @@ namespace BidscubeSDK
             {
                 Logger.Info("[VideoAdView] Video prepared, starting playback...");
                 _videoPlayer.Play();
+            }
+        }
+
+        private void OnVideoError(VideoPlayer source, string message)
+        {
+            _videoHadError = true;
+            _videoError = message;
+            Logger.InfoError($"[VideoAdView] VideoPlayer errorReceived: {message}");
+        }
+
+        private void ResetCacheState()
+        {
+            _cacheDownloadStarted = false;
+            _cacheReady = false;
+            _cacheLocalUrl = null;
+        }
+
+        private bool TryStartLocalCacheFallback(string remoteUrl)
+        {
+            if (string.IsNullOrEmpty(remoteUrl))
+                return false;
+            if (!remoteUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                return false;
+            if (_cacheDownloadStarted)
+                return true;
+            _cacheDownloadStarted = true;
+            StartCoroutine(DownloadToCacheThenReplay(remoteUrl));
+            return true;
+        }
+
+        private IEnumerator DownloadToCacheThenReplay(string remoteUrl)
+        {
+            string cacheDir = Path.Combine(Application.persistentDataPath, "bidscube-cache");
+            string cachePath = Path.Combine(cacheDir, "video.mp4");
+
+            try
+            {
+                if (!Directory.Exists(cacheDir))
+                    Directory.CreateDirectory(cacheDir);
+            }
+            catch (Exception e)
+            {
+                Logger.InfoError($"[VideoAdView] Failed to create cache dir: {e.Message}");
+                yield break;
+            }
+
+            using (var req = UnityWebRequest.Get(remoteUrl))
+            {
+                req.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
+                BidscubeSDK.ApplyConfiguredTimeoutTo(req);
+                yield return req.SendWebRequest();
+
+                if (req.result != UnityWebRequest.Result.Success)
+                {
+                    Logger.InfoError($"[VideoAdView] Cache download failed: {req.error}");
+                    yield break;
+                }
+
+                try
+                {
+                    File.WriteAllBytes(cachePath, req.downloadHandler.data);
+                }
+                catch (Exception e)
+                {
+                    Logger.InfoError($"[VideoAdView] Failed to write cache file: {e.Message}");
+                    yield break;
+                }
+            }
+
+            if (_videoPlayer == null)
+                yield break;
+
+            // Switch to local file and re-prepare (only if still trying to play the remote URL)
+            _cacheLocalUrl = "file://" + cachePath;
+            _cacheReady = true;
+            Logger.Info($"[VideoAdView] Video cache ready: {_cacheLocalUrl}");
+
+            if (string.Equals(_videoPlayer.url, remoteUrl, StringComparison.Ordinal))
+            {
+                Logger.Info($"[VideoAdView] Switching VideoPlayer to cached file: {_cacheLocalUrl}");
+                _videoHadError = false;
+                _videoError = null;
+                _videoPlayer.url = _cacheLocalUrl;
+                _videoPlayer.Prepare();
             }
         }
 
@@ -777,7 +944,7 @@ namespace BidscubeSDK
 
                 _callback?.OnVideoAdSkipped(_placementId);
                 _callback?.OnAdClosed(_placementId);
-                Destroy();
+                DismissVideoAdHierarchy();
             }
         }
 
@@ -798,7 +965,7 @@ namespace BidscubeSDK
         private void OnCloseClicked()
         {
             _callback?.OnAdClosed(_placementId);
-            Destroy();
+            DismissVideoAdHierarchy();
         }
 
         /// <summary>
@@ -867,14 +1034,35 @@ namespace BidscubeSDK
         }
 
         /// <summary>
-        /// Destroy video ad view
+        /// Destroy video ad view (removes the hosting <see cref="AdViewController"/> so the fullscreen canvas is cleared).
         /// </summary>
         public void Destroy()
         {
-            if (gameObject != null)
+            DismissVideoAdHierarchy();
+        }
+
+        void DismissVideoAdHierarchy()
+        {
+            if (_videoPlayer != null)
             {
-                Destroy(gameObject);
+                _videoPlayer.prepareCompleted -= OnVideoPrepared;
+                _videoPlayer.started -= OnVideoStarted;
+                _videoPlayer.loopPointReached -= OnVideoCompleted;
+                _videoPlayer.Stop();
+                var rt = _videoPlayer.targetTexture;
+                _videoPlayer.targetTexture = null;
+                if (rt != null)
+                {
+                    rt.Release();
+                    Destroy(rt);
+                }
             }
+
+            var controller = GetComponentInParent<AdViewController>();
+            if (controller != null)
+                Destroy(controller.gameObject);
+            else if (gameObject != null)
+                Destroy(gameObject);
         }
     }
 }

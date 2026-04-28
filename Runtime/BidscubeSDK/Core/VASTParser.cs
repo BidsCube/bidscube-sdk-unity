@@ -330,8 +330,10 @@ namespace BidscubeSDK
 
                 if (mediaFiles != null && mediaFiles.Count > 0)
                 {
-                    // Prefer mp4, then webm, then any other
-                    XmlNode selectedMediaFile = null;
+                    // Prefer progressive MP4, then WebM, then first playable — avoid defaulting to last node (often HLS/DASH; Unity Android VideoPlayer often fails → black screen).
+                    XmlNode bestMp4 = null;
+                    XmlNode bestWebm = null;
+                    XmlNode firstWithUrl = null;
                     foreach (XmlNode mediaFile in mediaFiles)
                     {
                         var type = mediaFile.Attributes?["type"]?.Value?.ToLower() ?? "";
@@ -339,30 +341,32 @@ namespace BidscubeSDK
 
                         Logger.Info($"[VASTParser] MediaFile - Type: {type}, URL: {url?.Substring(0, Mathf.Min(100, url?.Length ?? 0))}...");
 
-                        // Skip if no URL found
                         if (string.IsNullOrEmpty(url))
                         {
                             Logger.Info("[VASTParser] MediaFile has no URL, skipping");
                             continue;
                         }
 
+                        if (firstWithUrl == null)
+                            firstWithUrl = mediaFile;
+
                         if (type.Contains("mp4") || url.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase))
                         {
-                            selectedMediaFile = mediaFile;
-                            Logger.Info("[VASTParser] Selected MP4 MediaFile");
+                            bestMp4 = mediaFile;
+                            Logger.Info("[VASTParser] Found MP4 MediaFile candidate");
                             break;
                         }
-                        if (selectedMediaFile == null && (type.Contains("webm") || url.EndsWith(".webm", StringComparison.OrdinalIgnoreCase)))
+
+                        if (bestWebm == null && (type.Contains("webm") || url.EndsWith(".webm", StringComparison.OrdinalIgnoreCase)))
                         {
-                            selectedMediaFile = mediaFile;
-                            Logger.Info("[VASTParser] Selected WebM MediaFile (backup)");
-                        }
-                        if (selectedMediaFile == null)
-                        {
-                            selectedMediaFile = mediaFile;
-                            Logger.Info($"[VASTParser] Selected MediaFile with type: {type}");
+                            bestWebm = mediaFile;
+                            Logger.Info("[VASTParser] Found WebM MediaFile candidate");
                         }
                     }
+
+                    var selectedMediaFile = bestMp4 ?? bestWebm ?? firstWithUrl;
+                    if (selectedMediaFile != null && bestMp4 == null)
+                        Logger.Info("[VASTParser] Using fallback MediaFile (no MP4 in list order before first HLS/other)");
 
                     if (selectedMediaFile != null)
                     {

@@ -4070,7 +4070,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3c8d8932e7a8c4927ab9861295cc9ba0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BidscubeSDK.Examples.SDKTestScene
+  m_EditorClassIdentifier: BidscubeSDK::BidscubeSDK.Controllers.SDKTestScene
   _placementId: 20212
   _enableDebugMode: 1
   _enableLogging: 1
@@ -4104,7 +4104,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 85a2504dd55234bd6a0654d6f263897b, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BidscubeSDK.Examples.SceneManager
+  m_EditorClassIdentifier: BidscubeSDK::BidscubeSDK.Controllers.SceneManager
   mainScene:
     sceneName: Bidscube Example Scene
     sceneIndex: 0

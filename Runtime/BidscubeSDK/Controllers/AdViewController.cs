@@ -67,9 +67,9 @@ namespace BidscubeSDK
             }
             else
             {
-                // Start with Unknown - position will be determined when adm response is received
-                _currentPosition = AdPosition.Unknown;
-                Logger.Info("[AdViewController] Initializing with Unknown position - will be set from adm response or manual override");
+                // Use caller slot (e.g. Footer from SDK config) until adm/server overrides in MarkAdAsLoaded.
+                _currentPosition = position != AdPosition.Unknown ? position : AdPosition.Unknown;
+                Logger.Info($"[AdViewController] Initial position: {_currentPosition} (from Initialize; adm may override)");
             }
 
             SetupUI();
@@ -92,8 +92,8 @@ namespace BidscubeSDK
             // Ensure scale is 1,1,1
             transform.localScale = Vector3.one;
 
-            // Check if position is FullScreen to decide canvas mode
-            bool isFullScreen = _currentPosition == AdPosition.FullScreen;
+            // FullScreen drives ScreenSpaceOverlay; video must use overlay or app Overlay canvases (e.g. launcher) draw on top of ScreenSpaceCamera UI.
+            bool isFullScreen = _currentPosition == AdPosition.FullScreen || _adType == AdType.Video;
 
             // Check if we're already parented to a Canvas or SDKContent
             Canvas parentCanvas = GetComponentInParent<Canvas>();
@@ -140,7 +140,11 @@ namespace BidscubeSDK
                     Logger.InfoError("[AdViewController] Failed to create Canvas component!");
                     return;
                 }
-                SetupCanvas(canvas, isFullScreen, mainCamera);
+
+                // Image/native/video under SDKContent (no parent UI canvas) must use Screen Space Overlay.
+                // Screen Space Camera draws in the 3D stack and is typically covered by app Overlay UI (e.g. embedded launcher) — ads look "missing".
+                bool useOverlayMode = isFullScreen || _adType == AdType.Image || _adType == AdType.Native;
+                SetupCanvas(canvas, useOverlayMode, mainCamera);
             }
             else
             {
@@ -213,7 +217,7 @@ namespace BidscubeSDK
             {
                 // Full screen or no camera - use overlay mode
                 canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-                canvas.sortingOrder = 1000;
+                canvas.sortingOrder = (_adType == AdType.Video || _adType == AdType.Image || _adType == AdType.Native) ? 10000 : 1000;
             }
             else
             {
@@ -369,9 +373,19 @@ namespace BidscubeSDK
 
         private void CreateImageAdView()
         {
-            // AdViewController will now handle its own positioning.
-            // The BannerAdView will just fill the AdViewController's rect.
-            var bannerAdView = gameObject.AddComponent<BannerAdView>();
+            // Child host so BannerAdView does not share the same RectTransform as AdViewController.
+            // Otherwise ApplyPositioning and BannerAdView.UpdateBannerSize fight over one rect and
+            // native WebView margin math reads the wrong bounds (e.g. full canvas instead of the strip).
+            var hostGO = new GameObject("BannerContent");
+            var hostRT = hostGO.AddComponent<RectTransform>();
+            hostRT.SetParent(transform, false);
+            hostRT.anchorMin = Vector2.zero;
+            hostRT.anchorMax = Vector2.one;
+            hostRT.offsetMin = Vector2.zero;
+            hostRT.offsetMax = Vector2.zero;
+            hostRT.localScale = Vector3.one;
+
+            var bannerAdView = hostGO.AddComponent<BannerAdView>();
             // Apply configured ad size settings if present before loading content
             if (_adSizeSettings != null)
             {
@@ -496,7 +510,8 @@ namespace BidscubeSDK
 
         private IEnumerator LoadingTimeout()
         {
-            yield return new WaitForSeconds(30f); // 30 second timeout like iOS
+            float seconds = BidscubeSDK.GetConfiguredAdTimeoutMs() / 1000f;
+            yield return new WaitForSeconds(seconds);
 
             if (!_hasAdLoaded)
             {
@@ -592,6 +607,20 @@ namespace BidscubeSDK
             RefreshWebViewMargins();
         }
 
+        // When adm / AdSizeSettings do not provide a height yet, 40px is effectively invisible on phones.
+        // IAB large banner (90dp) and the embedded test "frame" (~244px) need a higher floor.
+        private const float DefaultFallbackBannerHeight = 100f;
+        private const float LayoutSlotMinHeightWhenParentNotLaidOut = 200f;
+
+        /// <summary>
+        /// Re-runs layout and WebView margin sync (e.g. after the host UI slot finishes layout).
+        /// </summary>
+        public void ReapplyLayoutAndWebView()
+        {
+            ApplyPositioning(_currentPosition);
+            RefreshWebViewMargins();
+        }
+
         private void ApplyPositioning(AdPosition position)
         {
             var rectTransform = GetComponent<RectTransform>();
@@ -607,7 +636,7 @@ namespace BidscubeSDK
             // Get actual banner dimensions from the ad view
             // Default sizes come from AdSizeSettings when available (clean architecture - configurable defaults)
             Vector2 defaultSize = _adSizeSettings != null ? _adSizeSettings.GetDefaultSize(_adType) : Vector2.zero;
-            float bannerHeight = defaultSize.y > 0 ? defaultSize.y : 40f;
+            float bannerHeight = defaultSize.y > 0 ? defaultSize.y : DefaultFallbackBannerHeight;
             float bannerWidth = defaultSize.x > 0 ? defaultSize.x : 320f;
 
             // If AdSizeSettings is provided, always use it (ignore any ad/ADM-provided dimensions)
@@ -633,7 +662,7 @@ namespace BidscubeSDK
                 }
                 else
                 {
-                    var bannerAdView = GetComponent<BannerAdView>();
+                    var bannerAdView = GetComponentInChildren<BannerAdView>(true);
                     if (bannerAdView != null)
                     {
                         var dimensions = bannerAdView.GetBannerDimensions();
@@ -657,6 +686,28 @@ namespace BidscubeSDK
                         Logger.Info($"[AdViewController] Using actual native ad dimensions: {bannerWidth}x{bannerHeight}");
                     }
                 }
+            }
+
+            // Embedded launcher / layout slot: fill the host "frame" height (see Flutter windowed test: Card + padding).
+            // Prefer the parent slot's laid-out height; otherwise use creative height with a large minimum.
+            if (BidscubeSDK.AdViewsParentUsesLayoutSlotSizing() && transform.parent != null && _adType != AdType.Video)
+            {
+                var parentRt = transform.parent as RectTransform;
+                float parentH = parentRt != null ? parentRt.rect.height : 0f;
+                float layoutHeight;
+                if (parentH > 1f)
+                    layoutHeight = parentH;
+                else
+                    layoutHeight = Mathf.Max(bannerHeight, LayoutSlotMinHeightWhenParentNotLaidOut);
+
+                rectTransform.anchorMin = new Vector2(0f, 1f);
+                rectTransform.anchorMax = new Vector2(1f, 1f);
+                rectTransform.pivot = new Vector2(0.5f, 1f);
+                rectTransform.sizeDelta = new Vector2(0f, layoutHeight);
+                rectTransform.anchoredPosition = Vector2.zero;
+                Logger.Info($"[AdViewController] Ad parent override (layout slot): width stretch, height={layoutHeight} (parent={parentH:F1}, creative~={bannerHeight:F1})");
+                Canvas.ForceUpdateCanvases();
+                return;
             }
 
             // Get canvas or screen dimensions for proper sizing
@@ -824,6 +875,7 @@ namespace BidscubeSDK
 
         private void OnDestroy()
         {
+            BidscubeSDK.UnregisterAdViewController(this);
             // Clean up overlay objects when AdViewController is destroyed
             ClearOverlayObjects();
         }
@@ -834,7 +886,7 @@ namespace BidscubeSDK
         private void RefreshWebViewMargins()
         {
             // Find all WebViewControllers in child components and refresh their margins
-            var bannerAdView = GetComponent<BannerAdView>();
+            var bannerAdView = GetComponentInChildren<BannerAdView>(true);
             if (bannerAdView != null)
             {
                 var webViewController = bannerAdView.GetComponentInChildren<WebViewController>();
