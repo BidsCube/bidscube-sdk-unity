@@ -561,8 +561,8 @@ namespace BidscubeSDK
                     }
                 }
 
-                // Android: VideoPlayer часто падає на HTTPS стрімах (NuCachedSource2 error -1) без errorReceived.
-                // Тому стартуємо кеш-скачування одразу, щоб мати file:// фолбек.
+                // Android: VideoPlayer often fails on HTTPS streams (NuCachedSource2 error -1) without errorReceived.
+                // Start local cache download early so we can fall back to a file:// URL.
                 ResetCacheState();
                 if (Application.platform == RuntimePlatform.Android)
                 {
@@ -581,7 +581,7 @@ namespace BidscubeSDK
 
                 while (!_videoPlayer.isPrepared && !_videoHadError && elapsed < timeout)
                 {
-                    // Якщо стрім не готується, але кеш уже готовий — перемикаємось на локальний файл і готуємо знову.
+                    // If the stream is not becoming ready but the cache is, switch to the local file and prepare again.
                     if (_cacheReady && !string.IsNullOrEmpty(_cacheLocalUrl) &&
                         _videoPlayer != null && !string.Equals(_videoPlayer.url, _cacheLocalUrl, StringComparison.Ordinal))
                     {

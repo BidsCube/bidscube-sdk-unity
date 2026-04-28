@@ -1,3 +1,9 @@
+## [1.2.3] - 2026-04-29
+
+### Changed
+
+- Android: video preparation tries a local `file://` cache sooner when HTTPS streaming is unreliable (NuCachedSource2).
+
 ## [1.2.1] - 2025-12-11
 
 ### Added
