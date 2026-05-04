@@ -1,6 +1,8 @@
-# Bidscube Unity SDK
+# Bidscube Unity SDK (core package)
 
-The Bidscube Unity SDK provides a comprehensive advertising solution for Unity games, supporting image ads, video ads, native ads, and banner ads.
+This repository is the **core** Bidscube Unity SDK — Unity package **`com.bidscube.sdk`**. It implements the **direct** Bidscube ad network API (banners, image, video, native ads, and consent helpers). It is **not** an AppLovin MAX, LevelPlay, or IronSource mediation adapter; use separate adapter packages if you need those mediation stacks.
+
+The SDK provides a comprehensive advertising solution for Unity games, supporting image ads, video ads, native ads, and banner ads.
 
 ## Features
 
@@ -16,11 +18,27 @@ The Bidscube Unity SDK provides a comprehensive advertising solution for Unity g
 
 ### Unity Package Manager
 
-1. Open Unity Package Manager
-2. Click the "+" button and select "Add package from git URL"
-3. Enter the package URL: `https://github.com/Bidscube/bidscube-sdk-unity.git`
+For a **pinned production** install, use release tag **`v1.2.5`** (matches published `package.json` version `1.2.5`):
 
-**Note:** The SDK will automatically install required dependencies (TextMeshPro, UGUI) when imported. No manual setup is required.
+`https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.5`
+
+1. Open Unity Package Manager  
+2. Click the "+" button and select "Add package from git URL"  
+3. Paste the URL above, including the `#v1.2.5` fragment  
+
+Or add to `Packages/manifest.json`:
+
+```json
+{
+  "dependencies": {
+    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.5"
+  }
+}
+```
+
+If you use the repository URL **without** a `#tag`, Unity follows the default branch, which may not match a numbered release.
+
+**Note:** Required Unity packages (`com.unity.ugui`, `com.unity.textmeshpro`) are declared in `package.json` and are resolved automatically when you add this package.
 
 ### Manual Installation
 
@@ -44,7 +62,7 @@ var config = new SDKConfig.Builder()
     .EnableDebugMode(false)
     .DefaultAdTimeout(30000)
     .DefaultAdPosition(AdPosition.Unknown)
-    .BaseURL(Constants.)
+    .BaseURL(Constants.BaseURL)
     .Build();
 
 BidscubeSDK.BidscubeSDK.Initialize(config);
@@ -120,6 +138,23 @@ public void ShowNativeAd()
 }
 ```
 
+### 6. Cleanup and shutdown
+
+Remove ads and release SDK state when leaving a session or switching accounts:
+
+```csharp
+// Remove all banner instances tracked by the SDK
+BidscubeSDK.BidscubeSDK.RemoveAllBanners();
+
+// Tear down all active ad views (banners, video, native, image flows)
+BidscubeSDK.BidscubeSDK.ClearAllAds();
+
+// Clear configuration and internal SDK state (call when you no longer need the SDK this session)
+BidscubeSDK.BidscubeSDK.Cleanup();
+```
+
+Use `ClearAllAds()` when you need to dismiss creatives but may initialize again; use `Cleanup()` when you want a full reset of SDK configuration as well.
+
 ## API Reference
 
 ### Core Classes
@@ -134,6 +169,8 @@ Main SDK class providing static methods for ad management.
 - `Initialize()` - Initialize SDK with default configuration
 - `IsInitialized()` - Check if SDK is initialized
 - `Cleanup()` - Cleanup SDK resources
+- `ClearAllAds()` - Destroy all active ad views (banners, video, native, image)
+- `RemoveAllBanners()` - Remove all banner instances tracked by the SDK
 
 #### SDKConfig
 
@@ -394,10 +431,10 @@ Notes
 
 The SDK requires the following Unity packages (automatically installed when using Unity Package Manager):
 
-- **com.unity.ugui** (1.0.0) - Unity UI system
-- **com.unity.textmeshpro** (3.0.6) - TextMeshPro for UI text rendering
+- **com.unity.ugui** (2.0.0) — Unity UI system  
+- **com.unity.textmeshpro** (3.0.6) — TextMeshPro for UI text rendering  
 
-These dependencies are declared in `package.json` and will be automatically resolved when the package is imported via Git URL.
+These versions are declared in `package.json` and are resolved when the package is imported via Git URL.
 
 ## Requirements
 
