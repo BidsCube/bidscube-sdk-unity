@@ -2,6 +2,18 @@
 
 ---
 
+## [1.2.8] - 2026-05-06
+
+### Added
+
+- **Android (editor + runtime):** shared **`BidscubeAndroidExportSettings`**, **`BidscubeAndroidFeatureSet`**, scripting-define sync (**`BIDSCUBE_ANDROID_LITE_NO_VIDEO`**), and **`BidscubeAndroidGradleProjectPatcher`** so **`com.bidscube.applovin.max`** and **`com.bidscube.levelplay`** can apply the same Lite / Full Gradle rules. Lite uses bundled **`sdk-lite-no-video`** AAR naming; Full uses **`sdk-full-video`** + optional launcher desugaring injection.
+
+### Changed
+
+- **`BidscubeLiteVideoGuard`** message text (no AppLovin-specific wording).
+
+---
+
 ## [1.2.7] - 2026-05-06
 
 ### Fixed

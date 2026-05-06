@@ -18,20 +18,20 @@ The SDK provides a comprehensive advertising solution for Unity games, supportin
 
 ### Unity Package Manager
 
-For a **pinned production** install, use release tag **`v1.2.7`** (matches published `package.json` version `1.2.7`):
+For a **pinned production** install, use release tag **`v1.2.8`** (matches published `package.json` version `1.2.8`):
 
-`https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.7`
+`https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.8`
 
 1. Open Unity Package Manager  
 2. Click the "+" button and select "Add package from git URL"  
-3. Paste the URL above, including the `#v1.2.7` fragment  
+3. Paste the URL above, including the `#v1.2.8` fragment  
 
 Or add to `Packages/manifest.json`:
 
 ```json
 {
   "dependencies": {
-    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.7"
+    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.8"
   }
 }
 ```
@@ -39,6 +39,10 @@ Or add to `Packages/manifest.json`:
 If you use the repository URL **without** a `#tag`, Unity follows the default branch, which may not match a numbered release.
 
 **Note:** Required Unity packages (`com.unity.ugui`, `com.unity.textmeshpro`) are declared in `package.json` and are resolved automatically when you add this package.
+
+### Android: Lite (no video) vs Full (video)
+
+Direct SDK video entry points respect **`BIDSCUBE_ANDROID_LITE_NO_VIDEO`** when a mediation adapter (or your own tooling) sets it for **LiteNoVideo** Android exports. When you consume the native **`com.bidscube:sdk-lite-no-video`** artifact (bundled by adapters as `bidscube-sdk-lite-no-video-*.aar`), you should **not** need **`coreLibraryDesugaringEnabled`** for Bidscube metadata. The **`sdk-full-video`** artifact may pull Media3 / IMA and **may** require desugaring — use **FullWithVideo** export mode in the adapter and expect launcher **`desugar_jdk_libs`** injection.
 
 ### Manual Installation
 
