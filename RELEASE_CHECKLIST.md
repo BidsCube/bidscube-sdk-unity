@@ -1,12 +1,12 @@
 # Release checklist — `com.bidscube.sdk`
 
-Use this list before tagging and publishing a core SDK release. Current production pin referenced by apps: **`v1.2.5`**.
+Use this list before tagging and publishing a core SDK release. Current production pin referenced by apps: **`v1.2.6`**.
 
 ## Version and tag
 
 - [ ] `package.json` field `"name"` is `com.bidscube.sdk`
-- [ ] `package.json` field `"version"` matches the release (e.g. `1.2.5` for tag `v1.2.5`)
-- [ ] Git tag name follows `v` + semver (e.g. `v1.2.5`) and matches `package.json` version
+- [ ] `package.json` field `"version"` matches the release (e.g. `1.2.6` for tag `v1.2.6`)
+- [ ] Git tag name follows `v` + semver (e.g. `v1.2.6`) and matches `package.json` version
 - [ ] `CHANGELOG.md` includes an entry for this version
 
 ## Dependencies (`package.json`)
@@ -28,25 +28,28 @@ Use this list before tagging and publishing a core SDK release. Current producti
 
 ## CI / automation (when present)
 
-- [ ] If `.github/workflows/` includes a release workflow, tag `v*` matches `package.json` so automation can run (on **`v1.2.5`**, workflow exists on the tag; default branch may not include it until merged)
+- [ ] If `.github/workflows/` includes a release workflow, tag `v*` matches `package.json` so automation can run
 
 ## Consumer verification
 
 - [ ] Unity Package Manager resolves the package from  
-  `https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.5`  
-  (or the equivalent `BidsCube` org URL your manifest uses)
+  `https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.6`  
+  (or the equivalent `Bidscube` org URL your manifest uses)
 - [ ] **Android:** Gradle build completes without duplicate-class errors from overlapping SDK/adapter AARs
 - [ ] **iOS:** Xcode build completes without duplicated frameworks from overlapping SDK/adapter pods or embedded binaries
 
-## Branch vs tag (do not assume `master` is the release)
+## Push / tag (example)
 
-- **Release tag `v1.2.5`:** Validated — `package.json` has `"name": "com.bidscube.sdk"` and `"version": "1.2.5"`; dependencies are `com.unity.ugui` and `com.unity.textmeshpro` only; no AppLovin/LevelPlay adapter assets in-tree.
-- **Default branch (`master`):** May lag the tag (e.g. older `package.json` version or missing changelog entries). Prefer **documenting** drift and merging forward rather than rewriting tags.
+```bash
+cd bidscube-sdk-unity
+git add -A && git status
+git commit -m "Release com.bidscube.sdk 1.2.6"
+git tag v1.2.6
+git push origin main && git push origin v1.2.6
+```
 
-### Optional follow-up after a release
+Then create a **GitHub Release** from tag `v1.2.6` (title `v1.2.6`, notes from `CHANGELOG.md`).
 
-- Sync `master` with the released commit or bump `package.json` on `master` to the next **development** version (e.g. `1.2.6` or `1.3.0`) so the default branch is unambiguous for contributors.
+## After release
 
-## Doc erratum on tag `v1.2.5` (optional hotfix)
-
-- The Quick Start snippet in `README.md` on tag `v1.2.5` used `.BaseURL(Constants.)` (invalid). Use `.BaseURL(Constants.BaseURL)` or omit `BaseURL` to use the default. **Master** documentation has been corrected; a future doc-only tag can align the default branch and release docs if desired.
+- Bump companion packages (`com.bidscube.applovin.max`, `com.bidscube.levelplay`) so `package.json` → `dependencies` → `com.bidscube.sdk` matches **`1.2.6`** and re-tag those repos per their `RELEASE.md`.

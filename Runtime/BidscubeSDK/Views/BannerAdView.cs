@@ -30,7 +30,6 @@ namespace BidscubeSDK
         private string _placementId;
         private IAdCallback _callback;
         private AdPosition _bannerPosition = AdPosition.Header;
-        private bool _isLoaded = false;
         private float _cornerRadius = 0f;
         private float _bannerHeight = 40f;
         private float _bannerWidth = 320f;
@@ -311,7 +310,7 @@ namespace BidscubeSDK
             background-color: transparent;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: {(BidscubeSDK.AdViewsParentUsesLayoutSlotSizing ? "flex-start" : "center")};
             box-sizing: border-box;
         }}
         img, iframe {{
@@ -378,8 +377,6 @@ namespace BidscubeSDK
             {
                 _webViewController.RefreshMargins();
             }
-
-            _isLoaded = true;
 
             // Update size after loading if dimensions were extracted
             UpdateBannerSize();
@@ -558,6 +555,15 @@ namespace BidscubeSDK
             {
                 Logger.Info($" BannerAdView: Click URL was: {_clickURL}");
             }
+        }
+
+        /// <summary>
+        /// Re-run WebView margins after the host layout changes.
+        /// </summary>
+        public void ReapplyLayout()
+        {
+            if (_webViewController != null)
+                _webViewController.RefreshMargins();
         }
 
         /// <summary>

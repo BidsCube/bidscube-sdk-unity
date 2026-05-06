@@ -1,3 +1,15 @@
+## [Unreleased]
+
+---
+
+## [1.2.6] - 2026-05-06
+
+### Fixed
+
+- **Android LiteNoVideo:** `ShowVideoAd`, `GetVideoAdView`, and `AdViewController` video init now respect **`BIDSCUBE_ANDROID_LITE_NO_VIDEO`** (set by `com.bidscube.applovin.max` for Lite builds). Direct Unity video no longer starts when the native graph omits IMA/Media3; callbacks receive **`LiteNoVideoVideoNotSupported` (1006)**.
+
+---
+
 ## [1.2.5] - 2026-04-30
 
 ### Changed

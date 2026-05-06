@@ -30,7 +30,6 @@ namespace BidscubeSDK
 
         // VAST data
         private VASTParser.VASTData _vastData;
-        private bool _hasFiredImpression = false;
         private bool _hasFiredStart = false;
         private bool _hasFiredFirstQuartile = false;
         private bool _hasFiredMidpoint = false;
@@ -294,7 +293,6 @@ namespace BidscubeSDK
 
                     // Fire impression tracking URLs
                     VASTParser.FireTrackingUrls(_vastData.impressionUrls);
-                    _hasFiredImpression = true;
 
                     // Set skip time from VAST skipoffset
                     if (_vastData.skipOffset > 0)
@@ -462,7 +460,6 @@ namespace BidscubeSDK
                                     Logger.Info($"[VideoAdView] Successfully parsed VAST, video URL: {_vastData.videoUrl}");
                                     _videoPlayer.url = _vastData.videoUrl;
                                     VASTParser.FireTrackingUrls(_vastData.impressionUrls);
-                                    _hasFiredImpression = true;
 
                                     if (_vastData.skipOffset > 0)
                                     {

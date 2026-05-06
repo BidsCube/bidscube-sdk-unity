@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 #if UNITY_2018_4_OR_NEWER
 using UnityEngine.Networking;
 #endif
+using BidscubeSDK;
 #if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
 using System.IO;
 using System.Text.RegularExpressions;
@@ -15,10 +16,6 @@ using UnityEngine.UI;
 #endif
 #if UNITY_ANDROID
 using UnityEngine.Android;
-#endif
-#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN || UNITY_EDITOR || UNITY_STANDALONE
-using UnityEngine.UI;
-using System.Text.RegularExpressions;
 #endif
 
 using Callback = System.Action<string>;
@@ -263,14 +260,6 @@ public class WebViewObject : MonoBehaviour
                 }
             };
             callbacks.PermissionDenied += (permission) =>
-            {
-                deniedCount++;
-                if (grantedCount + deniedCount == permissions.Count)
-                {
-                    StartCoroutine(CallOnRequestFileChooserPermissionsResult(grantedCount == permissions.Count));
-                }
-            };
-            callbacks.PermissionDeniedAndDontAskAgain += (permission) =>
             {
                 deniedCount++;
                 if (grantedCount + deniedCount == permissions.Count)
