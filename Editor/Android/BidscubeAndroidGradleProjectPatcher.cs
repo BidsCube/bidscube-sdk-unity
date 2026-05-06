@@ -1,4 +1,3 @@
-#if UNITY_ANDROID
 using System;
 using System.IO;
 using System.Reflection;
@@ -26,9 +25,9 @@ namespace BidscubeSDK.Editor.Android
     }
 
     /// <summary>Shared Android Gradle export logic for AppLovin MAX and LevelPlay adapter packages.</summary>
-    internal static class BidscubeAndroidGradleProjectPatcher
+    public static class BidscubeAndroidGradleProjectPatcher
     {
-        internal static void OnPostGenerateGradleAndroidProject(string path, string logPrefix, Assembly packageAssembly,
+        public static void OnPostGenerateGradleAndroidProject(string path, string logPrefix, Assembly packageAssembly,
             bool appendAppLovinSdkDependency, BidscubeAndroidBundledCoreAarNames names)
         {
             try
@@ -185,11 +184,35 @@ namespace BidscubeSDK.Editor.Android
             }
         }
 
+        /// <summary>
+        /// Replaces the first regex match with a literal string (no <c>$n</c> substitution).
+        /// Avoids <see cref="Regex.Replace(string, string, int)"/> overload resolution issues on some Unity / .NET profiles.
+        /// </summary>
+        static string ReplaceFirstMatchLiteral(Regex regex, string input, string literalReplacement)
+        {
+            var m = regex.Match(input);
+            if (!m.Success)
+                return input;
+            return input.Substring(0, m.Index) + literalReplacement + input.Substring(m.Index + m.Length);
+        }
+
+        /// <summary>Replaces the first match using <see cref="Match.Result(string)"/> substitution rules.</summary>
+        static string ReplaceFirstMatchSubstitution(Regex regex, string input, string substitution)
+        {
+            var m = regex.Match(input);
+            if (!m.Success)
+                return input;
+            return input.Substring(0, m.Index) + m.Result(substitution) + input.Substring(m.Index + m.Length);
+        }
+
         static string EnsureCoreLibraryDesugaringInGradleText(string content)
         {
             const string depLine = "    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'";
             if (content.IndexOf("desugar_jdk_libs", StringComparison.OrdinalIgnoreCase) < 0)
-                content = Regex.Replace(content, @"(dependencies\s*\{)\s*", $"$1\n{depLine}\n", 1, RegexOptions.Multiline);
+            {
+                var depRx = new Regex(@"(dependencies\s*\{)\s*", RegexOptions.Multiline);
+                content = ReplaceFirstMatchSubstitution(depRx, content, $"$1\n{depLine}\n");
+            }
 
             if (Regex.IsMatch(content, @"coreLibraryDesugaringEnabled\s+true\b"))
                 return content;
@@ -198,9 +221,14 @@ namespace BidscubeSDK.Editor.Android
                 return Regex.Replace(content, @"(\bcoreLibraryDesugaringEnabled\s+)false\b", "${1}true", RegexOptions.Multiline);
 
             if (Regex.IsMatch(content, @"compileOptions\s*\{"))
-                return Regex.Replace(content, @"(compileOptions\s*\{)(\s*)", "$1$2        coreLibraryDesugaringEnabled true$2", 1, RegexOptions.Multiline);
+            {
+                var coRx = new Regex(@"(compileOptions\s*\{)(\s*)", RegexOptions.Multiline);
+                return ReplaceFirstMatchSubstitution(coRx, content, "$1$2        coreLibraryDesugaringEnabled true$2");
+            }
 
-            return Regex.Replace(content, @"(android\s*\{)(\s*)", "$1$2    compileOptions {\n        coreLibraryDesugaringEnabled true\n    }\n$2", 1, RegexOptions.Multiline);
+            var androidRx = new Regex(@"(android\s*\{)(\s*)", RegexOptions.Multiline);
+            return ReplaceFirstMatchSubstitution(androidRx, content,
+                "$1$2    compileOptions {\n        coreLibraryDesugaringEnabled true\n    }\n$2");
         }
 
         static bool TryResolveGradleProjectRoot(string pathFromUnity, out string gradleRoot)
@@ -361,7 +389,7 @@ namespace BidscubeSDK.Editor.Android
             if (!content.Contains(start))
                 return;
             var pattern = new Regex(Regex.Escape(start) + "[\\s\\S]*?" + Regex.Escape(end), RegexOptions.Multiline);
-            content = pattern.Replace(content, "", 1);
+            content = ReplaceFirstMatchLiteral(pattern, content, "");
             File.WriteAllText(gradlePath, content);
         }
 
@@ -423,7 +451,7 @@ namespace BidscubeSDK.Editor.Android
             {
                 var pattern = new Regex(Regex.Escape(start) + "[\\s\\S]*?" + Regex.Escape(end),
                     RegexOptions.Multiline);
-                content = pattern.Replace(content, inner, 1);
+                content = ReplaceFirstMatchLiteral(pattern, content, inner);
             }
             else
                 content = InjectAfterDependenciesOpen(content, inner);
@@ -496,4 +524,3 @@ namespace BidscubeSDK.Editor.Android
         }
     }
 }
-#endif

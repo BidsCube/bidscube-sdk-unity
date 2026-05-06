@@ -1,13 +1,8 @@
 {
-    "name": "BidscubeSDK.Android.Editor",
-    "rootNamespace": "BidscubeSDK.Editor",
-    "references": [
-        "BidscubeSDK",
-        "BidscubeSDK.Android"
-    ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "name": "BidscubeSDK.Android",
+    "rootNamespace": "BidscubeSDK.Android",
+    "references": [],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

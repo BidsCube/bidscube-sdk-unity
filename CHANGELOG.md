@@ -2,6 +2,19 @@
 
 ---
 
+## [1.2.9] - 2026-05-06
+
+### Added
+
+- **Android (runtime):** separate assembly **`BidscubeSDK.Android`** (`Runtime/BidscubeSDK/Android/BidscubeSDK.Android.asmdef`) so host Editor assemblies (e.g. mediation adapters) can reference **`BidscubeSDK.Android`** explicitly alongside **`BidscubeSDK`** / **`BidscubeSDK.Android.Editor`**.
+
+### Fixed
+
+- **Editor (Android Gradle):** **`BidscubeAndroidGradleProjectPatcher`** — avoid **`Regex.Replace(..., int count)`** on some Unity / .NET profiles (CS1503); use first-match replacement via **`Match`** / **`Match.Result`**.
+- **Editor:** **`BidscubeDefineApplicator`** — use the literal Android Lite define string (stays in sync with **`AndroidBuildDefines.LiteNoVideoSymbol`**) for stable cross-assembly compilation.
+
+---
+
 ## [1.2.8] - 2026-05-06
 
 ### Added

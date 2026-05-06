@@ -11,6 +11,11 @@ namespace BidscubeSDK.Editor
 {
     public static class BidscubeDefineApplicator
     {
+        /// <summary>
+        /// Android Lite scripting define. Must stay identical to <c>BidscubeSDK.Android.AndroidBuildDefines.LiteNoVideoSymbol</c> in the runtime assembly.
+        /// </summary>
+        const string LiteNoVideoAndroidDefine = "BIDSCUBE_ANDROID_LITE_NO_VIDEO";
+
         const string LegacyEnableVideo = "BIDSCUBE_ENABLE_VIDEO";
 
         public static void ApplyFromEffectiveSettings()
@@ -30,12 +35,12 @@ namespace BidscubeSDK.Editor
         }
 
         /// <summary>
-        /// Android-only: adds <see cref="AndroidBuildDefines.LiteNoVideoSymbol"/> for LiteNoVideo; removes for FullWithVideo.
+        /// Android-only: adds the LiteNoVideo scripting define for LiteNoVideo; removes for FullWithVideo.
         /// Also strips legacy <c>BIDSCUBE_ENABLE_VIDEO</c> from all groups.
         /// </summary>
         static void ApplyLiteNoVideoDefineForAndroid(bool liteNoVideo)
         {
-            var liteSym = AndroidBuildDefines.LiteNoVideoSymbol;
+            var liteSym = LiteNoVideoAndroidDefine;
             try
             {
                 ApplySymbolForGroup(BuildTargetGroup.Android, liteSym, liteNoVideo);

@@ -1,6 +1,6 @@
 {
   "name": "com.bidscube.sdk",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "displayName": "Bidscube SDK",
   "description": "Bidscube Unity SDK for mobile advertising",
   "unity": "2020.3",
@@ -14,6 +14,10 @@
     "name": "Bidscube",
     "email": "support@bidscube.com",
     "url": "https://bidscube.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BidsCube/bidscube-sdk-unity.git"
   },
   "dependencies": {
     "com.unity.ugui": "2.0.0",
