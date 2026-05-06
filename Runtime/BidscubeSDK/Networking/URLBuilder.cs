@@ -28,7 +28,8 @@ namespace BidscubeSDK
             url.Append($"?placementId={placementId}");
             url.Append($"&c={GetContentType(adType)}");
             url.Append($"&m=api");
-            url.Append($"&res=js");
+            // Native + video: JSON body with adm (OpenRTB-style); image/banner use JS/HTML.
+            url.Append($"&res={GetResponseResource(adType)}");
             url.Append($"&app=1");
             url.Append($"&bundle={Uri.EscapeDataString(DeviceInfo.BundleId)}");
             url.Append($"&name={Uri.EscapeDataString(DeviceInfo.AppName)}");
@@ -46,7 +47,15 @@ namespace BidscubeSDK
             url.Append($"&coppa={DeviceInfo.COPPA}");
 
             Logger.Info($"Built URL: {url.ToString()}");
-            return url.ToString();
+            var built = url.ToString();
+            // #region agent log
+            AgentNdjsonDebugLog.Write(
+                "URLBuilder.BuildAdRequestURL",
+                "url_built",
+                "H1",
+                "{\"adType\":\"" + adType + "\",\"placementId\":\"" + placementId + "\",\"urlLen\":" + built.Length + "}");
+            // #endregion
+            return built;
         }
 
         /// <summary>
@@ -67,6 +76,14 @@ namespace BidscubeSDK
                 default:
                     return "b";
             }
+        }
+
+        private static string GetResponseResource(AdType adType)
+        {
+            // JSON body with adm (VAST/native markup) — aligns with mobile SSP; image/banner often stay JS/HTML.
+            if (adType == AdType.Native || adType == AdType.Video)
+                return "json";
+            return "js";
         }
     }
 }

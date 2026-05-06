@@ -43,12 +43,20 @@ namespace BidscubeSDK.Controllers
         [SerializeField] private Button _consentTestButton;
         [SerializeField] private Button _windowedAdButton;
 
+        [Header("Integration (Bidscube / LevelPlay)")]
+        [SerializeField] private bool _showIntegrationModeBar = true;
+
         private string _logContent = "";
+        private Text _integrationHintText;
 
         private void Start()
         {
             SetupUI();
-            UpdateStatus("Ready to initialize SDK");
+            BuildIntegrationModeBar();
+            ApplyLevelPlayBridgeVisibilityFromMode();
+            UpdateStatus(SdkIntegrationContext.GetCurrentShortStatus() + " — ready to initialize SDK");
+            if (_integrationHintText != null)
+                _integrationHintText.text = SdkIntegrationContext.GetCurrentDescription();
         }
 
         private void SetupUI()
@@ -96,6 +104,151 @@ namespace BidscubeSDK.Controllers
 
             if (_windowedAdButton != null)
                 _windowedAdButton.onClick.AddListener(() => GetComponent<SceneManager>()?.LoadWindowedAdScene());
+        }
+
+        private void BuildIntegrationModeBar()
+        {
+            if (!_showIntegrationModeBar)
+                return;
+            if (GameObject.Find("BccIntegrationModeBar") != null)
+                return;
+
+            var canvas = ResolveHostCanvas();
+            if (canvas == null)
+                return;
+
+            var root = new GameObject("BccIntegrationModeBar");
+            var rootRt = root.AddComponent<RectTransform>();
+            root.transform.SetParent(canvas.transform, false);
+            rootRt.SetAsFirstSibling();
+            rootRt.anchorMin = new Vector2(0f, 1f);
+            rootRt.anchorMax = new Vector2(1f, 1f);
+            rootRt.pivot = new Vector2(0.5f, 1f);
+            rootRt.anchoredPosition = Vector2.zero;
+            rootRt.sizeDelta = new Vector2(0f, 118f);
+
+            var bg = root.AddComponent<Image>();
+            bg.color = new Color(0.1f, 0.11f, 0.14f, 0.98f);
+
+            var vlg = root.AddComponent<VerticalLayoutGroup>();
+            vlg.padding = new RectOffset(10, 10, 8, 8);
+            vlg.spacing = 6;
+            vlg.childControlHeight = true;
+            vlg.childControlWidth = true;
+            vlg.childForceExpandHeight = false;
+            vlg.childForceExpandWidth = true;
+
+            CreateBarLabel(root.transform, "Integration check", 13, FontStyle.Bold);
+
+            var row = new GameObject("ModeRow");
+            row.transform.SetParent(root.transform, false);
+            var rowLe = row.AddComponent<LayoutElement>();
+            rowLe.preferredHeight = 40f;
+            rowLe.flexibleWidth = 1f;
+            var hlg = row.AddComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 8;
+            hlg.childForceExpandWidth = true;
+            hlg.childControlWidth = true;
+
+            CreateModeButton(row.transform, "Only Bidscube", SdkIntegrationMode.BidscubeDirect);
+            CreateModeButton(row.transform, "Bidscube + LevelPlay adapter", SdkIntegrationMode.BidscubeWithLevelPlayAdapter);
+            CreateModeButton(row.transform, "Level Play mediation", SdkIntegrationMode.LevelPlayMediation);
+
+            _integrationHintText = CreateBarLabel(root.transform, SdkIntegrationContext.GetCurrentDescription(), 11, FontStyle.Normal);
+        }
+
+        private Canvas ResolveHostCanvas()
+        {
+            var t = transform;
+            while (t != null)
+            {
+                var c = t.GetComponent<Canvas>();
+                if (c != null)
+                    return c;
+                t = t.parent;
+            }
+#if UNITY_2023_1_OR_NEWER
+            return Object.FindFirstObjectByType<Canvas>();
+#else
+            return FindObjectOfType<Canvas>();
+#endif
+        }
+
+        private static Font BuiltinFont()
+        {
+            return Resources.GetBuiltinResource<Font>("Arial.ttf");
+        }
+
+        private static Text CreateBarLabel(Transform parent, string text, int fontSize, FontStyle style)
+        {
+            var go = new GameObject("Label");
+            go.transform.SetParent(parent, false);
+            var txt = go.AddComponent<Text>();
+            txt.text = text;
+            txt.font = BuiltinFont();
+            txt.fontSize = fontSize;
+            txt.fontStyle = style;
+            txt.color = Color.white;
+            txt.horizontalOverflow = HorizontalWrapMode.Wrap;
+            var le = go.AddComponent<LayoutElement>();
+            le.minHeight = fontSize + 8;
+            le.flexibleWidth = 1f;
+            return txt;
+        }
+
+        private void CreateModeButton(Transform parent, string label, SdkIntegrationMode mode)
+        {
+            var go = new GameObject("Btn_" + mode);
+            go.transform.SetParent(parent, false);
+            var img = go.AddComponent<Image>();
+            img.color = new Color(0.22f, 0.42f, 0.72f, 1f);
+            var btn = go.AddComponent<Button>();
+            var colors = btn.colors;
+            colors.highlightedColor = new Color(0.35f, 0.55f, 0.85f);
+            colors.pressedColor = new Color(0.15f, 0.3f, 0.55f);
+            btn.colors = colors;
+
+            var le = go.AddComponent<LayoutElement>();
+            le.preferredHeight = 38f;
+            le.flexibleWidth = 1f;
+
+            var textGo = new GameObject("Text");
+            textGo.transform.SetParent(go.transform, false);
+            var trt = textGo.AddComponent<RectTransform>();
+            trt.anchorMin = Vector2.zero;
+            trt.anchorMax = Vector2.one;
+            trt.offsetMin = new Vector2(4f, 2f);
+            trt.offsetMax = new Vector2(-4f, -2f);
+            var txt = textGo.AddComponent<Text>();
+            txt.text = label;
+            txt.font = BuiltinFont();
+            txt.fontSize = 11;
+            txt.color = Color.white;
+            txt.alignment = TextAnchor.MiddleCenter;
+            txt.horizontalOverflow = HorizontalWrapMode.Wrap;
+
+            btn.onClick.AddListener(() => OnIntegrationModeSelected(mode));
+        }
+
+        private void OnIntegrationModeSelected(SdkIntegrationMode mode)
+        {
+            SdkIntegrationContext.SetMode(mode);
+            ApplyLevelPlayBridgeVisibilityFromMode();
+            if (_integrationHintText != null)
+                _integrationHintText.text = SdkIntegrationContext.GetCurrentDescription();
+            UpdateStatus(SdkIntegrationContext.GetCurrentShortStatus());
+            LogMessage("[Integration] " + SdkIntegrationContext.GetCurrentDescription());
+            if (!SdkIntegrationContext.SuppressLevelPlayBridge && GameObject.Find("BidscubeLevelPlayBridge") == null)
+                LogMessage("[Integration] Restart the app once so BidscubeLevelPlayBridge can initialize.");
+        }
+
+        private static void ApplyLevelPlayBridgeVisibilityFromMode()
+        {
+            if (!SdkIntegrationContext.SuppressLevelPlayBridge)
+                return;
+            var go = GameObject.Find("BidscubeLevelPlayBridge");
+            if (go != null)
+                Object.Destroy(go);
         }
 
         private void InitializeSDK()

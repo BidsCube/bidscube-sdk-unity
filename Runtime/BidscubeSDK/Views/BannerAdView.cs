@@ -1,3 +1,5 @@
+using System;
+using System.Globalization;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
@@ -16,6 +18,123 @@ namespace BidscubeSDK
         {
             public string adm;
             public int position; // Changed from int? to int - Unity JsonUtility doesn't handle nullable well
+        }
+
+        /// <summary>
+        /// Some SSP responses nest adm as JSON: {"adm":"..."} inside the adm string (e.g. after document.write).
+        /// Peel those layers so the WebView renders markup, not raw {"adm": ...} text.
+        /// </summary>
+        private static string UnwrapNestedAdmJson(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return raw;
+            var s = raw.Trim();
+            for (var i = 0; i < 8; i++)
+            {
+                if (s.Length < 2 || s[0] != '{') break;
+                if (s.IndexOf("\"adm\"", StringComparison.OrdinalIgnoreCase) < 0) break;
+
+                string next = null;
+                var parsed = JsonUtility.FromJson<AdResponse>(s);
+                if (parsed != null && !string.IsNullOrEmpty(parsed.adm))
+                    next = parsed.adm.Trim();
+                if (string.IsNullOrEmpty(next))
+                    next = TryExtractAdmQuotedString(s)?.Trim();
+
+                if (string.IsNullOrEmpty(next) || string.Equals(next, s, StringComparison.Ordinal))
+                    break;
+                s = next;
+            }
+
+            return s;
+        }
+
+        /// <summary>
+        /// Some creatives return HTML whose body still contains a literal <c>{"adm":"&lt;div...&lt;/div&gt;"}</c> inside a span.
+        /// Peel those layers so the WebView shows markup, not JSON text.
+        /// </summary>
+        private static string StripEmbeddedAdmJsonInsideHtml(string html)
+        {
+            if (string.IsNullOrEmpty(html)) return html;
+            var s = html;
+            for (var iter = 0; iter < 8; iter++)
+            {
+                var trimmed = s.TrimStart();
+                if (trimmed.Length > 0 && trimmed[0] == '{')
+                {
+                    var ju = UnwrapNestedAdmJson(s);
+                    if (!string.IsNullOrEmpty(ju) && !string.Equals(ju, s, StringComparison.Ordinal))
+                    {
+                        s = ju;
+                        continue;
+                    }
+                }
+
+                if (s.IndexOf("\"adm\"", StringComparison.OrdinalIgnoreCase) < 0)
+                    break;
+
+                var extracted = TryExtractAdmQuotedString(s);
+                if (string.IsNullOrEmpty(extracted))
+                    break;
+                extracted = extracted.Trim();
+                if (string.Equals(extracted, s, StringComparison.Ordinal))
+                    break;
+
+                if (LooksLikeRenderableAdmPayload(extracted))
+                    return extracted;
+                s = extracted;
+            }
+
+            return s;
+        }
+
+        private static bool LooksLikeRenderableAdmPayload(string t)
+        {
+            if (string.IsNullOrEmpty(t)) return false;
+            t = t.TrimStart();
+            if (t.StartsWith("<", StringComparison.Ordinal)) return true;
+            if (t.StartsWith("<!DOCTYPE", StringComparison.OrdinalIgnoreCase)) return true;
+            if (t.StartsWith("document.write", StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        private static void LogLongResponse(string label, string text, int previewChars = 280)
+        {
+            if (text == null)
+            {
+                Logger.Info($"{label}: (null)");
+                return;
+            }
+
+            Logger.Info($"{label}: {text.Length} chars");
+            if (text.Length == 0) return;
+            var preview = text.Length <= previewChars ? text : text.Substring(0, previewChars) + "…";
+            Logger.DebugLog($"{label} preview: {preview}");
+        }
+
+        /// <summary>Decode JSON string escapes inside an "adm" value captured from regex.</summary>
+        private static string DecodeJsonStringEscapes(string escaped)
+        {
+            if (string.IsNullOrEmpty(escaped)) return escaped;
+            var withUnicode = Regex.Replace(escaped, @"\\u([0-9a-fA-F]{4})", m =>
+            {
+                var code = int.Parse(m.Groups[1].Value, NumberStyles.HexNumber);
+                return char.ConvertFromUtf32(code);
+            });
+            return withUnicode
+                .Replace("\\\"", "\"")
+                .Replace("\\\\", "\\")
+                .Replace("\\/", "/")
+                .Replace("\\n", "\n")
+                .Replace("\\r", "")
+                .Replace("\\t", "\t");
+        }
+
+        /// <summary>When JsonUtility fails, pull the first quoted "adm" string value.</summary>
+        private static string TryExtractAdmQuotedString(string json)
+        {
+            var m = Regex.Match(json, @"""adm""\s*:\s*""((?:\\.|[^""\\])*)""", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            if (!m.Success) return null;
+            return DecodeJsonStringEscapes(m.Groups[1].Value);
         }
 
         // These fields are kept for backward compatibility but are not used anymore
@@ -145,15 +264,29 @@ namespace BidscubeSDK
             using (var request = UnityEngine.Networking.UnityWebRequest.Get(url))
             {
                 request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
+                BidscubeSDK.ApplyConfiguredTimeoutTo(request);
                 yield return request.SendWebRequest();
+
+                // #region agent log
+                var dh = request.downloadHandler;
+                var bodyLen = dh != null && dh.text != null ? dh.text.Length : 0;
+                AgentNdjsonDebugLog.Write(
+                    "BannerAdView.LoadAdCoroutine",
+                    request.result == UnityEngine.Networking.UnityWebRequest.Result.Success ? "http_ok" : "http_fail",
+                    "H2",
+                    "{\"placementId\":\"" + _placementId + "\",\"result\":\"" + request.result + "\",\"responseCode\":" + request.responseCode + ",\"bodyLen\":" + bodyLen + "}");
+                // #endregion
 
                 if (request.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
                 {
                     var responseText = request.downloadHandler.text;
-                    Logger.Info($"[BidscubeSDK] BannerAdView: Received response ({responseText.Length} chars): {responseText}");
+                    LogLongResponse("BannerAdView: Received HTTP response body", responseText);
 
                     if (string.IsNullOrWhiteSpace(responseText))
                     {
+                        // #region agent log
+                        AgentNdjsonDebugLog.Write("BannerAdView.LoadAdCoroutine", "empty_body", "H3", "{\"placementId\":\"" + _placementId + "\"}");
+                        // #endregion
                         Logger.InfoError("[BannerAdView] Error: Empty Response");
                         _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.NetworkError, "Empty response from server.");
                         yield break;
@@ -203,24 +336,24 @@ namespace BidscubeSDK
                                     Logger.Info("[BidscubeSDK] BannerAdView: No position in response (position=0/Unknown)");
                                 }
 
-                                LoadAdContent(json.adm);
+                                LoadAdContent(UnwrapNestedAdmJson(json.adm));
                             }
                             else
                             {
                                 Logger.Info("[BidscubeSDK] BannerAdView: Response looked like JSON but 'adm' was missing. Treating as raw content.");
-                                LoadAdContent(trimmedResponse);
+                                LoadAdContent(UnwrapNestedAdmJson(trimmedResponse));
                             }
                         }
                         catch (System.Exception e)
                         {
                             Logger.Info($"[BidscubeSDK] BannerAdView: JSON parsing failed ('{e.Message}'). Treating as raw content.");
-                            LoadAdContent(trimmedResponse);
+                            LoadAdContent(UnwrapNestedAdmJson(trimmedResponse));
                         }
                     }
                     else
                     {
                         Logger.Info("[BidscubeSDK] BannerAdView: Response is not JSON. Treating as raw content.");
-                        LoadAdContent(trimmedResponse);
+                        LoadAdContent(UnwrapNestedAdmJson(trimmedResponse));
                     }
                 }
                 else
@@ -291,29 +424,44 @@ namespace BidscubeSDK
                 bodyHtml = trimmedContent;
             }
 
-            // Banner width should be screen width
-            float bannerWidth = Screen.width;
-            float bannerHeight = _bannerHeight > 0 ? _bannerHeight : 40f;
+            bodyHtml = UnwrapNestedAdmJson(bodyHtml);
+            bodyHtml = StripEmbeddedAdmJsonInsideHtml(bodyHtml);
 
+            var slotPos = BidscubeSDK.GetEffectiveAdPosition();
+            if (slotPos == AdPosition.Unknown)
+                slotPos = BidscubeSDK.GetResponseAdPosition();
+            string flexJustify = slotPos == AdPosition.Footer ? "flex-end" : "flex-start";
+
+            // Native WebView is full-screen; HTML pins the creative along the main axis (overlay).
+            // Transparent body uses pointer-events:none so touches pass through except on the ad root.
             string fullHTML = $@"<!DOCTYPE html>
 <html>
 <head>
     <meta charset='UTF-8'>
-    <meta name='viewport' content='width={bannerWidth}, initial-scale=1.0, user-scalable=no'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover'>
     <style>
         html, body {{
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
+            min-height: 100%;
             overflow: hidden;
             background-color: transparent;
             display: flex;
-            justify-content: center;
-            align-items: {(BidscubeSDK.AdViewsParentUsesLayoutSlotSizing ? "flex-start" : "center")};
+            flex-direction: column;
+            align-items: {(BidscubeSDK.AdViewsParentUsesLayoutSlotSizing() ? "flex-start" : "center")};
+            justify-content: {flexJustify};
+            box-sizing: border-box;
+            pointer-events: none;
+        }}
+        .bcc-ad-root {{
+            pointer-events: auto;
+            flex-shrink: 0;
+            max-width: 100%;
             box-sizing: border-box;
         }}
-        img, iframe {{
+        .bcc-ad-root img, .bcc-ad-root iframe {{
             max-width: 100%;
             max-height: 100%;
             width: auto;
@@ -321,22 +469,21 @@ namespace BidscubeSDK
             display: block;
             object-fit: contain;
         }}
-        div, span {{
+        .bcc-ad-root div, .bcc-ad-root span {{
             max-width: 100%;
-            max-height: 100%;
             box-sizing: border-box;
         }}
-        * {{
-            box-sizing: border-box;
-        }}
+        * {{ box-sizing: border-box; }}
     </style>
 </head>
 <body>
+    <div class=""bcc-ad-root"">
     {bodyHtml}
+    </div>
 </body>
 </html>";
 
-            Logger.Info($"[BidscubeSDK] BannerAdView: Final HTML to load: {fullHTML}");
+            LogLongResponse("BannerAdView: Final HTML document for WebView", fullHTML, 400);
 
             // Before loading HTML, check if callback implements IAdRenderOverride
             if (_callback is IAdRenderOverride adRenderOverride)
@@ -362,6 +509,10 @@ namespace BidscubeSDK
                 Logger.Info("[BidscubeSDK] BannerAdView: WebViewController is null, creating on the fly.");
                 // Add WebViewController directly to this GameObject (no WebViewHost wrapper)
                 _webViewController = gameObject.AddComponent<WebViewController>();
+                // Do NOT use full-screen native WebView (margins 0) here: the creative is often a small
+                // strip; users see a “blank” screen. Clip the OS WebView to this RectTransform (same
+                // idea as NativeAdView). Embedded dock slots also require rect-based margins.
+                _webViewController.SetMatchNativeFullscreenMargins(false);
                 // Initialize with callbacks - handle clicks via message callback
                 _webViewController.Initialize(
                     onHtmlLoaded: null,
@@ -678,7 +829,7 @@ namespace BidscubeSDK
         {
             // Banner width is always screen width
             float width = Screen.width;
-            float height = _bannerHeight > 0 ? _bannerHeight : 40f;
+            float height = _bannerHeight > 0 ? _bannerHeight : 100f;
             return new Vector2(width, height);
         }
 
@@ -714,6 +865,18 @@ namespace BidscubeSDK
             var rectTransform = GetComponent<RectTransform>();
             if (rectTransform == null) return;
 
+            var adViewController = GetComponentInParent<AdViewController>();
+            if (adViewController != null && transform != adViewController.transform)
+            {
+                rectTransform.anchorMin = Vector2.zero;
+                rectTransform.anchorMax = Vector2.one;
+                rectTransform.offsetMin = Vector2.zero;
+                rectTransform.offsetMax = Vector2.zero;
+                rectTransform.localScale = Vector3.one;
+                Logger.Info("[BannerAdView] Filling parent ad slot (native WebView is full-screen overlay; slot size from AdViewController)");
+                return;
+            }
+
             // Get effective position (manual/dropdown override takes priority)
             var effectivePosition = BidscubeSDK.GetEffectiveAdPosition();
             if (effectivePosition == AdPosition.Unknown)
@@ -727,7 +890,7 @@ namespace BidscubeSDK
                 // Banner width should be screen width
                 float width = Screen.width;
                 // Use actual banner height if available, otherwise default
-                float height = _bannerHeight > 0 ? _bannerHeight : 40f;
+                float height = _bannerHeight > 0 ? _bannerHeight : 100f;
 
                 // For Header and Footer positions, clamp height to max 50 Unity units
                 if (effectivePosition == AdPosition.Header || effectivePosition == AdPosition.Footer)

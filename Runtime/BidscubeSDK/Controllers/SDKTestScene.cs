@@ -49,8 +49,22 @@ namespace BidscubeSDK.Controllers
         private void Start()
         {
             SetupUI();
+            ApplyIntegrationModeAtSceneStart();
+            LogMessage("[Integration] " + SdkIntegrationContext.GetCurrentShortStatus() + " — " +
+                      SdkIntegrationContext.GetCurrentDescription());
             UpdateStatus("SDK Status: Not Initialized");
             UpdateActiveBannersCount();
+        }
+
+        private static void ApplyIntegrationModeAtSceneStart()
+        {
+            SdkIntegrationContext.LoadPersistedMode();
+            if (SdkIntegrationContext.SuppressLevelPlayBridge)
+            {
+                var bridge = GameObject.Find("BidscubeLevelPlayBridge");
+                if (bridge != null)
+                    Object.Destroy(bridge);
+            }
         }
 
         private void SetupUI()
@@ -231,11 +245,11 @@ namespace BidscubeSDK.Controllers
             if (_useManualPositionToggle != null && _useManualPositionToggle.isOn)
             {
                 positionToSend = _selectedPosition;
-                LogMessage($"🔧 Using MANUAL position override: {positionToSend}");
+                LogMessage($"[MANUAL] Using MANUAL position override: {positionToSend}");
             }
             else
             {
-                LogMessage("🌐 Using SERVER RESPONSE position (default behavior)");
+                LogMessage("[SERVER] Using SERVER RESPONSE position (default behavior)");
             }
 
             // Set the determined position in the SDK so the AdViewController receives it
@@ -478,7 +492,7 @@ namespace BidscubeSDK.Controllers
 
             // Build ad request URL
             var adUrl = BuildAdRequestUrl(placementId);
-            LogMessage($"🔗 Ad request URL: {adUrl}");
+            LogMessage($"[URL] Ad request URL: {adUrl}");
 
             // Make HTTP request to get ad response
             using (var request = UnityEngine.Networking.UnityWebRequest.Get(adUrl))
@@ -741,11 +755,11 @@ namespace BidscubeSDK.Controllers
         {
             if (isOn)
             {
-                LogMessage("🔧 Manual position override ENABLED - will use dropdown selection");
+                LogMessage("[MANUAL] Manual position override ENABLED - will use dropdown selection");
             }
             else
             {
-                LogMessage("🌐 Manual position override DISABLED - will use server response position");
+                LogMessage("[SERVER] Manual position override DISABLED - will use server response position");
             }
 
             if (_lastDisplayedAdType.HasValue)

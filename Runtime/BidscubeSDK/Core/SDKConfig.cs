@@ -15,9 +15,10 @@ namespace BidscubeSDK
         public AdPosition DefaultAdPosition { get; private set; }
         public string BaseURL { get; private set; }
         public AdSizeSettings AdSizeSettings { get; private set; }
+        public bool DisableInitialization { get; private set; }
 
         private SDKConfig(bool enableLogging, bool enableDebugMode, int defaultAdTimeoutMs, 
-                         AdPosition defaultAdPosition, string baseURL, AdSizeSettings adSizeSettings)
+                         AdPosition defaultAdPosition, string baseURL, AdSizeSettings adSizeSettings, bool disableInitialization)
         {
             EnableLogging = enableLogging;
             EnableDebugMode = enableDebugMode;
@@ -25,6 +26,7 @@ namespace BidscubeSDK
             DefaultAdPosition = defaultAdPosition;
             BaseURL = baseURL;
             AdSizeSettings = adSizeSettings;
+            DisableInitialization = disableInitialization;
         }
 
         /// <summary>
@@ -38,6 +40,7 @@ namespace BidscubeSDK
             private AdPosition _defaultAdPosition = AdPosition.Unknown;
             private string _baseURL = Constants.BaseURL;
             private AdSizeSettings _adSizeSettings = null;
+            private bool _disableInitialization = false;
 
             public Builder() { }
 
@@ -106,6 +109,16 @@ namespace BidscubeSDK
             }
 
             /// <summary>
+            /// When true, calling <c>BidscubeSDK.Initialize(config)</c> becomes a no-op.
+            /// Useful for builds / environments where you want the app to ship without initializing Bidscube.
+            /// </summary>
+            public Builder DisableInitialization(bool value)
+            {
+                _disableInitialization = value;
+                return this;
+            }
+
+            /// <summary>
             /// Build SDK configuration
             /// </summary>
             /// <returns>SDK configuration</returns>
@@ -118,6 +131,7 @@ namespace BidscubeSDK
                     _defaultAdPosition,
                     _baseURL,
                     _adSizeSettings
+                    ,_disableInitialization
                 );
             }
         }

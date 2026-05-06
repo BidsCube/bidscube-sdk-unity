@@ -18,6 +18,16 @@ namespace BidscubeSDK
         public AdResponseInner admNested;
 
         /// <summary>
+        /// Optional creative width from SSP (JSON root or bid object).
+        /// </summary>
+        public int width;
+
+        /// <summary>
+        /// Optional creative height from SSP (JSON root or bid object).
+        /// </summary>
+        public int height;
+
+        /// <summary>
         /// Ad position (0 = Unknown, 1 = AboveTheFold, 2 = DependOnScreenSize, 3 = BelowTheFold, 4 = Header, 5 = Footer, 6 = Sidebar, 7 = FullScreen)
         /// </summary>
         public int position;

@@ -20,6 +20,21 @@ namespace BidscubeSDK
         [SerializeField] private System.Action<string> _onMessage;
 
         /// <summary>
+        /// When true, the OS WebView uses margins (0,0,0,0) so it matches the physical screen exactly.
+        /// Banner placement is done in HTML/CSS (overlay on top). Avoids mismatch between Unity
+        /// RectTransform corners and native pixels on Screen Space Camera canvases.
+        /// </summary>
+        private bool _matchNativeFullscreenMargins;
+
+        /// <summary>
+        /// Use full-screen native WebView (device pixels); layout the creative in HTML (e.g. header strip).
+        /// </summary>
+        public void SetMatchNativeFullscreenMargins(bool enabled)
+        {
+            _matchNativeFullscreenMargins = enabled;
+        }
+
+        /// <summary>
         /// Initialize WebView controller for HTML rendering
         /// </summary>
         /// <param name="onHtmlLoaded">Callback when HTML is loaded</param>
@@ -386,9 +401,9 @@ namespace BidscubeSDK
                 using (var activity = unityClass.GetStatic<AndroidJavaObject>("currentActivity"))
                 using (var intentClass = new AndroidJavaClass("android.content.Intent"))
                 using (var uriClass = new AndroidJavaClass("android.net.Uri"))
+                using (var uri = uriClass.CallStatic<AndroidJavaObject>("parse", url))
+                using (var intent = new AndroidJavaObject("android.content.Intent", "android.intent.action.VIEW", uri))
                 {
-                    var uri = uriClass.CallStatic<AndroidJavaObject>("parse", url);
-                    var intent = new AndroidJavaObject("android.content.Intent", "android.intent.action.VIEW", uri);
                     activity.Call("startActivity", intent);
                 }
             }
@@ -545,9 +560,9 @@ namespace BidscubeSDK
                     using (var activity = unityClass.GetStatic<AndroidJavaObject>("currentActivity"))
                     using (var intentClass = new AndroidJavaClass("android.content.Intent"))
                     using (var uriClass = new AndroidJavaClass("android.net.Uri"))
+                    using (var uri = uriClass.CallStatic<AndroidJavaObject>("parse", url))
+                    using (var intent = new AndroidJavaObject("android.content.Intent", "android.intent.action.VIEW", uri))
                     {
-                        var uri = uriClass.CallStatic<AndroidJavaObject>("parse", url);
-                        var intent = new AndroidJavaObject("android.content.Intent", "android.intent.action.VIEW", uri);
                         activity.Call("startActivity", intent);
                     }
 #elif UNITY_IPHONE
@@ -575,6 +590,15 @@ namespace BidscubeSDK
         private void UpdateWebViewMargins()
         {
             if (_webViewObject == null) return;
+
+            if (_matchNativeFullscreenMargins)
+            {
+                _webViewObject.SetMargins(0, 0, 0, 0);
+                Logger.Info("[WebViewController] Native WebView: full-screen margins (0,0,0,0) — matches device; ad strip positioned in HTML");
+                if (_webViewObject != null)
+                    _webViewObject.SetVisibility(true);
+                return;
+            }
 
             // Force canvas update to ensure layout is complete
             Canvas.ForceUpdateCanvases();

@@ -81,21 +81,26 @@ public class UnityWebViewPostprocessBuild
 
     public void OnPreprocessBuild(BuildReport report)
     {
-        if (report.summary.platform == BuildTarget.Android)
+        if (report.summary.platform != BuildTarget.Android)
+            return;
+
+        if (!TryResolveWebViewAarTemplates(out var dev, out var rel))
         {
-            if (!TryResolveWebViewAarTemplates(out var dev, out var rel))
-            {
-                UnityEngine.Debug.LogError(
-                    "[BidscubeSDK] unitywebview: WebViewPlugin-development/release.aar.tmpl not found. " +
-                    "Expected under Packages/com.bidscube.sdk/Runtime/Plugins/Android/ or Assets/Plugins/Android/.");
-                throw new FileNotFoundException("WebView Android .aar.tmpl templates missing.");
-            }
-            var src = (EditorUserBuildSettings.development) ? dev : rel;
-            //Directory.CreateDirectory("Temp/StagingArea/aar");
-            //File.Copy(src, "Temp/StagingArea/aar/WebViewPlugin.aar", true);
-            Directory.CreateDirectory("Assets/Plugins/Android");
-            File.Copy(src, "Assets/Plugins/Android/WebViewPlugin.aar", true);
+            UnityEngine.Debug.LogError(
+                "[BidscubeSDK] unitywebview: WebViewPlugin-development/release.aar.tmpl not found. " +
+                "Expected under Packages/com.bidscube.sdk/Runtime/Plugins/Android/ or Assets/Plugins/Android/.");
+            throw new FileNotFoundException("WebView Android .aar.tmpl templates missing.");
         }
+
+        var src = EditorUserBuildSettings.development ? dev : rel;
+        if (!File.Exists(src)) {
+            throw new FileNotFoundException(
+                "[BidscubeSDK] WebView Android .aar.tmpl not found. Expected com.bidscube.sdk under Runtime/Plugins/Android, or legacy net.gree.unity-webview / Assets/Plugins/Android paths.",
+                src);
+        }
+
+        Directory.CreateDirectory("Assets/Plugins/Android");
+        File.Copy(src, "Assets/Plugins/Android/WebViewPlugin.aar", true);
     }
 
     public void OnPostGenerateGradleAndroidProject(string basePath) {

@@ -199,7 +199,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 85a2504dd55234bd6a0654d6f263897b, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BidscubeSDK.Examples.SceneManager
+  m_EditorClassIdentifier: BidscubeSDK::BidscubeSDK.Controllers.SceneManager
   mainScene:
     sceneName: Bidscube Example Scene
     sceneIndex: 0
@@ -299,7 +299,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 31022615}
-        m_TargetAssemblyTypeName: BidscubeSDK.Examples.SceneManager, Assembly-CSharp
+        m_TargetAssemblyTypeName: BidscubeSDK.Controllers.SceneManager, BidscubeSDK
         m_MethodName: LoadConsentTestScene
         m_Mode: 1
         m_Arguments:
@@ -898,7 +898,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 31022615}
-        m_TargetAssemblyTypeName: BidscubeSDK.Examples.SceneManager, Assembly-CSharp
+        m_TargetAssemblyTypeName: BidscubeSDK.Controllers.SceneManager, BidscubeSDK
         m_MethodName: LoadWindowedAdScene
         m_Mode: 1
         m_Arguments:
@@ -1653,7 +1653,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 31022615}
-        m_TargetAssemblyTypeName: BidscubeSDK.Examples.SceneManager, Assembly-CSharp
+        m_TargetAssemblyTypeName: BidscubeSDK.Controllers.SceneManager, BidscubeSDK
         m_MethodName: LoadSDKTestScene
         m_Mode: 1
         m_Arguments:

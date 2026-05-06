@@ -27,8 +27,8 @@ namespace BidscubeSDK
         private readonly List<string> _impressionTrackingUrls = new List<string>();
         private bool _hasFiredImpressionTracking = false;
 
-        private const float LogicalWidth = 1080f;
-        private const float LogicalHeight = 800f;
+        private const float LogicalWidth = 728f;
+        private const float LogicalHeight = 260f;
         private float _nativeAdWidth = LogicalWidth;
         private float _nativeAdHeight = LogicalHeight;
         // When true, do not override dimensions from server/adm; use configured asset size
@@ -221,9 +221,15 @@ namespace BidscubeSDK
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
                     box-sizing: border-box;
                 }}
+                body {{
+                    display: flex;
+                    justify-content: center;
+                    align-items: stretch;
+                }}
                 .card {{
                     box-sizing: border-box;
                     width: 100%;
+                    max-width: 420px;
                     height: 100%;
                     display: flex;
                     background: #ffffff;
@@ -232,9 +238,9 @@ namespace BidscubeSDK
                 }}
 
                 .card {{ flex-direction: column; }}
-                .image {{ flex: 3 1 auto; min-height: 100px; max-height: 70%; display:flex; align-items:center; justify-content:center; overflow:hidden; background-color: transparent; }}
+                .image {{ flex: 3 1 auto; min-height: 84px; max-height: 68%; display:flex; align-items:center; justify-content:center; overflow:hidden; background-color: transparent; }}
                 .image img.main-img {{ width: auto; max-width: 100%; max-height: 100%; object-fit:contain; display:block; }}
-                .content {{ flex: 2 1 auto; padding: 8px; display: flex; flex-direction: column; justify-content: flex-start; gap:6px; overflow:auto; }}
+                .content {{ flex: 2 1 auto; padding: 6px; display: flex; flex-direction: column; justify-content: flex-start; gap:4px; overflow:auto; }}
 
                 .layout-fullscreen .image {{ flex: 4; min-height: 300px; }}
                 .layout-fullscreen .content {{ flex: 3; padding: 16px; }}
@@ -248,14 +254,14 @@ namespace BidscubeSDK
                 .layout-horizontal .desc {{ font-size: 11px; margin-bottom: 4px; -webkit-line-clamp: 1; }}
 
                 .layout-vertical {{ flex-direction: column; }}
-                .layout-vertical .image {{ flex: 2; min-height: 120px; }}
-                .layout-vertical .content {{ flex: 3; padding: 8px; }}
+                .layout-vertical .image {{ flex: 2; min-height: 96px; }}
+                .layout-vertical .content {{ flex: 3; padding: 6px; }}
 
-                .size-small .title {{ font-size: 14px; }}
-                .size-small .desc {{ font-size: 12px; }}
-                .size-small .icon {{ width: 36px; height: 36px; }}
-                .size-small .cta {{ padding: 4px 12px; font-size: 12px; }}
-                .size-small .content {{ padding: 6px; }}
+                .size-small .title {{ font-size: 13px; }}
+                .size-small .desc {{ font-size: 11px; }}
+                .size-small .icon {{ width: 32px; height: 32px; }}
+                .size-small .cta {{ padding: 4px 10px; font-size: 11px; }}
+                .size-small .content {{ padding: 5px; }}
 
                 .size-large .title {{ font-size: 22px; }}
                 .size-large .desc {{ font-size: 16px; }}
@@ -288,11 +294,11 @@ namespace BidscubeSDK
                     .sponsored {{ display: none; }}
                 }}
 
-                .title {{ font-size: 18px; font-weight: 700; margin-bottom: 4px; color: #111; line-height: 1.2; word-break: break-word; }}
-                .desc {{ font-size: 14px; color: #555; margin-bottom: 8px; line-height: 1.4; word-break: break-word; }}
+                .title {{ font-size: 16px; font-weight: 700; margin-bottom: 3px; color: #111; line-height: 1.2; word-break: break-word; }}
+                .desc {{ font-size: 12px; color: #555; margin-bottom: 6px; line-height: 1.35; word-break: break-word; }}
                 .footer {{ display: flex; align-items: center; justify-content: space-between; gap: 8px; }}
-                .cta {{ padding: 6px 16px; background: #007aff; color: #fff; border-radius: 9999px; font-size: 14px; text-align: center; white-space: nowrap; flex-shrink: 0; }}
-                .icon {{ width: 48px; height: 48px; border-radius: 10px; overflow:hidden; margin-right: 12px; flex-shrink: 0; display:flex; align-items:center; justify-content:center; }}
+                .cta {{ padding: 5px 14px; background: #007aff; color: #fff; border-radius: 9999px; font-size: 12px; text-align: center; white-space: nowrap; flex-shrink: 0; }}
+                .icon {{ width: 40px; height: 40px; border-radius: 10px; overflow:hidden; margin-right: 10px; flex-shrink: 0; display:flex; align-items:center; justify-content:center; }}
                 .icon img.icon-img {{ width:100%; height:100%; object-fit:cover; display:block; border-radius:10px; }}
                 .sponsored {{ position: absolute; top: 8px; right: 12px; font-size: 10px; color: #777; background: rgba(255, 255, 255, 0.8); padding: 2px 6px; border-radius: 4px; z-index: 10; }}
                 a {{ text-decoration: none; color: inherit; }}
@@ -494,6 +500,7 @@ namespace BidscubeSDK
             using (var request = UnityEngine.Networking.UnityWebRequest.Get(url))
             {
                 request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
+                BidscubeSDK.ApplyConfiguredTimeoutTo(request);
                 yield return request.SendWebRequest();
 
                 if (request.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
@@ -756,9 +763,19 @@ namespace BidscubeSDK
         {
             try
             {
+                // OpenRTB / shared envelope (same path as Android JSON parsing)
+                if (!_useConfiguredSize &&
+                    AdMarkupExtractor.TryExtractMarkup(responseJson, out _, out var ow, out var oh))
+                {
+                    if (ow > 0)
+                        _nativeAdWidth = ow;
+                    if (oh > 0)
+                        _nativeAdHeight = oh;
+                }
+
                 var response = JsonUtility.FromJson<AdResponse>(responseJson);
 
-                // Only extract width/height from response if we don't have configured size
+                // Only extract width/height from legacy nested response if we don't have configured size
                 if (!_useConfiguredSize)
                 {
                     if (response.width.HasValue)
