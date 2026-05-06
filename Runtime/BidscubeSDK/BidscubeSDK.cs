@@ -91,7 +91,7 @@ namespace BidscubeSDK
         }
 
         /// <summary>
-        /// Re-runs layout / margin logic for all tracked ads (after Unity layout rebuilds, etc.).
+        /// Re-runs layout / margin / WebView sync for all tracked ads (after Unity layout rebuilds, embedded slots get non-zero height, etc.).
         /// </summary>
         public static void ReapplyLayoutForAllActiveAds()
         {
@@ -534,20 +534,6 @@ namespace BidscubeSDK
             _activeControllers.Clear();
 
             Logger.Info("All ads cleared");
-        }
-
-        /// <summary>
-        /// Re-runs <see cref="AdViewController.ReapplyLayoutAndWebView"/> on all active ad controllers.
-        /// Call after the host UI (e.g. embedded ad slot) finishes layout so slot height is non-zero.
-        /// </summary>
-        public static void ReapplyLayoutForAllActiveAds()
-        {
-            var snapshot = new List<AdViewController>(_activeControllers);
-            foreach (var c in snapshot)
-            {
-                if (c != null)
-                    c.ReapplyLayoutAndWebView();
-            }
         }
 
         /// <summary>
