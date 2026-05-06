@@ -1,12 +1,12 @@
 # Release checklist — `com.bidscube.sdk`
 
-Use this list before tagging and publishing a core SDK release. Current production pin referenced by apps: **`v1.2.6`**.
+Use this list before tagging and publishing a core SDK release. Current production pin referenced by apps: **`v1.2.7`**.
 
 ## Version and tag
 
 - [ ] `package.json` field `"name"` is `com.bidscube.sdk`
-- [ ] `package.json` field `"version"` matches the release (e.g. `1.2.6` for tag `v1.2.6`)
-- [ ] Git tag name follows `v` + semver (e.g. `v1.2.6`) and matches `package.json` version
+- [ ] `package.json` field `"version"` matches the release (e.g. `1.2.7` for tag `v1.2.7`)
+- [ ] Git tag name follows `v` + semver (e.g. `v1.2.7`) and matches `package.json` version
 - [ ] `CHANGELOG.md` includes an entry for this version
 
 ## Dependencies (`package.json`)
@@ -33,7 +33,7 @@ Use this list before tagging and publishing a core SDK release. Current producti
 ## Consumer verification
 
 - [ ] Unity Package Manager resolves the package from  
-  `https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.6`  
+  `https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.7`  
   (or the equivalent `Bidscube` org URL your manifest uses)
 - [ ] **Android:** Gradle build completes without duplicate-class errors from overlapping SDK/adapter AARs
 - [ ] **iOS:** Xcode build completes without duplicated frameworks from overlapping SDK/adapter pods or embedded binaries
@@ -43,13 +43,13 @@ Use this list before tagging and publishing a core SDK release. Current producti
 ```bash
 cd bidscube-sdk-unity
 git add -A && git status
-git commit -m "Release com.bidscube.sdk 1.2.6"
-git tag v1.2.6
-git push origin main && git push origin v1.2.6
+git commit -m "Release com.bidscube.sdk 1.2.7"
+git tag v1.2.7
+git push origin main && git push origin v1.2.7
 ```
 
-Then create a **GitHub Release** from tag `v1.2.6` (title `v1.2.6`, notes from `CHANGELOG.md`).
+Then create a **GitHub Release** from tag `v1.2.7` (title `v1.2.7`, notes from `CHANGELOG.md`).
 
 ## After release
 
-- Bump companion packages (`com.bidscube.applovin.max`, `com.bidscube.levelplay`) so `package.json` → `dependencies` → `com.bidscube.sdk` matches **`1.2.6`** and re-tag those repos per their `RELEASE.md`.
+- Bump companion packages (`com.bidscube.applovin.max`, `com.bidscube.levelplay`) so `package.json` → `dependencies` → `com.bidscube.sdk` matches **`1.2.7`** and re-tag those repos per their `RELEASE.md`.

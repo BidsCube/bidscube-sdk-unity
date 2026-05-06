@@ -18,20 +18,20 @@ The SDK provides a comprehensive advertising solution for Unity games, supportin
 
 ### Unity Package Manager
 
-For a **pinned production** install, use release tag **`v1.2.6`** (matches published `package.json` version `1.2.6`):
+For a **pinned production** install, use release tag **`v1.2.7`** (matches published `package.json` version `1.2.7`):
 
-`https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.6`
+`https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.7`
 
 1. Open Unity Package Manager  
 2. Click the "+" button and select "Add package from git URL"  
-3. Paste the URL above, including the `#v1.2.6` fragment  
+3. Paste the URL above, including the `#v1.2.7` fragment  
 
 Or add to `Packages/manifest.json`:
 
 ```json
 {
   "dependencies": {
-    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.6"
+    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.7"
   }
 }
 ```

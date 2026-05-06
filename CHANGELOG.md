@@ -2,6 +2,14 @@
 
 ---
 
+## [1.2.7] - 2026-05-06
+
+### Fixed
+
+- **Build:** removed duplicate `BidscubeSDK.ReapplyLayoutForAllActiveAds` definition (merge artifact) that caused **CS0111** when compiling the package.
+
+---
+
 ## [1.2.6] - 2026-05-06
 
 ### Fixed

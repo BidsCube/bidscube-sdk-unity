@@ -37,7 +37,7 @@ The Bidscube Unity SDK can be installed in two ways:
 2. Click the `+` button in the top-left corner
 3. Select `Add package from git URL...`
 4. Enter the repository URL: `https://github.com/Bidscube/bidscube-sdk-unity.git`
-5. Optionally, specify a version tag (recommended for production): `https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.6`
+5. Optionally, specify a version tag (recommended for production): `https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.7`
 6. Click `Add`
 7. The SDK will be added as a package dependency
 
@@ -46,7 +46,7 @@ The Bidscube Unity SDK can be installed in two ways:
 ```json
 {
   "dependencies": {
-    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.6"
+    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.7"
   }
 }
 ```
