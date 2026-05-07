@@ -2,6 +2,15 @@
 
 ---
 
+## [1.2.10] - 2026-05-07
+
+### Fixed
+
+- **UPM:** valid **UUID v4** `guid` in **`AndroidBuildDefines.cs.meta`** (YAML-safe, Unity 6 package resolution / player builds).
+- **UPM:** removed orphan **`BidscubeSDK-unity.unitypackage.meta`** (no tracked `.unitypackage`; avoids immutable PackageCache warnings).
+
+---
+
 ## [1.2.9] - 2026-05-06
 
 ### Added
