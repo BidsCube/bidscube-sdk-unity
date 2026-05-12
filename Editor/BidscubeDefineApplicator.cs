@@ -35,7 +35,7 @@ namespace BidscubeSDK.Editor
         }
 
         /// <summary>
-        /// Android-only: adds the LiteNoVideo scripting define for LiteNoVideo; removes for FullWithVideo.
+        /// Android-only: adds the LiteNoVideo scripting define for LiteNoVideo; removes it for every video-enabled mode.
         /// Also strips legacy <c>BIDSCUBE_ENABLE_VIDEO</c> from all groups.
         /// </summary>
         static void ApplyLiteNoVideoDefineForAndroid(bool liteNoVideo)

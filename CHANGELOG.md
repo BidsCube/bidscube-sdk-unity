@@ -2,6 +2,18 @@
 
 ---
 
+## [1.2.11] - 2026-05-12
+
+### Added
+
+- **Android:** expanded shared export/runtime configuration to the four release-ready feature sets **`LiteNoVideo`**, **`WebViewVideoNoDesugar`**, **`LegacyMediaVideoNoDesugar`**, and **`FullWithVideo`**.
+
+### Changed
+
+- **Android Gradle export:** bundled core artifact selection, Maven coordinates, and desugaring policy now align with the selected feature set instead of a simple Lite/Full split.
+
+---
+
 ## [1.2.10] - 2026-05-07
 
 ### Fixed

@@ -6,7 +6,9 @@ namespace BidscubeSDK.Android
     public enum BidscubeAndroidFeatureSet
     {
         LiteNoVideo = 0,
-        FullWithVideo = 1
+        WebViewVideoNoDesugar = 1,
+        LegacyMediaVideoNoDesugar = 2,
+        FullWithVideo = 3
     }
 
     /// <summary>How the Bidscube Android core SDK is linked in <c>unityLibrary/build.gradle</c>.</summary>

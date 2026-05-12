@@ -9,7 +9,9 @@ namespace BidscubeSDK.Android
     public sealed class BidscubeAndroidExportSettings : ScriptableObject
     {
         [Tooltip(
-            "LiteNoVideo — bundled sdk-lite-no-video AAR, no Media3/IMA, no injected core library desugaring. " +
+            "LiteNoVideo — bundled sdk-lite-no-video AAR, no video, no Media3/IMA, no injected core library desugaring. " +
+            "WebViewVideoNoDesugar — bundled sdk-webview-video AAR, HTML5 video via Android WebView, no Media3/IMA/desugaring. " +
+            "LegacyMediaVideoNoDesugar — bundled sdk-legacy-media-video AAR, VideoView/MediaPlayer only, no Media3/IMA/desugaring. " +
             "FullWithVideo — bundled sdk-full-video AAR or Maven sdk-full-video + Media3/IMA + desugar_jdk_libs.")]
         public BidscubeAndroidFeatureSet featureSet = BidscubeAndroidFeatureSet.LiteNoVideo;
 
@@ -27,7 +29,7 @@ namespace BidscubeSDK.Android
 
         [Tooltip(
             "Legacy field kept for assets created before 1.2.8. Gradle desugaring injection is driven by the feature set: " +
-            "LiteNoVideo strips launcher desugaring lines; FullWithVideo ensures desugar_jdk_libs in the launcher.")]
+            "LiteNoVideo/WebViewVideoNoDesugar/LegacyMediaVideoNoDesugar strip launcher desugaring lines; FullWithVideo ensures desugar_jdk_libs in the launcher.")]
         public bool enableDesugaring = true;
     }
 }
