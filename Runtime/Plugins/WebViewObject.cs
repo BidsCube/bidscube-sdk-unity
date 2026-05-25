@@ -277,14 +277,6 @@ public class WebViewObject : MonoBehaviour
                     StartCoroutine(CallOnRequestFileChooserPermissionsResult(grantedCount == permissions.Count));
                 }
             };
-            callbacks.PermissionDeniedAndDontAskAgain += (permission) =>
-            {
-                deniedCount++;
-                if (grantedCount + deniedCount == permissions.Count)
-                {
-                    StartCoroutine(CallOnRequestFileChooserPermissionsResult(grantedCount == permissions.Count));
-                }
-            };
             Permission.RequestUserPermissions(permissions.ToArray(), callbacks);
 #else
             StartCoroutine(RequestFileChooserPermissionsCoroutine(permissions.ToArray()));

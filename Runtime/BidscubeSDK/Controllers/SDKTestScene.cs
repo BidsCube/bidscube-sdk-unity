@@ -277,11 +277,11 @@ namespace BidscubeSDK.Controllers
         /// </summary>
         private void ShowImageAdWithWebView(string placementId)
         {
-            LogMessage($"Creating image ad with WebView for placement: {placementId}");
+            LogMessage($"Creating image ad with WebView for placement: {placementId} (banner corner radius: {_bannerCornerRadius})");
 
             // Find Canvas
-#if UNITY_2023_1_OR_NEWER
-            var canvas = Object.FindFirstObjectByType<Canvas>();
+#if UNITY_2022_2_OR_NEWER
+            var canvas = UnityEngine.Object.FindFirstObjectByType<Canvas>();
 #else
             var canvas = FindObjectOfType<Canvas>();
 #endif

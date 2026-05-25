@@ -1,4 +1,8 @@
-## [1.2.6] - 2026-04-30
+## [Unreleased]
+
+---
+
+## [1.2.12] - 2026-04-30
 
 ### Added
 
@@ -8,7 +12,72 @@
 ### Changed
 
 - **Video lifecycle:** Removed fake delayed video callbacks (`DelayedVideoAdLoaded`, `LoadVideoAd` success stubs). `VideoAdView` uses guarded `Notify*` methods — `OnAdLoaded` on prepare, `OnAdDisplayed` / `OnVideoAdStarted` on playback start, reward only after real completion for `VideoAdFormat.Rewarded`.
+- **Android LiteNoVideo:** interstitial/rewarded video entry points also respect **`BIDSCUBE_ANDROID_LITE_NO_VIDEO`** via `TryRejectDirectVideoInLiteNoVideo`.
 - IMA path disabled until event bridge is wired; custom VAST / `VideoPlayer` is the reliable path.
+
+---
+
+## [1.2.11] - 2026-05-12
+
+### Added
+
+- **Android:** expanded shared export/runtime configuration to the four release-ready feature sets **`LiteNoVideo`**, **`WebViewVideoNoDesugar`**, **`LegacyMediaVideoNoDesugar`**, and **`FullWithVideo`**.
+
+### Changed
+
+- **Android Gradle export:** bundled core artifact selection, Maven coordinates, and desugaring policy now align with the selected feature set instead of a simple Lite/Full split.
+
+---
+
+## [1.2.10] - 2026-05-07
+
+### Fixed
+
+- **UPM:** valid **UUID v4** `guid` in **`AndroidBuildDefines.cs.meta`** (YAML-safe, Unity 6 package resolution / player builds).
+- **UPM:** removed orphan **`BidscubeSDK-unity.unitypackage.meta`** (no tracked `.unitypackage`; avoids immutable PackageCache warnings).
+
+---
+
+## [1.2.9] - 2026-05-06
+
+### Added
+
+- **Android (runtime):** separate assembly **`BidscubeSDK.Android`** (`Runtime/BidscubeSDK/Android/BidscubeSDK.Android.asmdef`) so host Editor assemblies (e.g. mediation adapters) can reference **`BidscubeSDK.Android`** explicitly alongside **`BidscubeSDK`** / **`BidscubeSDK.Android.Editor`**.
+
+### Fixed
+
+- **Editor (Android Gradle):** **`BidscubeAndroidGradleProjectPatcher`** — avoid **`Regex.Replace(..., int count)`** on some Unity / .NET profiles (CS1503); use first-match replacement via **`Match`** / **`Match.Result`**.
+- **Editor:** **`BidscubeDefineApplicator`** — use the literal Android Lite define string (stays in sync with **`AndroidBuildDefines.LiteNoVideoSymbol`**) for stable cross-assembly compilation.
+
+---
+
+## [1.2.8] - 2026-05-06
+
+### Added
+
+- **Android (editor + runtime):** shared **`BidscubeAndroidExportSettings`**, **`BidscubeAndroidFeatureSet`**, scripting-define sync (**`BIDSCUBE_ANDROID_LITE_NO_VIDEO`**), and **`BidscubeAndroidGradleProjectPatcher`** so **`com.bidscube.applovin.max`** and **`com.bidscube.levelplay`** can apply the same Lite / Full Gradle rules. Lite uses bundled **`sdk-lite-no-video`** AAR naming; Full uses **`sdk-full-video`** + optional launcher desugaring injection.
+
+### Changed
+
+- **`BidscubeLiteVideoGuard`** message text (no AppLovin-specific wording).
+
+---
+
+## [1.2.7] - 2026-05-06
+
+### Fixed
+
+- **Build:** removed duplicate `BidscubeSDK.ReapplyLayoutForAllActiveAds` definition (merge artifact) that caused **CS0111** when compiling the package.
+
+---
+
+## [1.2.6] - 2026-05-06
+
+### Fixed
+
+- **Android LiteNoVideo:** `ShowVideoAd`, `GetVideoAdView`, and `AdViewController` video init now respect **`BIDSCUBE_ANDROID_LITE_NO_VIDEO`** (set by `com.bidscube.applovin.max` for Lite builds). Direct Unity video no longer starts when the native graph omits IMA/Media3; callbacks receive **`LiteNoVideoVideoNotSupported` (1006)**.
+
+---
 
 ## [1.2.5] - 2026-04-30
 

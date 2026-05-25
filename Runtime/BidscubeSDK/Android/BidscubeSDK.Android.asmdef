@@ -1,10 +1,7 @@
 {
-    "name": "BidscubeSDK",
-    "rootNamespace": "BidscubeSDK",
-    "references": [
-        "Unity.TextMeshPro",
-        "BidscubeSDK.Android"
-    ],
+    "name": "BidscubeSDK.Android",
+    "rootNamespace": "BidscubeSDK.Android",
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

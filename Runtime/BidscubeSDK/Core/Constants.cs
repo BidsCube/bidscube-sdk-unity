@@ -41,6 +41,8 @@ namespace BidscubeSDK
             public const int TimeoutError = 1004;
             public const int Timeout = 1004; // Alias for TimeoutError
             public const int UnknownError = 1005;
+            /// <summary>Android LiteNoVideo build: direct SDK video APIs are disabled (use FullWithVideo or MAX for video).</summary>
+            public const int LiteNoVideoVideoNotSupported = 1006;
         }
 
         /// <summary>
@@ -53,6 +55,8 @@ namespace BidscubeSDK
             public const string NetworkError = "Network error occurred";
             public const string TimeoutError = "Request timeout";
             public const string UnknownError = "Unknown error occurred";
+            public const string LiteNoVideoVideoNotSupported =
+                "Bidscube video is disabled in LiteNoVideo Android builds. Use FullWithVideo or AppLovin MAX for video.";
         }
     }
 
@@ -66,9 +70,10 @@ namespace BidscubeSDK
         public const int NetworkError = Constants.ErrorCodes.NetworkError;
         public const int TimeoutError = Constants.ErrorCodes.TimeoutError;
         public const int UnknownError = Constants.ErrorCodes.UnknownError;
+        public const int LiteNoVideoVideoNotSupported = Constants.ErrorCodes.LiteNoVideoVideoNotSupported;
     }
 
-    /// <summary>a
+    /// <summary>
     /// Public error messages alias for documentation compatibility
     /// </summary>
     public static class ErrorMessages
@@ -78,5 +83,6 @@ namespace BidscubeSDK
         public const string NetworkError = Constants.ErrorMessages.NetworkError;
         public const string TimeoutError = Constants.ErrorMessages.TimeoutError;
         public const string UnknownError = Constants.ErrorMessages.UnknownError;
+        public const string LiteNoVideoVideoNotSupported = Constants.ErrorMessages.LiteNoVideoVideoNotSupported;
     }
 }
