@@ -15,6 +15,7 @@ namespace BidscubeSDK
         [SerializeField] private IAdCallback _callback;
         [SerializeField] private GameObject _adView;
         [SerializeField] private AdPosition _currentPosition = AdPosition.Unknown; // Starts as Unknown, set when adm response received
+        [SerializeField] private VideoAdFormat _videoAdFormat = VideoAdFormat.Interstitial;
         [SerializeField] private bool _hasAdLoaded = false;
         [SerializeField] private bool _isVideoPlaying = false;
         [SerializeField] private BannerAdView _imageAdView;
@@ -58,9 +59,20 @@ namespace BidscubeSDK
         /// <param name="position">Ad position (optional)</param>
         public void Initialize(string placementId, AdType adType, IAdCallback callback = null, AdPosition position = AdPosition.Unknown)
         {
+            Initialize(placementId, adType, callback, position, VideoAdFormat.Interstitial);
+        }
+
+        public void Initialize(
+            string placementId,
+            AdType adType,
+            IAdCallback callback = null,
+            AdPosition position = AdPosition.Unknown,
+            VideoAdFormat videoAdFormat = VideoAdFormat.Interstitial)
+        {
             _placementId = placementId;
             _adType = adType;
             _callback = callback;
+            _videoAdFormat = videoAdFormat;
 
             // Ensure scale is 1,1,1 before anything else
             transform.localScale = Vector3.one;
@@ -359,10 +371,13 @@ namespace BidscubeSDK
 
         private void LoadAd()
         {
-            _callback?.OnAdLoading(_placementId);
+            // Video loading/display callbacks are driven by VideoAdView (single lifecycle owner).
+            if (_adType != AdType.Video)
+                _callback?.OnAdLoading(_placementId);
 
-            // Start loading timeout
-            _loadingTimeoutCoroutine = StartCoroutine(LoadingTimeout());
+            // VideoAdView handles its own prepare/load timeout and failure callbacks.
+            if (_adType != AdType.Video)
+                _loadingTimeoutCoroutine = StartCoroutine(LoadingTimeout());
 
             // Create appropriate ad view based on type
             switch (_adType)
@@ -490,8 +505,12 @@ namespace BidscubeSDK
             videoAdRect.offsetMax = Vector2.zero;
 
             var videoAdView = videoAdObj.AddComponent<VideoAdView>();
-            videoAdView.SetPlacementInfo(_placementId, _callback);
+            videoAdView.SetPlacementInfo(_placementId, _callback, _videoAdFormat);
             _adView = videoAdObj;
+
+            var url = BidscubeSDK.BuildRequestURL(_placementId, AdType.Video, _currentPosition);
+            if (!string.IsNullOrEmpty(url))
+                videoAdView.LoadVideoAdFromURL(url);
         }
 
         private void CreateNativeAdView()

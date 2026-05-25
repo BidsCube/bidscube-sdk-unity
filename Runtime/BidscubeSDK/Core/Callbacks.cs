@@ -78,9 +78,20 @@ namespace BidscubeSDK
     }
 
     /// <summary>
+    /// Optional reward callback for rewarded video ads. Implement on your callback object (or extend <see cref="AdCallback"/>).
+    /// </summary>
+    public interface IRewardedAdCallback
+    {
+        /// <summary>
+        /// Called when the user earns a reward after rewarded video playback completes (not on skip/close/failure).
+        /// </summary>
+        void OnUserRewarded(string placementId);
+    }
+
+    /// <summary>
     /// Base ad callback implementation with default empty methods
     /// </summary>
-    public abstract class AdCallback : IAdCallback
+    public abstract class AdCallback : IAdCallback, IRewardedAdCallback
     {
         public virtual void OnAdLoading(string placementId) { }
         public virtual void OnAdLoaded(string placementId) { }
@@ -93,6 +104,7 @@ namespace BidscubeSDK
         public virtual void OnVideoAdSkipped(string placementId) { }
         public virtual void OnVideoAdSkippable(string placementId) { }
         public virtual void OnInstallButtonClicked(string placementId, string buttonText) { }
+        public virtual void OnUserRewarded(string placementId) { }
     }
 
     /// <summary>

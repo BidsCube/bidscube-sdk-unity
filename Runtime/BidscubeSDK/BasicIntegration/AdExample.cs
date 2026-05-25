@@ -7,7 +7,7 @@ namespace BidscubeSDK.Samples
     /// <summary>
     /// Basic integration example for Bidscube SDK
     /// </summary>
-    public class AdExample : MonoBehaviour, IAdCallback, IConsentCallback
+    public class AdExample : MonoBehaviour, IAdCallback, IRewardedAdCallback, IConsentCallback
     {
         [Header("UI Elements")]
         [SerializeField] private Button _initializeButton;
@@ -185,6 +185,11 @@ namespace BidscubeSDK.Samples
         public void OnVideoAdSkippable(string placementId)
         {
             UpdateStatus($"Video ad skippable: {placementId}");
+        }
+
+        public void OnUserRewarded(string placementId)
+        {
+            UpdateStatus($"User rewarded: {placementId}");
         }
 
         public void OnInstallButtonClicked(string placementId, string buttonText)

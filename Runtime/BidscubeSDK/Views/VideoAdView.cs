@@ -13,7 +13,7 @@ namespace BidscubeSDK
     /// <summary>
     /// Video ad view component with VAST support
     /// </summary>
-    public class VideoAdView : MonoBehaviour
+    public class VideoAdView : MonoBehaviour, IVideoPlayerEventListener
     {
         [SerializeField] private VideoPlayer _videoPlayer;
         [SerializeField] private Button _skipButton;
@@ -26,8 +26,19 @@ namespace BidscubeSDK
 
         private string _placementId;
         private IAdCallback _callback;
+        private VideoAdFormat _videoAdFormat = VideoAdFormat.Interstitial;
         private bool _isLoaded = false;
         private bool _isSkippable = false;
+
+        private bool _hasLoading;
+        private bool _hasLoaded;
+        private bool _hasDisplayed;
+        private bool _hasStarted;
+        private bool _hasCompleted;
+        private bool _hasSkipped;
+        private bool _hasClosed;
+        private bool _hasRewarded;
+        private bool _isDestroying;
         private float _skipTime = 5.0f; // Skip button appears after 5 seconds
 
         // VAST data
@@ -58,8 +69,8 @@ namespace BidscubeSDK
 
         private void SetupUI()
         {
-            // Check if IMA SDK is available
-            _useIMA = IMAVideoPlayer.IsIMAAvailable();
+            // IMA event bridge is not wired to VideoAdView lifecycle yet; use custom VAST/VideoPlayer path.
+            _useIMA = false;
 
             if (_useIMA)
             {
@@ -268,18 +279,131 @@ namespace BidscubeSDK
         /// <summary>
         /// Set placement info
         /// </summary>
-        /// <param name="placementId">Placement ID</param>
-        /// <param name="callback">Ad callback</param>
         public void SetPlacementInfo(string placementId, IAdCallback callback)
+        {
+            SetPlacementInfo(placementId, callback, VideoAdFormat.Interstitial);
+        }
+
+        /// <summary>
+        /// Set placement info and video format (interstitial vs rewarded).
+        /// </summary>
+        public void SetPlacementInfo(string placementId, IAdCallback callback, VideoAdFormat videoAdFormat)
         {
             _placementId = placementId;
             _callback = callback;
+            _videoAdFormat = videoAdFormat;
 
-            // Initialize IMA player if available
             if (_useIMA && _imaPlayer != null)
             {
                 _imaPlayer.Initialize(placementId, callback);
             }
+        }
+
+        private void ResetCallbackState()
+        {
+            _hasLoading = false;
+            _hasLoaded = false;
+            _hasDisplayed = false;
+            _hasStarted = false;
+            _hasCompleted = false;
+            _hasSkipped = false;
+            _hasClosed = false;
+            _hasRewarded = false;
+            _isDestroying = false;
+        }
+
+        private void NotifyLoading()
+        {
+            if (_hasLoading) return;
+            _hasLoading = true;
+            _callback?.OnAdLoading(_placementId);
+        }
+
+        private void NotifyLoaded()
+        {
+            if (_hasLoaded) return;
+            _hasLoaded = true;
+            _isLoaded = true;
+            _callback?.OnAdLoaded(_placementId);
+        }
+
+        private void NotifyDisplayed()
+        {
+            if (_hasDisplayed) return;
+            _hasDisplayed = true;
+            _callback?.OnAdDisplayed(_placementId);
+        }
+
+        private void NotifyStarted()
+        {
+            if (_hasStarted) return;
+            _hasStarted = true;
+            _callback?.OnVideoAdStarted(_placementId);
+        }
+
+        private void NotifyCompleted()
+        {
+            if (_hasCompleted) return;
+            _hasCompleted = true;
+            _callback?.OnVideoAdCompleted(_placementId);
+        }
+
+        private void NotifySkipped()
+        {
+            if (_hasSkipped) return;
+            _hasSkipped = true;
+            _callback?.OnVideoAdSkipped(_placementId);
+        }
+
+        private void NotifyClosed()
+        {
+            if (_hasClosed) return;
+            _hasClosed = true;
+            _callback?.OnAdClosed(_placementId);
+        }
+
+        private void NotifyFailed(int errorCode, string errorMessage)
+        {
+            if (_isDestroying) return;
+            _callback?.OnAdFailed(_placementId, errorCode, errorMessage);
+        }
+
+        private void NotifyRewardedIfNeeded()
+        {
+            if (_videoAdFormat != VideoAdFormat.Rewarded || _hasRewarded)
+                return;
+            _hasRewarded = true;
+            if (_callback is IRewardedAdCallback rewardedCallback)
+                rewardedCallback.OnUserRewarded(_placementId);
+        }
+
+        void IVideoPlayerEventListener.OnVideoLoaded() => NotifyLoaded();
+        void IVideoPlayerEventListener.OnVideoStarted()
+        {
+            NotifyDisplayed();
+            NotifyStarted();
+        }
+        void IVideoPlayerEventListener.OnVideoClicked() => OnVideoClicked();
+        void IVideoPlayerEventListener.OnVideoCompleted() => HandleVideoCompleted();
+        void IVideoPlayerEventListener.OnVideoSkipped() => HandleUserDismissBeforeComplete();
+        void IVideoPlayerEventListener.OnVideoFailed(int errorCode, string message) => NotifyFailed(errorCode, message);
+
+        private void HandleVideoCompleted()
+        {
+            if (_vastData != null && !_hasFiredComplete)
+            {
+                VASTParser.FireTrackingUrls(_vastData.completeUrls);
+                _hasFiredComplete = true;
+            }
+            NotifyCompleted();
+            if (_videoAdFormat == VideoAdFormat.Rewarded)
+                NotifyRewardedIfNeeded();
+        }
+
+        private void HandleUserDismissBeforeComplete()
+        {
+            if (!_hasCompleted && !_hasSkipped)
+                NotifySkipped();
         }
 
         /// <summary>
@@ -289,16 +413,16 @@ namespace BidscubeSDK
         /// <param name="url">VAST XML URL or direct video URL</param>
         public void LoadVideoAdFromURL(string url)
         {
+            ResetCallbackState();
+            NotifyLoading();
+
             if (_useIMA && _imaPlayer != null)
             {
-                // Use IMA SDK
                 Logger.Info("[VideoAdView] Loading video ad with IMA SDK");
                 _imaPlayer.RequestAd(url);
-                _callback?.OnAdLoading(_placementId);
             }
             else
             {
-                // Use custom VAST parser
                 StartCoroutine(LoadVideoAdCoroutine(url));
             }
         }
@@ -325,7 +449,7 @@ namespace BidscubeSDK
                         "{\"placementId\":\"" + _placementId + "\",\"error\":\"" + AgentNdjsonDebugLog.EscapeForData(request.error ?? "") + "\"}");
                     // #endregion
                     Logger.InfoError($"[VideoAdView] Failed to load ad from URL: {request.error}");
-                    _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.NetworkError, request.error);
+                    NotifyFailed(Constants.ErrorCodes.NetworkError, request.error);
                     yield break;
                 }
 
@@ -345,7 +469,7 @@ namespace BidscubeSDK
                         AgentNdjsonDebugLog.Write("VideoAdView.LoadVideoAdCoroutine", "vast_parse_fail", "H3", "{\"placementId\":\"" + _placementId + "\"}");
                         // #endregion
                         Logger.InfoError("[VideoAdView] Failed to parse VAST or no video URL found");
-                        _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.InvalidResponse, "Failed to parse VAST XML");
+                        NotifyFailed(Constants.ErrorCodes.InvalidResponse, "Failed to parse VAST XML");
                         yield break;
                     }
 
@@ -388,7 +512,7 @@ namespace BidscubeSDK
                             catch (System.Exception e)
                             {
                                 Logger.InfoError($"[VideoAdView] JSON parsing failed: {e.Message}");
-                                _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.InvalidResponse, $"JSON parsing failed: {e.Message}");
+                                NotifyFailed(Constants.ErrorCodes.InvalidResponse, $"JSON parsing failed: {e.Message}");
                                 yield break;
                             }
 
@@ -486,14 +610,14 @@ namespace BidscubeSDK
                                         if (_vastData == null || string.IsNullOrEmpty(_vastData.videoUrl))
                                         {
                                             Logger.InfoError("[VideoAdView] Failed to fetch or parse nested VAST");
-                                            _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.NetworkError, "Failed to fetch or parse nested VAST");
+                                            NotifyFailed(Constants.ErrorCodes.NetworkError, "Failed to fetch or parse nested VAST");
                                             yield break;
                                         }
                                     }
                                     else
                                     {
                                         Logger.InfoError("[VideoAdView] Wrapper VAST found but no VASTAdTagURI");
-                                        _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.InvalidResponse, "Wrapper VAST has no VASTAdTagURI");
+                                        NotifyFailed(Constants.ErrorCodes.InvalidResponse, "Wrapper VAST has no VASTAdTagURI");
                                         yield break;
                                     }
                                 }
@@ -506,7 +630,7 @@ namespace BidscubeSDK
                                 if (_vastData == null)
                                 {
                                     Logger.InfoError("[VideoAdView] VASTParser returned null - parsing failed");
-                                    _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.InvalidResponse, "VAST parsing failed");
+                                    NotifyFailed(Constants.ErrorCodes.InvalidResponse, "VAST parsing failed");
                                     yield break;
                                 }
 
@@ -525,7 +649,7 @@ namespace BidscubeSDK
                                 else
                                 {
                                     Logger.InfoError("[VideoAdView] VAST parsed but no video URL found");
-                                    _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.InvalidResponse, "VAST parsed but no video URL found");
+                                    NotifyFailed(Constants.ErrorCodes.InvalidResponse, "VAST parsed but no video URL found");
                                     yield break;
                                 }
                             }
@@ -553,7 +677,7 @@ namespace BidscubeSDK
                 if (_videoPlayer == null || string.IsNullOrEmpty(_videoPlayer.url))
                 {
                     Logger.InfoError("[VideoAdView] No video URL available to play");
-                    _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.InvalidResponse, "No video URL found in response");
+                    NotifyFailed(Constants.ErrorCodes.InvalidResponse, "No video URL found in response");
                     yield break;
                 }
 
@@ -571,7 +695,7 @@ namespace BidscubeSDK
                         {
                             var msg = $"Media URL not reachable (HTTP {head.responseCode}): {head.error}";
                             Logger.InfoError($"[VideoAdView] {msg}");
-                            _callback?.OnAdFailed(_placementId, Constants.ErrorCodes.NetworkError, msg);
+                            NotifyFailed(Constants.ErrorCodes.NetworkError, msg);
                             yield break;
                         }
                     }
@@ -630,20 +754,15 @@ namespace BidscubeSDK
                     {
                         var msg = _videoHadError ? (_videoError ?? "Video error") : "Video preparation timeout";
                         Logger.InfoError($"[VideoAdView] Video failed: {msg}");
-                        _callback?.OnAdFailed(
-                            _placementId,
+                        NotifyFailed(
                             _videoHadError ? Constants.ErrorCodes.NetworkError : Constants.ErrorCodes.Timeout,
                             msg);
                         yield break;
                     }
                 }
 
-                _isLoaded = true;
                 Logger.Info("[VideoAdView] Video prepared successfully");
-                _callback?.OnAdLoaded(_placementId);
-                _callback?.OnAdDisplayed(_placementId);
-
-                // Automatically play the video after preparation
+                NotifyLoaded();
                 Logger.Info("[VideoAdView] Starting video playback...");
                 _videoPlayer.Play();
             }
@@ -651,12 +770,8 @@ namespace BidscubeSDK
 
         private void OnVideoPrepared(VideoPlayer source)
         {
-            _isLoaded = true;
-            _callback?.OnAdLoaded(_placementId);
-            _callback?.OnAdDisplayed(_placementId);
-
-            // Automatically play the video when prepared
-            if (!_videoPlayer.isPlaying)
+            NotifyLoaded();
+            if (_videoPlayer != null && !_videoPlayer.isPlaying)
             {
                 Logger.Info("[VideoAdView] Video prepared, starting playback...");
                 _videoPlayer.Play();
@@ -756,7 +871,8 @@ namespace BidscubeSDK
                 _hasFiredStart = true;
             }
 
-            _callback?.OnVideoAdStarted(_placementId);
+            NotifyDisplayed();
+            NotifyStarted();
             StartCoroutine(UpdateProgress());
             StartCoroutine(EnableSkipButton());
             StartCoroutine(TrackVASTQuartiles());
@@ -764,14 +880,7 @@ namespace BidscubeSDK
 
         private void OnVideoCompleted(VideoPlayer source)
         {
-            // Fire VAST complete tracking URLs
-            if (!_hasFiredComplete && _vastData != null)
-            {
-                VASTParser.FireTrackingUrls(_vastData.completeUrls);
-                _hasFiredComplete = true;
-            }
-
-            _callback?.OnVideoAdCompleted(_placementId);
+            HandleVideoCompleted();
         }
 
         private IEnumerator UpdateProgress()
@@ -950,18 +1059,15 @@ namespace BidscubeSDK
 
         private void OnSkipClicked()
         {
-            if (_isSkippable)
-            {
-                // Fire VAST skip tracking URLs
-                if (_vastData != null)
-                {
-                    VASTParser.FireTrackingUrls(_vastData.skipUrls);
-                }
+            if (!_isSkippable || _isDestroying)
+                return;
 
-                _callback?.OnVideoAdSkipped(_placementId);
-                _callback?.OnAdClosed(_placementId);
-                DismissVideoAdHierarchy();
-            }
+            if (_vastData != null)
+                VASTParser.FireTrackingUrls(_vastData.skipUrls);
+
+            NotifySkipped();
+            NotifyClosed();
+            DismissVideoAdHierarchy();
         }
 
         private void OnVideoClicked()
@@ -980,7 +1086,13 @@ namespace BidscubeSDK
 
         private void OnCloseClicked()
         {
-            _callback?.OnAdClosed(_placementId);
+            if (_isDestroying)
+                return;
+
+            if (!_hasCompleted && !_hasSkipped)
+                NotifySkipped();
+
+            NotifyClosed();
             DismissVideoAdHierarchy();
         }
 
@@ -1059,26 +1171,48 @@ namespace BidscubeSDK
 
         void DismissVideoAdHierarchy()
         {
-            if (_videoPlayer != null)
-            {
-                _videoPlayer.prepareCompleted -= OnVideoPrepared;
-                _videoPlayer.started -= OnVideoStarted;
-                _videoPlayer.loopPointReached -= OnVideoCompleted;
-                _videoPlayer.Stop();
-                var rt = _videoPlayer.targetTexture;
-                _videoPlayer.targetTexture = null;
-                if (rt != null)
-                {
-                    rt.Release();
-                    Destroy(rt);
-                }
-            }
+            if (_isDestroying)
+                return;
+            _isDestroying = true;
+            ReleaseVideoPlayerResources();
 
             var controller = GetComponentInParent<AdViewController>();
             if (controller != null)
                 Destroy(controller.gameObject);
             else if (gameObject != null)
                 Destroy(gameObject);
+        }
+
+        private void ReleaseVideoPlayerResources()
+        {
+            if (_videoPlayer == null)
+                return;
+
+            _videoPlayer.prepareCompleted -= OnVideoPrepared;
+            _videoPlayer.started -= OnVideoStarted;
+            _videoPlayer.loopPointReached -= OnVideoCompleted;
+            _videoPlayer.errorReceived -= OnVideoError;
+            _videoPlayer.Stop();
+            var rt = _videoPlayer.targetTexture;
+            _videoPlayer.targetTexture = null;
+            if (rt != null)
+            {
+                rt.Release();
+                Destroy(rt);
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_isDestroying)
+                return;
+            _isDestroying = true;
+            ReleaseVideoPlayerResources();
+
+            if (_hasStarted && !_hasCompleted && !_hasSkipped)
+                NotifySkipped();
+            if (!_hasClosed)
+                NotifyClosed();
         }
     }
 }

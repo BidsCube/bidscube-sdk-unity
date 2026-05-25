@@ -1,3 +1,15 @@
+## [1.2.6] - 2026-04-30
+
+### Added
+
+- **Video contracts:** `ShowInterstitialVideoAd`, `ShowRewardedVideoAd`, `GetInterstitialVideoAdView`, `GetRewardedVideoAdView`; `VideoAdFormat` enum; optional `IRewardedAdCallback.OnUserRewarded` (backward-compatible, not on `IAdCallback`).
+- `ShowVideoAd` / `GetVideoAdView` remain aliases for interstitial video.
+
+### Changed
+
+- **Video lifecycle:** Removed fake delayed video callbacks (`DelayedVideoAdLoaded`, `LoadVideoAd` success stubs). `VideoAdView` uses guarded `Notify*` methods — `OnAdLoaded` on prepare, `OnAdDisplayed` / `OnVideoAdStarted` on playback start, reward only after real completion for `VideoAdFormat.Rewarded`.
+- IMA path disabled until event bridge is wired; custom VAST / `VideoPlayer` is the reliable path.
+
 ## [1.2.5] - 2026-04-30
 
 ### Changed

@@ -23,6 +23,7 @@ namespace BidscubeSDK
         private string _adTagUrl;
         private IAdCallback _callback;
         private string _placementId;
+        private IVideoPlayerEventListener _eventListener;
 
         // IMA SDK references (when available)
 #if UNITY_ANDROID && !UNITY_EDITOR
@@ -36,6 +37,14 @@ namespace BidscubeSDK
         // iOS IMA SDK would use native plugins
         // This would require native iOS code integration
 #endif
+
+        /// <summary>
+        /// Optional lifecycle bridge to <see cref="VideoAdView"/> (not wired until IMA events are implemented).
+        /// </summary>
+        public void SetEventListener(IVideoPlayerEventListener listener)
+        {
+            _eventListener = listener;
+        }
 
         /// <summary>
         /// Initialize IMA player

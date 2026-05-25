@@ -9,7 +9,7 @@ namespace BidscubeSDK.Controllers
     /// SDK Test Scene - Basic SDK functionality testing
     /// Based on iOS SDKTestView
     /// </summary>
-    public class SDKTestScene : MonoBehaviour, IAdCallback
+    public class SDKTestScene : MonoBehaviour, IAdCallback, IRewardedAdCallback
     {
         [Header("SDK Configuration")]
         [SerializeField] private string _placementId = "";
@@ -865,6 +865,11 @@ namespace BidscubeSDK.Controllers
         public void OnVideoAdSkippable(string placementId)
         {
             LogMessage($"Video ad skippable: {placementId}");
+        }
+
+        public void OnUserRewarded(string placementId)
+        {
+            LogMessage($"User rewarded: {placementId}");
         }
 
         public void OnInstallButtonClicked(string placementId, string buttonText)

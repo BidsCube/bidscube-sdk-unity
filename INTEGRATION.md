@@ -35,7 +35,7 @@ The Bidscube Unity SDK can be installed in two ways:
 2. Click the `+` button in the top-left corner
 3. Select `Add package from git URL...`
 4. Enter the repository URL: `https://github.com/Bidscube/bidscube-sdk-unity.git`
-5. Optionally, specify a version tag: `https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.5`
+5. Optionally, specify a version tag: `https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.6`
 6. Click `Add`
 7. The SDK will be added as a package dependency
 
@@ -44,7 +44,7 @@ The Bidscube Unity SDK can be installed in two ways:
 ```json
 {
   "dependencies": {
-    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.5"
+    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.6"
   }
 }
 ```
@@ -184,27 +184,56 @@ BidscubeSDK.BidscubeSDK.ShowCustomBanner(
 
 ### Video Ads
 
-Video ads are full-screen video advertisements that play automatically.
+Full-screen video uses `VideoAdFormat` (**Interstitial** vs **Rewarded**). The SDK renders and reports callbacks only — **when** to show an interstitial (frequency, level complete, etc.) is entirely the host game/app responsibility.
 
-#### Basic Video Ad
+#### Interstitial video (no reward)
 
 ```csharp
-// Show video ad
-BidscubeSDK.BidscubeSDK.ShowVideoAd("your-placement-id", new MyAdCallback());
+BidscubeSDK.BidscubeSDK.ShowInterstitialVideoAd("interstitial-placement-id", new MyAdCallback());
+
+// Backward-compatible alias (same as interstitial):
+BidscubeSDK.BidscubeSDK.ShowVideoAd("interstitial-placement-id", new MyAdCallback());
 ```
 
-#### Skippable Video Ad
+#### Rewarded video
+
+Implement `IRewardedAdCallback` on your callback object (or extend `AdCallback`):
 
 ```csharp
-// Show skippable video ad with custom skip button text
+public class MyAdCallback : AdCallback
+{
+    public override void OnUserRewarded(string placementId)
+    {
+        // Grant reward — fired only after video playback completes
+    }
+}
+
+BidscubeSDK.BidscubeSDK.ShowRewardedVideoAd("rewarded-placement-id", new MyAdCallback());
+```
+
+`OnUserRewarded` is **not** called for interstitial video, skip, close-before-complete, load/playback failure, or destroy.
+
+#### Skippable interstitial
+
+```csharp
 BidscubeSDK.BidscubeSDK.ShowSkippableVideoAd(
     "your-placement-id",
-    "Skip Ad",           // Skip button text
+    "Skip Ad",
     new MyAdCallback()
-);
+); // alias for ShowInterstitialVideoAd
 ```
 
-**Note:** Video ads are always displayed in full-screen mode regardless of position settings.
+#### Get video view GameObjects
+
+```csharp
+var interstitialView = BidscubeSDK.BidscubeSDK.GetInterstitialVideoAdView("placement-id", callback);
+var rewardedView = BidscubeSDK.BidscubeSDK.GetRewardedVideoAdView("placement-id", callback);
+
+// Alias:
+var legacyView = BidscubeSDK.BidscubeSDK.GetVideoAdView("placement-id", callback);
+```
+
+**Note:** Video ads are always full-screen. Callbacks come from real `VideoAdView` / `VideoPlayer` lifecycle (no artificial delayed success).
 
 ### Native Ads
 

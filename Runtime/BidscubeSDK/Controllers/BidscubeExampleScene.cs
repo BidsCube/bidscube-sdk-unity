@@ -8,7 +8,7 @@ namespace BidscubeSDK.Controllers
     /// Comprehensive test scene for Bidscube Unity SDK
     /// Demonstrates all SDK functionality with proper UI hierarchy
     /// </summary>
-    public class BidscubeExampleScene : MonoBehaviour, IAdCallback, IConsentCallback
+    public class BidscubeExampleScene : MonoBehaviour, IAdCallback, IRewardedAdCallback, IConsentCallback
     {
         [Header("SDK Configuration")]
         [SerializeField] private string _placementId = "test_placement_123";
@@ -473,6 +473,11 @@ namespace BidscubeSDK.Controllers
         public void OnVideoAdSkippable(string placementId)
         {
             LogMessage($" Video ad skippable: {placementId}");
+        }
+
+        public void OnUserRewarded(string placementId)
+        {
+            LogMessage($"User rewarded: {placementId}");
         }
 
         public void OnInstallButtonClicked(string placementId, string buttonText)

@@ -540,11 +540,38 @@ namespace BidscubeSDK
         }
 
         /// <summary>
-        /// Show video ad - Identical to iOS
+        /// Show interstitial (full-screen) video ad. Host app decides when to call this (no SDK frequency rules).
         /// </summary>
-        /// <param name="placementId">Placement ID</param>
-        /// <param name="callback">Ad callback</param>
+        public static void ShowInterstitialVideoAd(string placementId, IAdCallback callback = null)
+        {
+            ShowVideoAdInternal(placementId, VideoAdFormat.Interstitial, callback);
+        }
+
+        /// <summary>
+        /// Show rewarded video ad. <see cref="IRewardedAdCallback.OnUserRewarded"/> fires only after playback completes.
+        /// </summary>
+        public static void ShowRewardedVideoAd(string placementId, IAdCallback callback = null)
+        {
+            ShowVideoAdInternal(placementId, VideoAdFormat.Rewarded, callback);
+        }
+
+        /// <summary>
+        /// Backward-compatible alias for <see cref="ShowInterstitialVideoAd"/>.
+        /// </summary>
         public static void ShowVideoAd(string placementId, IAdCallback callback = null)
+        {
+            ShowInterstitialVideoAd(placementId, callback);
+        }
+
+        /// <summary>
+        /// Show skippable interstitial video (skip button text currently not used but kept for API parity).
+        /// </summary>
+        public static void ShowSkippableVideoAd(string placementId, string skipButtonText, IAdCallback callback)
+        {
+            ShowInterstitialVideoAd(placementId, callback);
+        }
+
+        private static void ShowVideoAdInternal(string placementId, VideoAdFormat format, IAdCallback callback)
         {
             if (!IsInitialized())
             {
@@ -552,113 +579,56 @@ namespace BidscubeSDK
                 return;
             }
 
-            Logger.Info($"ShowVideoAd called for placement: {placementId}");
-
-            // #region agent log
-            AgentNdjsonDebugLog.Write("BidscubeSDK.ShowVideoAd", "entry", "H4", "{\"placementId\":\"" + placementId + "\"}");
-            // #endregion
-            var effectivePosition = GetEffectiveAdPosition();
-
-            // Video must not parent under a small UI slot (e.g. launcher dock); use dedicated SDK root for fullscreen / overlay.
-            Transform parentTransform = GetOrCreateSDKContent().transform;
-
-            // Create AdViewController like iOS
-            var adViewControllerObj = new GameObject("AdViewController");
-            adViewControllerObj.transform.SetParent(parentTransform, false);
-            var adViewController = adViewControllerObj.AddComponent<AdViewController>();
-            adViewController.Initialize(placementId, AdType.Video, callback);
-
-            // Load ad from URL
-            var url = URLBuilder.BuildAdRequestURL(_configuration.BaseURL, placementId, AdType.Video, effectivePosition, _configuration.DefaultAdTimeoutMs, _configuration.EnableDebugMode);
-            Logger.Info($"Video ad request URL: {url}");
+            Logger.Info($"ShowVideoAdInternal called for placement: {placementId}, format: {format}");
 
             // #region agent log
             AgentNdjsonDebugLog.Write(
-                "BidscubeSDK.ShowVideoAd",
-                "url_ready",
-                "H1",
-                "{\"urlLen\":" + (url != null ? url.Length : 0) + ",\"placementId\":\"" + placementId + "\"}");
+                "BidscubeSDK.ShowVideoAdInternal",
+                "entry",
+                "H4",
+                "{\"placementId\":\"" + placementId + "\",\"format\":\"" + format + "\"}");
             // #endregion
 
-            // Get the VideoAdView from the controller
-            var videoAdView = adViewControllerObj.GetComponentInChildren<VideoAdView>();
-            if (videoAdView != null)
-            {
-                videoAdView.LoadVideoAdFromURL(url);
-            }
+            var effectivePosition = GetEffectiveAdPosition();
+            CreateAdViewController(placementId, AdType.Video, callback, effectivePosition, null, format);
         }
 
         /// <summary>
-        /// Show skippable video ad (skip button text currently not used but kept for API parity)
+        /// Get interstitial video ad view GameObject (loads via <see cref="AdViewController"/>).
         /// </summary>
-        public static void ShowSkippableVideoAd(string placementId, string skipButtonText, IAdCallback callback)
+        public static GameObject GetInterstitialVideoAdView(string placementId, IAdCallback callback = null)
         {
-            ShowVideoAd(placementId, callback);
-        }
-
-        private static IEnumerator LoadVideoAd(string placementId, string url, IAdCallback callback)
-        {
-            using (var request = UnityWebRequest.Get(url))
-            {
-                request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
-                yield return request.SendWebRequest();
-
-                if (request.result == UnityWebRequest.Result.Success)
-                {
-                    try
-                    {
-                        var json = JsonUtility.FromJson<AdResponse>(request.downloadHandler.text);
-                        if (json != null)
-                        {
-                            _responseAdPosition = (AdPosition)json.position;
-                        }
-                    }
-                    catch
-                    {
-                        _responseAdPosition = AdPosition.FullScreen;
-                    }
-
-                    callback?.OnAdLoaded(placementId);
-                    callback?.OnAdDisplayed(placementId);
-                    callback?.OnVideoAdStarted(placementId);
-                    callback?.OnVideoAdCompleted(placementId);
-                }
-                else
-                {
-                    callback?.OnAdFailed(placementId, Constants.ErrorCodes.NetworkError, request.error);
-                }
-            }
+            return GetVideoAdViewInternal(placementId, VideoAdFormat.Interstitial, callback);
         }
 
         /// <summary>
-        /// Get video ad view
+        /// Get rewarded video ad view GameObject (loads via <see cref="AdViewController"/>).
         /// </summary>
-        /// <param name="placementId">Placement ID</param>
-        /// <param name="callback">Ad callback</param>
-        /// <returns>Video ad view</returns>
+        public static GameObject GetRewardedVideoAdView(string placementId, IAdCallback callback = null)
+        {
+            return GetVideoAdViewInternal(placementId, VideoAdFormat.Rewarded, callback);
+        }
+
+        /// <summary>
+        /// Backward-compatible alias for <see cref="GetInterstitialVideoAdView"/>.
+        /// </summary>
         public static GameObject GetVideoAdView(string placementId, IAdCallback callback = null)
         {
-            var view = CreateVideoAdView();
+            return GetInterstitialVideoAdView(placementId, callback);
+        }
 
-            callback?.OnAdLoading(placementId);
-
-            var url = BuildRequestURL(placementId, AdType.Video);
-            if (string.IsNullOrEmpty(url))
+        private static GameObject GetVideoAdViewInternal(string placementId, VideoAdFormat format, IAdCallback callback)
+        {
+            if (!IsInitialized())
             {
-                Logger.Error("Failed to build request URL for video ad");
-                callback?.OnAdFailed(placementId, Constants.ErrorCodes.InvalidURL, Constants.ErrorMessages.FailedToBuildURL);
-                return view;
+                Logger.Error("SDK not initialized. Call Initialize() first.");
+                return null;
             }
 
-            var videoAdView = view.GetComponent<VideoAdView>();
-            if (videoAdView != null)
-            {
-                videoAdView.SetPlacementInfo(placementId, callback);
-                videoAdView.LoadVideoAdFromURL(url);
-            }
-
-            StartSDKCoroutine(DelayedVideoAdLoaded(placementId, callback));
-            return view;
+            var effectivePosition = GetEffectiveAdPosition();
+            var controller = CreateAdViewController(placementId, AdType.Video, callback, effectivePosition, null, format);
+            var videoAdView = controller.GetComponentInChildren<VideoAdView>(true);
+            return videoAdView != null ? videoAdView.gameObject : controller.gameObject;
         }
 
         /// <summary>
@@ -814,7 +784,13 @@ namespace BidscubeSDK
             return bannerView;
         }
 
-        private static AdViewController CreateAdViewController(string placementId, AdType adType, IAdCallback callback, AdPosition position, Vector2? adSize = null)
+        private static AdViewController CreateAdViewController(
+            string placementId,
+            AdType adType,
+            IAdCallback callback,
+            AdPosition position,
+            Vector2? adSize = null,
+            VideoAdFormat videoAdFormat = VideoAdFormat.Interstitial)
         {
             Transform parentTransform = adType == AdType.Video
                 ? GetOrCreateSDKContent().transform
@@ -835,7 +811,7 @@ namespace BidscubeSDK
             {
                 adController.SetAdSizeSettings(activeSettings);
             }
-            adController.Initialize(placementId, adType, callback, position);
+            adController.Initialize(placementId, adType, callback, position, videoAdFormat);
 
             // If caller provided an explicit size (for example a GameObject's RectTransform), apply it
             if (adSize.HasValue)
@@ -884,16 +860,6 @@ namespace BidscubeSDK
             _responseAdPosition = AdPosition.Unknown;
             callback?.OnAdLoaded(placementId);
             callback?.OnAdDisplayed(placementId);
-        }
-
-        private static IEnumerator DelayedVideoAdLoaded(string placementId, IAdCallback callback)
-        {
-            yield return new WaitForSeconds(1.0f);
-            _responseAdPosition = AdPosition.FullScreen;
-            callback?.OnAdLoaded(placementId);
-            callback?.OnAdDisplayed(placementId);
-            callback?.OnVideoAdStarted(placementId);
-            callback?.OnVideoAdCompleted(placementId);
         }
 
         private static IEnumerator DelayedBannerAdLoaded(string placementId, AdPosition position, IAdCallback callback)

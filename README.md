@@ -91,12 +91,14 @@ public class AdManager : MonoBehaviour, IAdCallback
 
 ### 3. Show Video Ad
 
+Interstitial (no reward) — `ShowVideoAd` is a backward-compatible alias:
+
 ```csharp
-public void ShowVideoAd()
-{
-    BidscubeSDK.BidscubeSDK.ShowVideoAd("your_placement_id", this);
-}
+BidscubeSDK.BidscubeSDK.ShowInterstitialVideoAd("interstitial_placement_id", this);
+// or: ShowVideoAd(...) — same as interstitial
 ```
+
+Rewarded — implement `IRewardedAdCallback` (or extend `AdCallback`) and use `ShowRewardedVideoAd`. `OnUserRewarded` fires only after playback completes. The SDK does not decide when to show interstitials; your game controls timing and frequency.
 
 ### 4. Show Banner Ad
 
@@ -182,6 +184,10 @@ Interface for ad event callbacks.
 - `OnVideoAdCompleted(string placementId)` - Called when video ad completes
 - `OnVideoAdSkipped(string placementId)` - Called when video ad is skipped
 - `OnInstallButtonClicked(string placementId, string buttonText)` - Called when install button is clicked
+
+#### IRewardedAdCallback (optional, for rewarded video)
+
+- `OnUserRewarded(string placementId)` - Called only after rewarded video completes (not on skip/close/failure). Interstitial video never calls this.
 
 #### IConsentCallback
 

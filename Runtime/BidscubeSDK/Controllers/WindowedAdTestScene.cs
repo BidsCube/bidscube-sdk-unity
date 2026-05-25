@@ -9,7 +9,7 @@ namespace BidscubeSDK.Controllers
     /// Windowed Ad Test Scene - Ad positioning and layout testing
     /// Based on iOS WindowedAdTestView
     /// </summary>
-    public class WindowedAdTestScene : MonoBehaviour, IAdCallback, IConsentCallback
+    public class WindowedAdTestScene : MonoBehaviour, IAdCallback, IRewardedAdCallback, IConsentCallback
     {
         [Header("SDK Configuration")]
         [SerializeField] private string _imageAdPlacementId = "20212";
@@ -434,6 +434,11 @@ namespace BidscubeSDK.Controllers
         public void OnVideoAdSkippable(string placementId)
         {
             LogMessage($"Video ad skippable: {placementId}");
+        }
+
+        public void OnUserRewarded(string placementId)
+        {
+            LogMessage($"User rewarded: {placementId}");
         }
 
         public void OnInstallButtonClicked(string placementId, string buttonText)
