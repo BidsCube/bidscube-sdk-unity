@@ -29,32 +29,67 @@ public class UnityWebViewPostprocessBuild
     //// cf. https://github.com/Over17/UnityAndroidManifestCallback
 
 #if UNITY_2018_1_OR_NEWER
-    public void OnPreprocessBuild(BuildReport report) {
-        if (report.summary.platform != BuildTarget.Android) {
+    /// <summary>
+    /// Resolves WebView AAR templates whether the SDK is embedded as com.bidscube.sdk, legacy gree UPM, or under Assets.
+    /// </summary>
+    static bool TryResolveWebViewAarTemplates(out string developmentTmpl, out string releaseTmpl)
+    {
+        developmentTmpl = null;
+        releaseTmpl = null;
+        if (!TryFindWebViewAarTmplFile("WebViewPlugin-development.aar.tmpl", out developmentTmpl))
+            return false;
+        if (!TryFindWebViewAarTmplFile("WebViewPlugin-release.aar.tmpl", out releaseTmpl))
+            return false;
+        return true;
+    }
+
+    static bool TryFindWebViewAarTmplFile(string fileName, out string projectRelativePath)
+    {
+        projectRelativePath = null;
+        const string suffix = ".aar.tmpl";
+        if (!fileName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            return false;
+        var searchKey = fileName.Substring(0, fileName.Length - suffix.Length);
+
+        foreach (var guid in AssetDatabase.FindAssets(searchKey))
+        {
+            var p = AssetDatabase.GUIDToAssetPath(guid).Replace('\\', '/');
+            if (string.Equals(Path.GetFileName(p), fileName, StringComparison.OrdinalIgnoreCase))
+            {
+                projectRelativePath = p;
+                return true;
+            }
+        }
+
+        var fallbacks = new[]
+        {
+            $"Packages/com.bidscube.sdk/Runtime/Plugins/Android/{fileName}",
+            "Packages/net.gree.unity-webview/Assets/Plugins/Android/" + fileName,
+            "Assets/Plugins/Android/" + fileName,
+        };
+        foreach (var fb in fallbacks)
+        {
+            if (File.Exists(fb))
+            {
+                projectRelativePath = fb;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void OnPreprocessBuild(BuildReport report)
+    {
+        if (report.summary.platform != BuildTarget.Android)
             return;
-        }
 
-        string dev = null;
-        string rel = null;
-
-        var pkg = UnityEditor.PackageManager.PackageInfo.FindForPackageName("com.bidscube.sdk");
-        if (pkg != null) {
-            var androidDir = Path.Combine(pkg.resolvedPath, "Runtime", "Plugins", "Android");
-            var d = Path.Combine(androidDir, "WebViewPlugin-development.aar.tmpl");
-            var r = Path.Combine(androidDir, "WebViewPlugin-release.aar.tmpl");
-            if (File.Exists(d) && File.Exists(r)) {
-                dev = d;
-                rel = r;
-            }
-        }
-
-        if (dev == null || rel == null) {
-            dev = "Packages/net.gree.unity-webview/Assets/Plugins/Android/WebViewPlugin-development.aar.tmpl";
-            rel = "Packages/net.gree.unity-webview/Assets/Plugins/Android/WebViewPlugin-release.aar.tmpl";
-            if (!File.Exists(dev) || !File.Exists(rel)) {
-                dev = "Assets/Plugins/Android/WebViewPlugin-development.aar.tmpl";
-                rel = "Assets/Plugins/Android/WebViewPlugin-release.aar.tmpl";
-            }
+        if (!TryResolveWebViewAarTemplates(out var dev, out var rel))
+        {
+            UnityEngine.Debug.LogError(
+                "[BidscubeSDK] unitywebview: WebViewPlugin-development/release.aar.tmpl not found. " +
+                "Expected under Packages/com.bidscube.sdk/Runtime/Plugins/Android/ or Assets/Plugins/Android/.");
+            throw new FileNotFoundException("WebView Android .aar.tmpl templates missing.");
         }
 
         var src = EditorUserBuildSettings.development ? dev : rel;

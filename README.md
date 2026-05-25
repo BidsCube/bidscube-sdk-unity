@@ -12,6 +12,10 @@ The Bidscube Unity SDK provides a comprehensive advertising solution for Unity g
 - **Device Information**: Automatic device and app information collection
 - **Network Management**: Robust HTTP request handling
 
+### Android: Lite (no video) vs Full (video)
+
+Direct SDK video entry points respect **`BIDSCUBE_ANDROID_LITE_NO_VIDEO`** when a mediation adapter (or your own tooling) sets it for **LiteNoVideo** Android exports. When you consume the native **`com.bidscube:sdk-lite-no-video`** artifact (bundled by adapters as `bidscube-sdk-lite-no-video-*.aar`), you should **not** need **`coreLibraryDesugaringEnabled`** for Bidscube metadata. The **`sdk-full-video`** artifact may pull Media3 / IMA and **may** require desugaring — use **FullWithVideo** export mode in the adapter and expect launcher **`desugar_jdk_libs`** injection.
+
 ## Installation
 
 ### Unity Package Manager

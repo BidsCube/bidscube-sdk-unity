@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.UI;
 
 namespace BidscubeSDK
 {
@@ -27,11 +28,11 @@ namespace BidscubeSDK
         private static List<BannerAdView> _activeBanners = new List<BannerAdView>();
         private static List<AdViewController> _activeControllers = new List<AdViewController>();
 
-        /// <summary>Optional UI parent for new <see cref="AdViewController"/> / video roots (e.g. launcher slot below buttons).</summary>
+        /// <summary>Optional UI parent for all new and existing ad roots (e.g. a layout slot RectTransform).</summary>
         private static Transform _adViewsParentOverride;
 
-        /// <summary>When true with an override parent, <see cref="AdViewController"/> sizes the slot for VerticalLayoutGroup-style parents.</summary>
-        private static bool _adViewsParentUseLayoutSizing;
+        /// <summary>When true with an override parent, slot-style banner HTML / layout sizing applies.</summary>
+        private static bool _adViewsParentUsesLayoutSlotSizing;
 
         private static BidscubeSDK Instance
         {
@@ -53,20 +54,86 @@ namespace BidscubeSDK
         }
 
         /// <summary>
+        /// When <c>BIDSCUBE_ANDROID_LITE_NO_VIDEO</c> is set (AppLovin adapter Android Lite build), direct SDK video must not run — native IMA/Media3 are omitted.
+        /// </summary>
+        static bool TryRejectDirectVideoInLiteNoVideo(string placementId, IAdCallback callback)
+        {
+#if BIDSCUBE_ANDROID_LITE_NO_VIDEO
+            var msg = Constants.ErrorMessages.LiteNoVideoVideoNotSupported;
+            Logger.Error(msg);
+            callback?.OnAdFailed(placementId, Constants.ErrorCodes.LiteNoVideoVideoNotSupported, msg);
+            return true;
+#else
+            return false;
+#endif
+        }
+
+        /// <summary>
+        /// Parent active ad views under <paramref name="parent"/> and use it for new ads.
+        /// </summary>
+        /// <param name="parent">RectTransform or transform under a Canvas.</param>
+        /// <param name="useLayoutSlotSizing">When true, banner HTML layout prefers slot-style alignment.</param>
+        public static void SetAdViewsParentTransform(Transform parent, bool useLayoutSlotSizing)
+        {
+            _adViewsParentOverride = parent;
+            _adViewsParentUsesLayoutSlotSizing = useLayoutSlotSizing;
+            ReparentActiveAdViewsToResolvedRoot();
+        }
+
+        /// <summary>
+        /// Clears a previously set ad parent; re-parents live ads to the default SDK content root.
+        /// </summary>
+        public static void ClearAdViewsParentTransform()
+        {
+            _adViewsParentOverride = null;
+            _adViewsParentUsesLayoutSlotSizing = false;
+            ReparentActiveAdViewsToResolvedRoot();
+        }
+
+        /// <summary>
+        /// Re-runs layout / margin / WebView sync for all tracked ads (after Unity layout rebuilds, embedded slots get non-zero height, etc.).
+        /// </summary>
+        public static void ReapplyLayoutForAllActiveAds()
+        {
+            foreach (var controller in new List<AdViewController>(_activeControllers))
+            {
+                if (controller != null)
+                    controller.ReapplyLayout();
+            }
+
+            foreach (var banner in new List<BannerAdView>(_activeBanners))
+            {
+                if (banner != null)
+                    banner.ReapplyLayout();
+            }
+
+            if (_adViewsParentOverride is RectTransform slotRt)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(slotRt);
+        }
+
+        /// <summary>
         /// Initialize the SDK with configuration
         /// </summary>
         /// <param name="config">SDK configuration</param>
         public static void Initialize(SDKConfig config)
         {
-            if (!_initializationEnabled || (config != null && config.DisableInitialization))
+            if (!_initializationEnabled)
             {
-                Debug.Log("[BidscubeSDK] Initialize skipped (disabled).");
+                Logger.Info("BidscubeSDK.Initialize skipped: initialization disabled — call SetInitializationEnabled(true) before Initialize.");
                 return;
             }
+
+            if (config != null && config.DisableInitialization)
+            {
+                Logger.Info("BidscubeSDK.Initialize skipped: DisableInitialization is set on SDKConfig.");
+                return;
+            }
+
 #if BIDSCUBE_DISABLE_INIT
-            Debug.Log("[BidscubeSDK] Initialize skipped (BIDSCUBE_DISABLE_INIT).");
+            Logger.Info("BidscubeSDK.Initialize skipped (BIDSCUBE_DISABLE_INIT).");
             return;
 #endif
+
             _configuration = config;
             Logger.Configure(config);
             Logger.Info("BidsCube SDK initialized with configuration");
@@ -106,6 +173,12 @@ namespace BidscubeSDK
         /// </summary>
         public static void Initialize()
         {
+            if (!_initializationEnabled)
+            {
+                Logger.Info("BidscubeSDK.Initialize skipped: initialization disabled — call SetInitializationEnabled(true) before Initialize.");
+                return;
+            }
+
             var config = new SDKConfig.Builder()
                 .EnableLogging(true)
                 .EnableDebugMode(false)
@@ -152,6 +225,9 @@ namespace BidscubeSDK
         {
             ClearAllAds();
 
+            _adViewsParentOverride = null;
+            _adViewsParentUsesLayoutSlotSizing = false;
+
             _configuration = null;
             _manualAdPosition = AdPosition.Unknown;
             _responseAdPosition = AdPosition.Unknown;
@@ -159,32 +235,6 @@ namespace BidscubeSDK
             _hasAdsConsentFlag = false;
             _hasAnalyticsConsentFlag = false;
             _consentDebugDeviceId = null;
-            _adViewsParentOverride = null;
-            _adViewsParentUseLayoutSizing = false;
-        }
-
-        /// <summary>
-        /// Parent transform for new ad view controllers (image, native, video). Use for in-app preview areas; call <see cref="ClearAdViewsParentTransform"/> when hiding that UI.
-        /// </summary>
-        /// <param name="parent">Rect transform (e.g. empty slot under buttons). If null, same as Clear.</param>
-        /// <param name="layoutSlotSizing">When true, non-video ads stretch horizontally to the parent and use banner height (for VerticalLayoutGroup slots).</param>
-        public static void SetAdViewsParentTransform(Transform parent, bool layoutSlotSizing = true)
-        {
-            if (parent == null)
-            {
-                ClearAdViewsParentTransform();
-                return;
-            }
-
-            _adViewsParentOverride = parent;
-            _adViewsParentUseLayoutSizing = layoutSlotSizing;
-        }
-
-        /// <summary>Clears <see cref="SetAdViewsParentTransform"/> so ads parent under SDKContent again.</summary>
-        public static void ClearAdViewsParentTransform()
-        {
-            _adViewsParentOverride = null;
-            _adViewsParentUseLayoutSizing = false;
         }
 
         internal static Transform GetAdViewsRootTransform()
@@ -205,7 +255,7 @@ namespace BidscubeSDK
         {
             if (_adViewsParentOverride == null || !_adViewsParentOverride || !_adViewsParentOverride.gameObject.activeInHierarchy)
                 return false;
-            return _adViewsParentUseLayoutSizing;
+            return _adViewsParentUsesLayoutSlotSizing;
         }
 
         /// <summary>
@@ -489,20 +539,6 @@ namespace BidscubeSDK
         }
 
         /// <summary>
-        /// Re-runs <see cref="AdViewController.ReapplyLayoutAndWebView"/> on all active ad controllers.
-        /// Call after the host UI (e.g. embedded ad slot) finishes layout so slot height is non-zero.
-        /// </summary>
-        public static void ReapplyLayoutForAllActiveAds()
-        {
-            var snapshot = new List<AdViewController>(_activeControllers);
-            foreach (var c in snapshot)
-            {
-                if (c != null)
-                    c.ReapplyLayoutAndWebView();
-            }
-        }
-
-        /// <summary>
         /// Convenience wrapper for using banner as image ad view
         /// </summary>
         public static GameObject GetImageAdView(string placementId, IAdCallback callback = null)
@@ -579,6 +615,9 @@ namespace BidscubeSDK
                 return;
             }
 
+            if (TryRejectDirectVideoInLiteNoVideo(placementId, callback))
+                return;
+
             Logger.Info($"ShowVideoAdInternal called for placement: {placementId}, format: {format}");
 
             // #region agent log
@@ -624,6 +663,9 @@ namespace BidscubeSDK
                 Logger.Error("SDK not initialized. Call Initialize() first.");
                 return null;
             }
+
+            if (TryRejectDirectVideoInLiteNoVideo(placementId, callback))
+                return new GameObject("VideoAd_LiteNoVideo_Disabled");
 
             var effectivePosition = GetEffectiveAdPosition();
             var controller = CreateAdViewController(placementId, AdType.Video, callback, effectivePosition, null, format);
@@ -832,13 +874,28 @@ namespace BidscubeSDK
         /// <returns>SDKContent GameObject</returns>
         private static GameObject GetOrCreateSDKContent()
         {
-            // Dedicated root for all ad UI — do not parent to the first scene Canvas (menu / sample UI),
-            // or ads end up nested under unrelated canvases with wrong scale, sorting, or camera mode.
+            if (_adViewsParentOverride != null)
+                return _adViewsParentOverride.gameObject;
+
+            // Dedicated root for all ad UI — avoid nesting under unrelated scene canvases when possible.
             GameObject sdkContent = GameObject.Find("SDKContent");
             if (sdkContent != null)
             {
                 sdkContent.transform.localScale = Vector3.one;
                 return sdkContent;
+            }
+
+            // Try to find existing Canvas first
+#if UNITY_2022_2_OR_NEWER
+            Canvas existingCanvas = UnityEngine.Object.FindFirstObjectByType<Canvas>();
+#else
+            Canvas existingCanvas = UnityEngine.Object.FindObjectOfType<Canvas>();
+#endif
+            if (existingCanvas != null)
+            {
+                Logger.Info("[BidscubeSDK] Found existing Canvas, using it as parent");
+                existingCanvas.transform.localScale = Vector3.one;
+                return existingCanvas.gameObject;
             }
 
             sdkContent = new GameObject("SDKContent");
@@ -847,6 +904,32 @@ namespace BidscubeSDK
             Logger.Info("[BidscubeSDK] Created SDKContent (DontDestroyOnLoad) as dedicated parent for ad views");
 
             return sdkContent;
+        }
+
+        static void ReparentActiveAdViewsToResolvedRoot()
+        {
+            var root = GetOrCreateSDKContent();
+            if (root == null)
+                return;
+            var t = root.transform;
+
+            foreach (var controller in new List<AdViewController>(_activeControllers))
+            {
+                if (controller != null)
+                {
+                    controller.transform.SetParent(t, false);
+                    controller.transform.localScale = Vector3.one;
+                }
+            }
+
+            foreach (var banner in new List<BannerAdView>(_activeBanners))
+            {
+                if (banner != null)
+                {
+                    banner.transform.SetParent(t, false);
+                    banner.transform.localScale = Vector3.one;
+                }
+            }
         }
 
         internal static void UnregisterAdViewController(AdViewController controller)

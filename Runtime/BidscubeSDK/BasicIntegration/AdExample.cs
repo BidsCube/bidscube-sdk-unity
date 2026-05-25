@@ -110,7 +110,11 @@ namespace BidscubeSDK.Samples
                 return;
             }
 
-            BidscubeSDK.ShowHeaderBanner(_placementId, this);
+            BidscubeSDK.SetAdPosition(_bannerPosition);
+            if (_bannerPosition == AdPosition.Footer)
+                BidscubeSDK.ShowFooterBanner(_placementId, this);
+            else
+                BidscubeSDK.ShowHeaderBanner(_placementId, this);
             UpdateStatus("Loading banner ad...");
         }
 

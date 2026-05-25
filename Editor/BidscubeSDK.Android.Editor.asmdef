@@ -1,11 +1,13 @@
 {
-    "name": "BidscubeSDK",
-    "rootNamespace": "BidscubeSDK",
+    "name": "BidscubeSDK.Android.Editor",
+    "rootNamespace": "BidscubeSDK.Editor",
     "references": [
-        "Unity.TextMeshPro",
+        "BidscubeSDK",
         "BidscubeSDK.Android"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

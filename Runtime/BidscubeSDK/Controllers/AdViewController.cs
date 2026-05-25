@@ -17,7 +17,6 @@ namespace BidscubeSDK
         [SerializeField] private AdPosition _currentPosition = AdPosition.Unknown; // Starts as Unknown, set when adm response received
         [SerializeField] private VideoAdFormat _videoAdFormat = VideoAdFormat.Interstitial;
         [SerializeField] private bool _hasAdLoaded = false;
-        [SerializeField] private bool _isVideoPlaying = false;
         [SerializeField] private BannerAdView _imageAdView;
         [Header("Ad Size Settings")]
         [Tooltip("Optional: ScriptableObject with default ad sizes per AdType. If null, hardcoded defaults are used.")]
@@ -69,6 +68,16 @@ namespace BidscubeSDK
             AdPosition position = AdPosition.Unknown,
             VideoAdFormat videoAdFormat = VideoAdFormat.Interstitial)
         {
+#if BIDSCUBE_ANDROID_LITE_NO_VIDEO
+            if (adType == AdType.Video)
+            {
+                var msg = Constants.ErrorMessages.LiteNoVideoVideoNotSupported;
+                Logger.Error(msg);
+                callback?.OnAdFailed(placementId, Constants.ErrorCodes.LiteNoVideoVideoNotSupported, msg);
+                Destroy(gameObject);
+                return;
+            }
+#endif
             _placementId = placementId;
             _adType = adType;
             _callback = callback;
@@ -619,6 +628,15 @@ namespace BidscubeSDK
             ApplyPositioning(position);
 
             // Refresh WebView margins after repositioning
+            RefreshWebViewMargins();
+        }
+
+        /// <summary>
+        /// Re-run positioning and WebView margins (e.g. after Unity layout rebuild).
+        /// </summary>
+        public void ReapplyLayout()
+        {
+            ApplyPositioning(_currentPosition);
             RefreshWebViewMargins();
         }
 

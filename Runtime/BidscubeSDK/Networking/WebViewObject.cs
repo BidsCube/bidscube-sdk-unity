@@ -7,6 +7,7 @@ using BidscubeSDK;
 #if UNITY_2018_4_OR_NEWER
 using UnityEngine.Networking;
 #endif
+using BidscubeSDK;
 #if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
 using System.IO;
 using UnityEngine.EventSystems;
@@ -262,14 +263,6 @@ public class WebViewObject : MonoBehaviour
                 }
             };
             callbacks.PermissionDenied += (permission) =>
-            {
-                deniedCount++;
-                if (grantedCount + deniedCount == permissions.Count)
-                {
-                    StartCoroutine(CallOnRequestFileChooserPermissionsResult(grantedCount == permissions.Count));
-                }
-            };
-            callbacks.PermissionDeniedAndDontAskAgain += (permission) =>
             {
                 deniedCount++;
                 if (grantedCount + deniedCount == permissions.Count)

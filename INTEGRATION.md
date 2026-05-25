@@ -1,6 +1,8 @@
 # Bidscube Unity SDK Integration Guide
 
-This guide will help you integrate the Bidscube Unity SDK into your Unity project and start showing ads.
+This guide covers the **core** Unity package `com.bidscube.sdk` (direct Bidscube API). It does **not** cover AppLovin MAX, LevelPlay, or IronSource mediation adapters — use those vendors’ adapter packages separately.
+
+It explains how to integrate the Bidscube Unity SDK into your Unity project and start showing ads.
 
 ## Table of Contents
 
@@ -9,7 +11,7 @@ This guide will help you integrate the Bidscube Unity SDK into your Unity projec
 3. [Configuration](#configuration)
 4. [Showing Ads](#showing-ads)
 5. [Ad Callbacks](#ad-callbacks)
-6. [Ad Positioning](#ad-positioning) a
+6. [Ad Positioning](#ad-positioning)
 7. [Consent Management](#consent-management)
 8. [Examples](#examples)
 9. [SDK Test Scene](#sdk-test-scene)
@@ -35,7 +37,7 @@ The Bidscube Unity SDK can be installed in two ways:
 2. Click the `+` button in the top-left corner
 3. Select `Add package from git URL...`
 4. Enter the repository URL: `https://github.com/Bidscube/bidscube-sdk-unity.git`
-5. Optionally, specify a version tag: `https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.6`
+5. Optionally, specify a version tag (recommended for production): `https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.12`
 6. Click `Add`
 7. The SDK will be added as a package dependency
 
@@ -44,7 +46,7 @@ The Bidscube Unity SDK can be installed in two ways:
 ```json
 {
   "dependencies": {
-    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.6"
+    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.12"
   }
 }
 ```
@@ -234,6 +236,8 @@ var legacyView = BidscubeSDK.BidscubeSDK.GetVideoAdView("placement-id", callback
 ```
 
 **Note:** Video ads are always full-screen. Callbacks come from real `VideoAdView` / `VideoPlayer` lifecycle (no artificial delayed success).
+
+On **Android LiteNoVideo** builds (`BIDSCUBE_ANDROID_LITE_NO_VIDEO`), direct SDK video APIs fail fast with **`LiteNoVideoVideoNotSupported` (1006)** — use your mediation adapter's native video path instead.
 
 ### Native Ads
 
