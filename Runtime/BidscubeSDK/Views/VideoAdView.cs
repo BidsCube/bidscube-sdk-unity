@@ -22,6 +22,11 @@ namespace BidscubeSDK
         [SerializeField] private Text _skipText;
         [SerializeField] private Slider _progressSlider;
         [SerializeField] private RawImage _videoTexture;
+        [SerializeField] private GameObject _endCardRoot;
+        [SerializeField] private RawImage _endCardPreview;
+        [SerializeField] private Button _endCardPreviewButton;
+        [SerializeField] private Button _endCardCtaButton;
+        [SerializeField] private Text _endCardCtaText;
         private Image _videoBackdrop;
 
         private string _placementId;
@@ -39,6 +44,7 @@ namespace BidscubeSDK
         private bool _hasClosed;
         private bool _hasRewarded;
         private bool _isDestroying;
+        private bool _endCardShown;
         private float _skipTime = 5.0f; // Skip button appears after 5 seconds
 
         // VAST data
@@ -159,6 +165,7 @@ namespace BidscubeSDK
                 _skipButton = skipObj.AddComponent<Button>();
                 _skipButton.targetGraphic = skipImg;
                 _skipButton.onClick.AddListener(OnSkipClicked);
+                _skipButton.interactable = false;
                 _skipButton.gameObject.SetActive(false);
             }
 
@@ -225,6 +232,8 @@ namespace BidscubeSDK
                 sliderRect.anchoredPosition = new Vector2(0, 10);
             }
 
+            SetupEndCard();
+
             if (_videoBackdrop != null)
                 _videoBackdrop.transform.SetAsFirstSibling();
             if (_videoTexture != null)
@@ -233,6 +242,71 @@ namespace BidscubeSDK
                 _skipButton.transform.SetAsLastSibling();
             if (_closeButton != null)
                 _closeButton.transform.SetAsLastSibling();
+        }
+
+        private void SetupEndCard()
+        {
+            if (_endCardRoot != null)
+                return;
+
+            var endCardObj = new GameObject("EndCardRoot", typeof(RectTransform), typeof(Image));
+            endCardObj.transform.SetParent(transform, false);
+            var endCardRect = endCardObj.GetComponent<RectTransform>();
+            endCardRect.anchorMin = Vector2.zero;
+            endCardRect.anchorMax = Vector2.one;
+            endCardRect.offsetMin = Vector2.zero;
+            endCardRect.offsetMax = Vector2.zero;
+            var endCardBg = endCardObj.GetComponent<Image>();
+            endCardBg.color = new Color(0f, 0f, 0f, 0.65f);
+
+            var previewButtonObj = new GameObject("EndCardPreviewButton", typeof(RectTransform), typeof(Image), typeof(Button));
+            previewButtonObj.transform.SetParent(endCardObj.transform, false);
+            var previewRect = previewButtonObj.GetComponent<RectTransform>();
+            previewRect.anchorMin = new Vector2(0.5f, 0.5f);
+            previewRect.anchorMax = new Vector2(0.5f, 0.5f);
+            previewRect.pivot = new Vector2(0.5f, 0.5f);
+            previewRect.sizeDelta = new Vector2(720f, 405f);
+            previewRect.anchoredPosition = new Vector2(0f, 30f);
+            var previewImage = previewButtonObj.GetComponent<Image>();
+            previewImage.color = Color.white;
+            _endCardPreviewButton = previewButtonObj.GetComponent<Button>();
+            _endCardPreviewButton.targetGraphic = previewImage;
+            _endCardPreviewButton.onClick.AddListener(OnEndCardClicked);
+            _endCardPreview = previewButtonObj.AddComponent<RawImage>();
+            _endCardPreview.raycastTarget = false;
+
+            var ctaObj = new GameObject("EndCardCTA", typeof(RectTransform), typeof(Image), typeof(Button));
+            ctaObj.transform.SetParent(endCardObj.transform, false);
+            var ctaRect = ctaObj.GetComponent<RectTransform>();
+            ctaRect.anchorMin = new Vector2(0.5f, 0.5f);
+            ctaRect.anchorMax = new Vector2(0.5f, 0.5f);
+            ctaRect.pivot = new Vector2(0.5f, 0.5f);
+            ctaRect.sizeDelta = new Vector2(240f, 60f);
+            ctaRect.anchoredPosition = new Vector2(0f, -220f);
+            var ctaImage = ctaObj.GetComponent<Image>();
+            ctaImage.color = new Color(0.0f, 0.48f, 1.0f, 0.96f);
+            _endCardCtaButton = ctaObj.GetComponent<Button>();
+            _endCardCtaButton.targetGraphic = ctaImage;
+            _endCardCtaButton.onClick.AddListener(OnEndCardClicked);
+
+            var ctaTextObj = new GameObject("EndCardCTAText", typeof(RectTransform), typeof(Text));
+            ctaTextObj.transform.SetParent(ctaObj.transform, false);
+            var ctaTextRect = ctaTextObj.GetComponent<RectTransform>();
+            ctaTextRect.anchorMin = Vector2.zero;
+            ctaTextRect.anchorMax = Vector2.one;
+            ctaTextRect.offsetMin = Vector2.zero;
+            ctaTextRect.offsetMax = Vector2.zero;
+            _endCardCtaText = ctaTextObj.GetComponent<Text>();
+            _endCardCtaText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _endCardCtaText.fontSize = 22;
+            _endCardCtaText.alignment = TextAnchor.MiddleCenter;
+            _endCardCtaText.color = Color.white;
+            _endCardCtaText.text = "Learn More";
+            _endCardCtaText.raycastTarget = false;
+
+            _endCardRoot = endCardObj;
+            _endCardRoot.SetActive(false);
+            _endCardRoot.transform.SetAsLastSibling();
         }
 
         private void SetupFullScreenCanvas()
@@ -309,6 +383,39 @@ namespace BidscubeSDK
             _hasClosed = false;
             _hasRewarded = false;
             _isDestroying = false;
+            _endCardShown = false;
+            _isSkippable = false;
+            _hasFiredStart = false;
+            _hasFiredFirstQuartile = false;
+            _hasFiredMidpoint = false;
+            _hasFiredThirdQuartile = false;
+            _hasFiredComplete = false;
+        }
+
+        private void ResetEndCardState()
+        {
+            _skipTime = 5.0f;
+            _endCardShown = false;
+            if (_endCardRoot != null)
+                _endCardRoot.SetActive(false);
+            if (_endCardPreviewButton != null)
+                _endCardPreviewButton.interactable = false;
+            if (_endCardCtaButton != null)
+                _endCardCtaButton.gameObject.SetActive(false);
+            if (_endCardPreview != null)
+            {
+                _endCardPreview.texture = null;
+                _endCardPreview.color = new Color(1f, 1f, 1f, 0f);
+            }
+            if (_endCardCtaText != null)
+                _endCardCtaText.text = "Learn More";
+            if (_skipButton != null)
+            {
+                _skipButton.interactable = false;
+                _skipButton.gameObject.SetActive(false);
+            }
+            if (_skipText != null)
+                _skipText.text = "Skip";
         }
 
         private void NotifyLoading()
@@ -397,12 +504,16 @@ namespace BidscubeSDK
             NotifyCompleted();
             if (_videoAdFormat == VideoAdFormat.Rewarded)
                 NotifyRewardedIfNeeded();
+            ShowEndCard();
         }
 
         private void HandleUserDismissBeforeComplete()
         {
             if (!_hasCompleted && !_hasSkipped)
+            {
                 NotifySkipped();
+                ShowEndCard();
+            }
         }
 
         /// <summary>
@@ -413,6 +524,7 @@ namespace BidscubeSDK
         public void LoadVideoAdFromURL(string url)
         {
             ResetCallbackState();
+            ResetEndCardState();
             NotifyLoading();
 
             if (_useIMA && _imaPlayer != null)
@@ -424,6 +536,38 @@ namespace BidscubeSDK
             {
                 StartCoroutine(LoadVideoAdCoroutine(url));
             }
+        }
+
+        public void LoadVideoAdFromVastXml(string vastXml)
+        {
+            ResetCallbackState();
+            ResetEndCardState();
+            NotifyLoading();
+            SetupUI();
+
+            if (string.IsNullOrEmpty(vastXml))
+            {
+                NotifyFailed(Constants.ErrorCodes.InvalidResponse, "VAST XML is empty");
+                return;
+            }
+
+            _vastData = VASTParser.Parse(vastXml);
+            if (_vastData == null || string.IsNullOrEmpty(_vastData.videoUrl))
+            {
+                Logger.InfoError("[VideoAdView] Failed to parse local VAST or no video URL found");
+                NotifyFailed(Constants.ErrorCodes.InvalidResponse, "Failed to parse local VAST XML");
+                return;
+            }
+
+            VASTParser.FireTrackingUrls(_vastData.impressionUrls);
+
+            if (_vastData.skipOffset > 0)
+                _skipTime = _vastData.skipOffset;
+
+            _videoHadError = false;
+            _videoError = null;
+            _videoPlayer.url = _vastData.videoUrl;
+            _videoPlayer.Prepare();
         }
 
         private IEnumerator LoadVideoAdCoroutine(string url)
@@ -1048,9 +1192,25 @@ namespace BidscubeSDK
 
         private IEnumerator EnableSkipButton()
         {
-            yield return new WaitForSeconds(_skipTime);
+            if (_skipButton != null)
+                _skipButton.gameObject.SetActive(true);
+            if (_skipButton != null)
+                _skipButton.interactable = false;
+
+            float remaining = _skipTime;
+            while (remaining > 0f)
+            {
+                if (_skipText != null)
+                    _skipText.text = $"Skip in {Mathf.CeilToInt(remaining)}";
+                yield return new WaitForSeconds(1f);
+                remaining -= 1f;
+            }
+
             _isSkippable = true;
-            _skipButton.gameObject.SetActive(true);
+            if (_skipButton != null)
+                _skipButton.interactable = true;
+            if (_skipText != null)
+                _skipText.text = "Skip";
             _callback?.OnVideoAdSkippable(_placementId);
         }
 
@@ -1063,8 +1223,7 @@ namespace BidscubeSDK
                 VASTParser.FireTrackingUrls(_vastData.skipUrls);
 
             NotifySkipped();
-            NotifyClosed();
-            DismissVideoAdHierarchy();
+            ShowEndCard();
         }
 
         private void OnVideoClicked()
@@ -1081,6 +1240,23 @@ namespace BidscubeSDK
             }
         }
 
+        private void OnEndCardClicked()
+        {
+            if (_vastData == null)
+                return;
+
+            var clickUrl = !string.IsNullOrEmpty(_vastData.previewClickThroughUrl)
+                ? _vastData.previewClickThroughUrl
+                : _vastData.clickThroughUrl;
+
+            if (string.IsNullOrEmpty(clickUrl))
+                return;
+
+            Logger.Info($"[VideoAdView] Opening end-card click-through URL: {clickUrl}");
+            Application.OpenURL(clickUrl);
+            _callback?.OnAdClicked(_placementId);
+        }
+
         private void OnCloseClicked()
         {
             if (_isDestroying)
@@ -1091,6 +1267,77 @@ namespace BidscubeSDK
 
             NotifyClosed();
             DismissVideoAdHierarchy();
+        }
+
+        private void ShowEndCard()
+        {
+            if (_endCardShown || _isDestroying)
+                return;
+
+            SetupUI();
+            _endCardShown = true;
+
+            if (_videoPlayer != null && _videoPlayer.isPlaying)
+                _videoPlayer.Pause();
+
+            if (_skipButton != null)
+                _skipButton.gameObject.SetActive(false);
+
+            if (_endCardRoot == null)
+                return;
+
+            _endCardRoot.SetActive(true);
+            _endCardRoot.transform.SetAsLastSibling();
+
+            var clickUrl = !string.IsNullOrEmpty(_vastData?.previewClickThroughUrl)
+                ? _vastData.previewClickThroughUrl
+                : _vastData?.clickThroughUrl;
+
+            if (_endCardCtaButton != null)
+                _endCardCtaButton.gameObject.SetActive(!string.IsNullOrEmpty(clickUrl));
+            if (_endCardPreviewButton != null)
+                _endCardPreviewButton.interactable = !string.IsNullOrEmpty(clickUrl);
+            if (_endCardCtaText != null)
+                _endCardCtaText.text = !string.IsNullOrEmpty(clickUrl) ? "Learn More" : "Preview";
+
+            if (!string.IsNullOrEmpty(_vastData?.previewImageUrl))
+            {
+                StartCoroutine(LoadEndCardPreview(_vastData.previewImageUrl));
+            }
+            else if (_endCardPreview != null)
+            {
+                // Keep the current fallback behavior as-is when preview is missing:
+                // reuse the current rendered video surface / last frame if available.
+                _endCardPreview.texture = _videoTexture != null ? _videoTexture.texture : null;
+                _endCardPreview.color = _endCardPreview.texture != null ? Color.white : new Color(1f, 1f, 1f, 0f);
+            }
+
+            if (_closeButton != null)
+                _closeButton.transform.SetAsLastSibling();
+        }
+
+        private IEnumerator LoadEndCardPreview(string previewUrl)
+        {
+            if (_endCardPreview == null || string.IsNullOrEmpty(previewUrl))
+                yield break;
+
+            using (var request = UnityWebRequestTexture.GetTexture(previewUrl))
+            {
+                request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
+                yield return request.SendWebRequest();
+
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    _endCardPreview.texture = DownloadHandlerTexture.GetContent(request);
+                    _endCardPreview.color = Color.white;
+                }
+                else
+                {
+                    Logger.InfoError($"[VideoAdView] Failed to load preview image, using fallback: {request.error}");
+                    _endCardPreview.texture = _videoTexture != null ? _videoTexture.texture : null;
+                    _endCardPreview.color = _endCardPreview.texture != null ? Color.white : new Color(1f, 1f, 1f, 0f);
+                }
+            }
         }
 
         /// <summary>

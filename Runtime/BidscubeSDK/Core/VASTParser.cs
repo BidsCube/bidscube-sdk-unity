@@ -42,6 +42,8 @@ namespace BidscubeSDK
         {
             public string videoUrl;
             public string clickThroughUrl;
+            public string previewImageUrl;
+            public string previewClickThroughUrl;
             public List<string> impressionUrls = new List<string>();
             public List<string> startUrls = new List<string>();
             public List<string> firstQuartileUrls = new List<string>();
@@ -406,6 +408,23 @@ namespace BidscubeSDK
                     vastData.clickThroughUrl = clickThroughNode.InnerText?.Trim();
                 }
 
+                // Parse Companion preview image/click-through if present.
+                var companionNode = adNode.SelectSingleNode(".//Companion");
+                if (companionNode != null)
+                {
+                    var staticResourceNode = companionNode.SelectSingleNode(".//StaticResource");
+                    if (staticResourceNode != null)
+                    {
+                        vastData.previewImageUrl = staticResourceNode.InnerText?.Trim();
+                    }
+
+                    var companionClickThroughNode = companionNode.SelectSingleNode(".//CompanionClickThrough");
+                    if (companionClickThroughNode != null)
+                    {
+                        vastData.previewClickThroughUrl = companionClickThroughNode.InnerText?.Trim();
+                    }
+                }
+
                 // Parse ClickTracking
                 var clickTrackingNodes = adNode.SelectNodes(".//ClickTracking");
                 if (clickTrackingNodes != null)
@@ -459,14 +478,28 @@ namespace BidscubeSDK
                     }
                 }
 
-                // Parse skipoffset
-                var skipOffsetNode = adNode.SelectSingleNode(".//Skipoffset");
-                if (skipOffsetNode != null)
+                // Parse skipoffset from the standard Linear attribute first.
+                var linearWithSkipNode = adNode.SelectSingleNode(".//Linear") as XmlElement;
+                if (linearWithSkipNode != null)
                 {
-                    var skipOffsetValue = skipOffsetNode.InnerText?.Trim();
-                    if (!string.IsNullOrEmpty(skipOffsetValue))
+                    var skipOffsetAttr = linearWithSkipNode.GetAttribute("skipoffset");
+                    if (!string.IsNullOrEmpty(skipOffsetAttr))
                     {
-                        vastData.skipOffset = ParseSkipOffset(skipOffsetValue);
+                        vastData.skipOffset = ParseSkipOffset(skipOffsetAttr);
+                    }
+                }
+
+                // Legacy fallback if some response exposes skip offset as node text instead.
+                if (vastData.skipOffset < 0)
+                {
+                    var skipOffsetNode = adNode.SelectSingleNode(".//Skipoffset");
+                    if (skipOffsetNode != null)
+                    {
+                        var skipOffsetValue = skipOffsetNode.InnerText?.Trim();
+                        if (!string.IsNullOrEmpty(skipOffsetValue))
+                        {
+                            vastData.skipOffset = ParseSkipOffset(skipOffsetValue);
+                        }
                     }
                 }
 
@@ -680,7 +713,7 @@ namespace BidscubeSDK
                 }
                 else
                 {
-                    Logger.Info($"[VASTParser] Successfully parsed VAST - Video URL: {vastData.videoUrl}, Duration: {vastData.duration}s, SkipOffset: {vastData.skipOffset}s");
+                    Logger.Info($"[VASTParser] Successfully parsed VAST - Video URL: {vastData.videoUrl}, Duration: {vastData.duration}s, SkipOffset: {vastData.skipOffset}s, Preview: {vastData.previewImageUrl}, PreviewClick: {vastData.previewClickThroughUrl}");
                 }
 
                 return vastData;

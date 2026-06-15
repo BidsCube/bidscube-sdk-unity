@@ -2,6 +2,22 @@
 
 ---
 
+## [1.2.13] - 2026-05-25
+
+### Added
+
+- **VAST end card preview:** parse `Companion > StaticResource` (image URL) and `CompanionClickThrough` from VAST; show end card after video **complete** or **skip** with the companion image when present.
+- **`VideoAdView.LoadVideoAdFromVastXml(string)`** — load interstitial video from inline VAST XML (no backend required).
+- **SDK Test Scene QA:** hardcoded local VAST cases — **VAST (No Preview)** and **VAST (With Preview)** buttons (placement IDs `local_vast_no_preview`, `local_vast_with_preview`).
+
+### Changed
+
+- **Preview fallback:** when no companion preview is in VAST, end card keeps existing behavior (last video frame / placeholder); no crash, end card still shown.
+- **Skip flow:** skip shows end card instead of immediate dismiss; **Close** dismisses and fires `OnAdClosed`.
+- **`skipoffset`** parsed from the standard `Linear skipoffset="..."` attribute; skip UI shows **Skip in N** → **Skip**.
+
+---
+
 ## [1.2.12] - 2026-04-30
 
 ### Added

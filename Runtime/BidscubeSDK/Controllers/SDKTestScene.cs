@@ -11,6 +11,63 @@ namespace BidscubeSDK.Controllers
     /// </summary>
     public class SDKTestScene : MonoBehaviour, IAdCallback, IRewardedAdCallback
     {
+        private const string LocalVastNoPreviewPlacement = "local_vast_no_preview";
+        private const string LocalVastWithPreviewPlacement = "local_vast_with_preview";
+        private const string LocalVastNoPreviewXml = @"<VAST version=""3.0"">
+  <Ad id=""20"">
+    <InLine>
+      <AdSystem version=""3.0"">Bidscube</AdSystem>
+      <AdTitle><![CDATA[Doordash-35min-burger-3-1x1.mp4]]></AdTitle>
+      <Creatives>
+        <Creative>
+          <Linear>
+            <Duration>00:00:12.867</Duration>
+            <MediaFiles>
+              <MediaFile delivery=""progressive"" type=""video/mp4"" bitrate=""800"" width=""1024"" height=""1024""><![CDATA[https://assets.remerge.io/ad_assets/files/003/411/782/1024x1024_800_mp4/Doordash-35min-burger-3-1x1.mp4]]></MediaFile>
+            </MediaFiles>
+          </Linear>
+        </Creative>
+      </Creatives>
+    </InLine>
+  </Ad>
+</VAST>";
+        private const string LocalVastWithPreviewXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<VAST version=""4.2"">
+    <Ad id=""12345"">
+        <InLine>
+            <AdSystem version=""1.0"">BidscubeTest</AdSystem>
+            <AdTitle>Sample Skippable VAST Ad With Preview</AdTitle>
+            <Impression><![CDATA[https://example.com/impression]]></Impression>
+            <Creatives>
+                <Creative id=""1"" sequence=""1"">
+                    <Linear skipoffset=""00:00:05"">
+                        <Duration>00:00:30</Duration>
+                        <TrackingEvents>
+                            <Tracking event=""start""><![CDATA[https://example.com/start]]></Tracking>
+                            <Tracking event=""complete""><![CDATA[https://example.com/complete]]></Tracking>
+                            <Tracking event=""skip""><![CDATA[https://example.com/skip]]></Tracking>
+                        </TrackingEvents>
+                        <VideoClicks>
+                            <ClickThrough><![CDATA[https://www.google.com]]></ClickThrough>
+                            <ClickTracking><![CDATA[https://example.com/clicktracking]]></ClickTracking>
+                        </VideoClicks>
+                        <MediaFiles>
+                            <MediaFile delivery=""progressive"" type=""video/mp4"" width=""1280"" height=""720"" bitrate=""1500""><![CDATA[https://storage.googleapis.com/interactive-media-ads/media/big_buck_bunny.mp4]]></MediaFile>
+                        </MediaFiles>
+                    </Linear>
+                </Creative>
+                <Creative sequence=""2"">
+                    <CompanionAds>
+                        <Companion width=""1280"" height=""720"">
+                            <StaticResource creativeType=""image/jpeg""><![CDATA[https://www.gstatic.com/webp/gallery/3.jpg]]></StaticResource>
+                            <CompanionClickThrough><![CDATA[https://www.google.com]]></CompanionClickThrough>
+                        </Companion>
+                    </CompanionAds>
+                </Creative>
+            </Creatives>
+        </InLine>
+    </Ad>
+</VAST>";
         [Header("SDK Configuration")]
         [SerializeField] private string _placementId = "";
         private string _baseURL = Constants.BaseURL;
@@ -29,6 +86,8 @@ namespace BidscubeSDK.Controllers
         [SerializeField] private Button _cleanupButton;
         [SerializeField] private Button _imageAdButton;
         [SerializeField] private Button _videoAdButton;
+        [SerializeField] private Button _localVastNoPreviewButton;
+        [SerializeField] private Button _localVastWithPreviewButton;
         [SerializeField] private Button _nativeAdButton;
         [SerializeField] private Button _testLoggingButton;
         [SerializeField] private Button _clearAllAdsButton;
@@ -52,6 +111,8 @@ namespace BidscubeSDK.Controllers
             ApplyIntegrationModeAtSceneStart();
             LogMessage("[Integration] " + SdkIntegrationContext.GetCurrentShortStatus() + " — " +
                       SdkIntegrationContext.GetCurrentDescription());
+            LogMessage("[QA] Local VAST: use 'VAST (No Preview)' / 'VAST (With Preview)' buttons, or placement IDs " +
+                       $"{LocalVastNoPreviewPlacement}, {LocalVastWithPreviewPlacement}");
             UpdateStatus("SDK Status: Not Initialized");
             UpdateActiveBannersCount();
         }
@@ -82,6 +143,7 @@ namespace BidscubeSDK.Controllers
                 _imageAdButton.onClick.AddListener(() => ShowAd(AdType.Image));
             if (_videoAdButton != null)
                 _videoAdButton.onClick.AddListener(() => ShowAd(AdType.Video));
+            WireLocalVastQaButtons();
             if (_nativeAdButton != null)
                 _nativeAdButton.onClick.AddListener(() => ShowAd(AdType.Native));
 
@@ -262,7 +324,14 @@ namespace BidscubeSDK.Controllers
                     BidscubeSDK.ShowImageAd(placementId, this);
                     break;
                 case AdType.Video:
-                    BidscubeSDK.ShowVideoAd(placementId, this);
+                    if (placementId == LocalVastNoPreviewPlacement || placementId == LocalVastWithPreviewPlacement)
+                    {
+                        ShowLocalVastVideo(placementId);
+                    }
+                    else
+                    {
+                        BidscubeSDK.ShowVideoAd(placementId, this);
+                    }
                     break;
                 case AdType.Native:
                     BidscubeSDK.ShowNativeAd(placementId, this);
@@ -270,6 +339,91 @@ namespace BidscubeSDK.Controllers
             }
 
             _lastDisplayedAdType = adType;
+        }
+
+        private void ShowLocalVastVideo(string placementId)
+        {
+            string vastXml = placementId == LocalVastWithPreviewPlacement
+                ? LocalVastWithPreviewXml
+                : LocalVastNoPreviewXml;
+
+            LogMessage($"Using local VAST QA case: {placementId}");
+            BidscubeSDK.SetAdPosition(AdPosition.FullScreen);
+
+            var videoViewGo = BidscubeSDK.GetVideoAdView(placementId, this);
+            if (videoViewGo == null)
+            {
+                LogMessage("Failed to create local VideoAdView");
+                return;
+            }
+
+            var videoAdView = videoViewGo.GetComponent<VideoAdView>();
+            if (videoAdView == null)
+            {
+                LogMessage("Local VideoAdView component not found");
+                return;
+            }
+
+            videoAdView.LoadVideoAdFromVastXml(vastXml);
+        }
+
+        private void WireLocalVastQaButtons()
+        {
+            if (_localVastNoPreviewButton != null)
+                _localVastNoPreviewButton.onClick.AddListener(() => RunLocalVastQaCase(LocalVastNoPreviewPlacement));
+            if (_localVastWithPreviewButton != null)
+                _localVastWithPreviewButton.onClick.AddListener(() => RunLocalVastQaCase(LocalVastWithPreviewPlacement));
+
+            if (_localVastNoPreviewButton == null && _localVastWithPreviewButton == null)
+                CreateRuntimeLocalVastQaButtons();
+        }
+
+        private void RunLocalVastQaCase(string placementId)
+        {
+            if (!_isSDKInitialized)
+            {
+                LogMessage("SDK not initialized. Please initialize first.");
+                return;
+            }
+
+            _lastDisplayedAdType = AdType.Video;
+            if (_placementIdInput != null)
+                _placementIdInput.text = placementId;
+            ShowLocalVastVideo(placementId);
+        }
+
+        private void CreateRuntimeLocalVastQaButtons()
+        {
+            if (_videoAdButton == null)
+                return;
+
+            var parent = _videoAdButton.transform.parent;
+            if (parent == null)
+                return;
+
+            var insertIndex = _videoAdButton.transform.GetSiblingIndex() + 1;
+            _localVastNoPreviewButton = CloneQaButton(parent, _videoAdButton, "VAST (No Preview)", insertIndex);
+            _localVastNoPreviewButton.onClick.AddListener(() => RunLocalVastQaCase(LocalVastNoPreviewPlacement));
+
+            _localVastWithPreviewButton = CloneQaButton(parent, _videoAdButton, "VAST (With Preview)", insertIndex + 1);
+            _localVastWithPreviewButton.onClick.AddListener(() => RunLocalVastQaCase(LocalVastWithPreviewPlacement));
+
+            LogMessage("[QA] Local VAST buttons added below Video Ads.");
+        }
+
+        private static Button CloneQaButton(Transform parent, Button template, string label, int siblingIndex)
+        {
+            var clone = Instantiate(template.gameObject, parent);
+            clone.name = label.Replace(" ", "") + "Button";
+            clone.transform.SetSiblingIndex(siblingIndex);
+
+            var labelText = clone.GetComponentInChildren<TextMeshProUGUI>();
+            if (labelText != null)
+                labelText.text = label;
+
+            var button = clone.GetComponent<Button>();
+            button.onClick.RemoveAllListeners();
+            return button;
         }
 
         /// <summary>

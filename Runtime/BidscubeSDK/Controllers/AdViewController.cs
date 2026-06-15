@@ -52,15 +52,6 @@ namespace BidscubeSDK
         /// <summary>
         /// Initialize ad view controller
         /// </summary>
-        /// <param name="placementId">Placement ID</param>
-        /// <param name="adType">Ad type</param>
-        /// <param name="callback">Ad callback</param>
-        /// <param name="position">Ad position (optional)</param>
-        public void Initialize(string placementId, AdType adType, IAdCallback callback = null, AdPosition position = AdPosition.Unknown)
-        {
-            Initialize(placementId, adType, callback, position, VideoAdFormat.Interstitial);
-        }
-
         public void Initialize(
             string placementId,
             AdType adType,
