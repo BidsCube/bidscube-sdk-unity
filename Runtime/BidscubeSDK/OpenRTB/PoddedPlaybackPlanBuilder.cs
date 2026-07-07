@@ -25,6 +25,17 @@ namespace BidscubeSDK.OpenRTB
                 if (response.PodContext != null)
                     response.PodContext.Type = podType;
 
+                if (strict
+                    && podType == OpenRtbPodType.Hybrid
+                    && response.PodContext?.PodDurSeconds is int podDur
+                    && podDur > 0
+                    && TryGetFixedSlotDurationSum(expanded, out int fixedDurationSum)
+                    && fixedDurationSum > podDur)
+                {
+                    Logger.Info($"[PoddedPlaybackPlanBuilder] Strict: fixed hybrid slots ({fixedDurationSum}s) exceed poddur ({podDur}s).");
+                    return null;
+                }
+
                 var ordered = SortMarkups(expanded, podType);
                 var slots = BuildSlots(ordered, response.PodContext, podType, strict, config);
 
@@ -244,6 +255,26 @@ namespace BidscubeSDK.OpenRTB
             }
 
             return slots;
+        }
+
+        static bool TryGetFixedSlotDurationSum(List<ExpandedMarkup> markups, out int totalSeconds)
+        {
+            totalSeconds = 0;
+            if (markups == null)
+                return false;
+
+            bool hasFixed = false;
+            foreach (var markup in markups)
+            {
+                if (!markup.SlotInPod.HasValue)
+                    continue;
+
+                hasFixed = true;
+                if (markup.DurationSeconds is int duration && duration > 0)
+                    totalSeconds += duration;
+            }
+
+            return hasFixed;
         }
 
         static bool IsLikelyUrl(string value)

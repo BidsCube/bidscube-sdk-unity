@@ -19,6 +19,9 @@ namespace BidscubeSDK.OpenRTB
                 var value = parser.ParseValue();
                 if (value is Dictionary<string, object> dict)
                 {
+                    if (!parser.HasOnlyWhitespaceRemaining())
+                        return false;
+
                     root = dict;
                     return true;
                 }
@@ -206,6 +209,12 @@ namespace BidscubeSDK.OpenRTB
                     return value;
                 }
                 return null;
+            }
+
+            internal bool HasOnlyWhitespaceRemaining()
+            {
+                SkipWhitespace();
+                return _index >= _text.Length;
             }
 
             void SkipWhitespace()

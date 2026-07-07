@@ -664,9 +664,15 @@ namespace BidscubeSDK
             yield return PlayCurrentVastDataCoroutine();
         }
 
-        private IEnumerator FetchAndLoadVastAdTagUrlCoroutine(string vastAdTagUrl)
+        private IEnumerator FetchAndLoadVastAdTagUrlCoroutine(string vastAdTagUrl, int depth = 0)
         {
-            Logger.Info($"[VideoAdView] Fetching VAST ad tag URL: {vastAdTagUrl}");
+            if (OpenRtbVideoUrlHelper.IsVastAdTagUrlRedirectDepthExceeded(depth))
+            {
+                yield return HandleSlotFailure("Maximum VAST ad tag URL redirect depth reached");
+                yield break;
+            }
+
+            Logger.Info($"[VideoAdView] Fetching VAST ad tag URL (depth: {depth}): {vastAdTagUrl}");
 
             using (var request = UnityWebRequest.Get(vastAdTagUrl))
             {
@@ -697,7 +703,15 @@ namespace BidscubeSDK
                 {
                     var sdkConfig = BidscubeSDK.GetConfiguration() ?? new SDKConfig.Builder().Build();
                     var resolved = VideoAdPayloadResolver.Resolve(responseText, sdkConfig);
-                    if (resolved?.PlaybackPlan != null && resolved.PlaybackPlan.IsPlayable)
+                    var loadMode = VastAdTagJsonPlanLoader.GetNestedPlanLoadMode(resolved);
+                    if (loadMode == VastAdTagJsonPlanLoader.NestedPlanLoadMode.FullPlan)
+                    {
+                        Logger.Info($"[VideoAdView] VAST ad tag URL returned nested playback plan with {resolved.PlaybackPlan.Slots.Count} slots.");
+                        yield return LoadPlaybackPlanCoroutine(resolved.PlaybackPlan);
+                        yield break;
+                    }
+
+                    if (loadMode == VastAdTagJsonPlanLoader.NestedPlanLoadMode.SingleSlot)
                     {
                         yield return LoadPlaybackSlotCoroutine(resolved.PlaybackPlan.Slots[0]);
                         yield break;
@@ -717,7 +731,7 @@ namespace BidscubeSDK
 
                 if (OpenRtbVideoUrlHelper.IsHttpUrl(trimmed))
                 {
-                    yield return FetchAndLoadVastAdTagUrlCoroutine(trimmed);
+                    yield return FetchAndLoadVastAdTagUrlCoroutine(trimmed, depth + 1);
                     yield break;
                 }
 
@@ -1177,6 +1191,7 @@ namespace BidscubeSDK
             using (var nestedRequest = UnityWebRequest.Get(vastAdTagUri))
             {
                 nestedRequest.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
+                BidscubeSDK.ApplyConfiguredTimeoutTo(nestedRequest);
                 yield return nestedRequest.SendWebRequest();
 
                 if (nestedRequest.result == UnityWebRequest.Result.Success)

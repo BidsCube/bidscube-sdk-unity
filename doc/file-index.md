@@ -145,6 +145,7 @@
 | `OpenRTB/OpenRtbPoddedResponseNormalizer.cs` | OpenRTB pod response normalizer |
 | `OpenRTB/PoddedPlaybackPlanBuilder.cs` | Build sequential playback plan |
 | `OpenRTB/VastAdSequenceParser.cs` | Split multi-`<Ad>` VAST |
+| `OpenRTB/VastAdTagJsonPlanLoader.cs` | Nested JSON plan load mode for VAST ad tag URLs |
 | `OpenRTB/OpenRtbVideoUrlHelper.cs` | Direct video vs VAST ad tag URL classification |
 | `OpenRTB/OpenRtbBidRequestBuilder.cs` | Placeholder (POST bid request not implemented) |
 | `Tests/EditMode/` | OpenRTB EditMode unit tests |

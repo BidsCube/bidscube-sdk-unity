@@ -72,6 +72,33 @@ namespace BidscubeSDK.OpenRTB.Tests
             Assert.GreaterOrEqual(plan.Slots.Count, 1);
             StringAssert.Contains("fixed", plan.Slots[0].Adm);
         }
+
+        [Test]
+        public void HybridPod_StrictMode_FixedSlotsExceedPodDur_ReturnsNull()
+        {
+            var response = new OpenRtbPoddedResponse
+            {
+                PodContext = new OpenRtbPodContext
+                {
+                    PodDurSeconds = 20,
+                    RqddursSeconds = new List<int> { 15 },
+                    Type = OpenRtbPodType.Hybrid
+                },
+                Markups = new List<OpenRtbAdMarkup>
+                {
+                    new OpenRtbAdMarkup { Adm = "https://example.com/fixed1.mp4", SlotInPod = 1, DurationSeconds = 15 },
+                    new OpenRtbAdMarkup { Adm = "https://example.com/fixed2.mp4", SlotInPod = 2, DurationSeconds = 15 }
+                }
+            };
+
+            var strictConfig = new SDKConfig.Builder()
+                .VideoPodDurationValidationMode(OpenRtbPodDurationValidationMode.Strict)
+                .Build();
+
+            var plan = PoddedPlaybackPlanBuilder.Build(response, strictConfig);
+            Assert.IsNull(plan);
+        }
+
         [Test]
         public void StructuredPod_SortsBySlotInPod()
         {

@@ -4,6 +4,10 @@ namespace BidscubeSDK.OpenRTB
 {
     internal static class OpenRtbVideoUrlHelper
     {
+        internal const int MaxVastAdTagUrlRedirectDepth = 5;
+
+        internal static bool IsVastAdTagUrlRedirectDepthExceeded(int depth) => depth > MaxVastAdTagUrlRedirectDepth;
+
         internal static bool IsLikelyDirectVideoUrl(string url)
         {
             if (string.IsNullOrWhiteSpace(url))

@@ -14,6 +14,9 @@
 ### Changed
 
 - **`VideoAdView`:** podded video plays slots sequentially; `OnVideoAdCompleted` / `OnUserRewarded` fire once after the full pod; per-slot VAST tracking resets between slots.
+- **VAST ad tag URL:** multi-slot OpenRTB JSON from ad tag URL plays full nested plan (not only first slot); redirect depth capped at 5; nested wrapper fetch uses configured timeout.
+- **`OpenRtbJson`:** rejects trailing garbage after root object.
+- **`PoddedPlaybackPlanBuilder`:** strict hybrid mode fails when fixed slot durations exceed `poddur`.
 - Legacy GET ad request flow unchanged; full OpenRTB POST bid requests not implemented yet.
 
 ---

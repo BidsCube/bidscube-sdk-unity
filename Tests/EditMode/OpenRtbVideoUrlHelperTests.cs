@@ -35,5 +35,14 @@ namespace BidscubeSDK.OpenRTB.Tests
             Assert.IsNull(vastAdTagUrl);
             Assert.AreEqual("https://example.com/movie.webm", directVideoUrl);
         }
+
+        [Test]
+        public void IsVastAdTagUrlRedirectDepthExceeded_StopsAtMaxDepth()
+        {
+            Assert.IsFalse(OpenRtbVideoUrlHelper.IsVastAdTagUrlRedirectDepthExceeded(0));
+            Assert.IsFalse(OpenRtbVideoUrlHelper.IsVastAdTagUrlRedirectDepthExceeded(5));
+            Assert.IsTrue(OpenRtbVideoUrlHelper.IsVastAdTagUrlRedirectDepthExceeded(6));
+            Assert.AreEqual(5, OpenRtbVideoUrlHelper.MaxVastAdTagUrlRedirectDepth);
+        }
     }
 }
