@@ -3,6 +3,26 @@ using UnityEngine;
 
 namespace BidscubeSDK
 {
+    public enum OpenRtbPodDurationValidationMode
+    {
+        Lenient,
+        Strict
+    }
+
+    public enum OpenRtbPodSkipPolicy
+    {
+        /// <summary>
+        /// Non-user slot failures may continue the pod when <see cref="SDKConfig.VideoPodContinueOnSlotError"/> is true.
+        /// User skip/close always stops the entire pod.
+        /// </summary>
+        SkipCurrentAndContinue,
+        /// <summary>
+        /// Any non-user slot failure stops the entire pod immediately.
+        /// User skip/close always stops the entire pod.
+        /// </summary>
+        FailEntirePod
+    }
+
     /// <summary>
     /// SDK configuration class
     /// </summary>
@@ -16,9 +36,25 @@ namespace BidscubeSDK
         public string BaseURL { get; private set; }
         public AdSizeSettings AdSizeSettings { get; private set; }
         public bool DisableInitialization { get; private set; }
+        public bool OpenRtbPodMetadataEnabled { get; private set; }
+        public OpenRtbPodDurationValidationMode VideoPodDurationValidationMode { get; private set; }
+        public OpenRtbPodSkipPolicy VideoPodSkipPolicy { get; private set; }
+        public bool VideoPodContinueOnSlotError { get; private set; }
+        public bool VideoPodShowCounter { get; private set; }
 
-        private SDKConfig(bool enableLogging, bool enableDebugMode, int defaultAdTimeoutMs, 
-                         AdPosition defaultAdPosition, string baseURL, AdSizeSettings adSizeSettings, bool disableInitialization)
+        private SDKConfig(
+            bool enableLogging,
+            bool enableDebugMode,
+            int defaultAdTimeoutMs,
+            AdPosition defaultAdPosition,
+            string baseURL,
+            AdSizeSettings adSizeSettings,
+            bool disableInitialization,
+            bool openRtbPodMetadataEnabled,
+            OpenRtbPodDurationValidationMode videoPodDurationValidationMode,
+            OpenRtbPodSkipPolicy videoPodSkipPolicy,
+            bool videoPodContinueOnSlotError,
+            bool videoPodShowCounter)
         {
             EnableLogging = enableLogging;
             EnableDebugMode = enableDebugMode;
@@ -27,6 +63,11 @@ namespace BidscubeSDK
             BaseURL = baseURL;
             AdSizeSettings = adSizeSettings;
             DisableInitialization = disableInitialization;
+            OpenRtbPodMetadataEnabled = openRtbPodMetadataEnabled;
+            VideoPodDurationValidationMode = videoPodDurationValidationMode;
+            VideoPodSkipPolicy = videoPodSkipPolicy;
+            VideoPodContinueOnSlotError = videoPodContinueOnSlotError;
+            VideoPodShowCounter = videoPodShowCounter;
         }
 
         /// <summary>
@@ -41,6 +82,12 @@ namespace BidscubeSDK
             private string _baseURL = Constants.BaseURL;
             private AdSizeSettings _adSizeSettings = null;
             private bool _disableInitialization = false;
+            private bool _openRtbPodMetadataEnabled = true;
+            private OpenRtbPodDurationValidationMode _videoPodDurationValidationMode =
+                OpenRtbPodDurationValidationMode.Lenient;
+            private OpenRtbPodSkipPolicy _videoPodSkipPolicy = OpenRtbPodSkipPolicy.SkipCurrentAndContinue;
+            private bool _videoPodContinueOnSlotError = true;
+            private bool _videoPodShowCounter = true;
 
             public Builder() { }
 
@@ -118,6 +165,36 @@ namespace BidscubeSDK
                 return this;
             }
 
+            public Builder OpenRtbPodMetadataEnabled(bool value)
+            {
+                _openRtbPodMetadataEnabled = value;
+                return this;
+            }
+
+            public Builder VideoPodDurationValidationMode(OpenRtbPodDurationValidationMode value)
+            {
+                _videoPodDurationValidationMode = value;
+                return this;
+            }
+
+            public Builder VideoPodSkipPolicy(OpenRtbPodSkipPolicy value)
+            {
+                _videoPodSkipPolicy = value;
+                return this;
+            }
+
+            public Builder VideoPodContinueOnSlotError(bool value)
+            {
+                _videoPodContinueOnSlotError = value;
+                return this;
+            }
+
+            public Builder VideoPodShowCounter(bool value)
+            {
+                _videoPodShowCounter = value;
+                return this;
+            }
+
             /// <summary>
             /// Build SDK configuration
             /// </summary>
@@ -130,8 +207,13 @@ namespace BidscubeSDK
                     _defaultAdTimeoutMs,
                     _defaultAdPosition,
                     _baseURL,
-                    _adSizeSettings
-                    ,_disableInitialization
+                    _adSizeSettings,
+                    _disableInitialization,
+                    _openRtbPodMetadataEnabled,
+                    _videoPodDurationValidationMode,
+                    _videoPodSkipPolicy,
+                    _videoPodContinueOnSlotError,
+                    _videoPodShowCounter
                 );
             }
         }

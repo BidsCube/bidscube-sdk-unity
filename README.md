@@ -5,7 +5,7 @@ The Bidscube Unity SDK provides a comprehensive advertising solution for Unity g
 ## Features
 
 - **Image Ads**: Display static image advertisements
-- **Video Ads**: Show video advertisements with skip functionality
+- **Video Ads**: Show video advertisements with skip functionality and OpenRTB 2.6-style podded video playback
 - **Native Ads**: Integrate native-looking advertisements
 - **Banner Ads**: Display banner advertisements in various positions
 - **Consent Management**: GDPR and CCPA compliance support
@@ -16,7 +16,28 @@ The Bidscube Unity SDK provides a comprehensive advertising solution for Unity g
 
 Direct SDK video entry points respect **`BIDSCUBE_ANDROID_LITE_NO_VIDEO`** when a mediation adapter (or your own tooling) sets it for **LiteNoVideo** Android exports. When you consume the native **`com.bidscube:sdk-lite-no-video`** artifact (bundled by adapters as `bidscube-sdk-lite-no-video-*.aar`), you should **not** need **`coreLibraryDesugaringEnabled`** for Bidscube metadata. The **`sdk-full-video`** artifact may pull Media3 / IMA and **may** require desugaring — use **FullWithVideo** export mode in the adapter and expect launcher **`desugar_jdk_libs`** injection.
 
-## Installation
+**OpenRTB podded video** requires a build where direct Unity video is enabled (not LiteNoVideo). The SDK still uses the legacy **GET** ad request flow; full OpenRTB **POST** bid requests are not implemented yet.
+
+### OpenRTB 2.6-style podded video (response parsing)
+
+The Unity SDK supports **response-side** OpenRTB 2.6 / OpenRTB-like podded video parsing (parity with Android/iOS/Flutter SDKs). This is **not** a full OpenRTB bid-request client.
+
+- **Request:** unchanged legacy GET via `URLBuilder.BuildAdRequestURL(...)`
+- **Response shapes:** raw VAST XML, root JSON `adm`, `openrtb.video` / `openRtb.video` / root `video`, `bids[]`, `seatbid[].bid[]`, bid-level `ext`
+- **Playback:** sequential slots via Unity `VideoPlayer` + `VASTParser` (IMA path remains disabled)
+- **Pod modes:** structured, dynamic, hybrid, single
+
+Configure via `SDKConfig.Builder()`:
+
+```csharp
+var config = new SDKConfig.Builder()
+    .OpenRtbPodMetadataEnabled(true)
+    .VideoPodDurationValidationMode(OpenRtbPodDurationValidationMode.Lenient)
+    .VideoPodContinueOnSlotError(true)
+    .VideoPodShowCounter(true)
+    .Build();
+```
+
 
 ### Unity Package Manager
 

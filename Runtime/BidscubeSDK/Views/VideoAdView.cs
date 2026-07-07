@@ -7,6 +7,7 @@ using UnityEngine.Networking;
 using System.Text.RegularExpressions;
 using System;
 using System.IO;
+using BidscubeSDK.OpenRTB;
 
 namespace BidscubeSDK
 {
@@ -54,6 +55,12 @@ namespace BidscubeSDK
         private bool _hasFiredMidpoint = false;
         private bool _hasFiredThirdQuartile = false;
         private bool _hasFiredComplete = false;
+
+        private VideoPlaybackPlan _playbackPlan;
+        private int _currentPlaybackSlotIndex = -1;
+        private bool _isPlayingPod;
+        private Text _podCounterText;
+        private Coroutine _skipButtonCoroutine;
 
         // IMA player (when available)
         private IMAVideoPlayer _imaPlayer;
@@ -390,6 +397,38 @@ namespace BidscubeSDK
             _hasFiredMidpoint = false;
             _hasFiredThirdQuartile = false;
             _hasFiredComplete = false;
+            _playbackPlan = null;
+            _currentPlaybackSlotIndex = -1;
+            _isPlayingPod = false;
+        }
+
+        private void ResetSlotTrackingState()
+        {
+            _hasFiredStart = false;
+            _hasFiredFirstQuartile = false;
+            _hasFiredMidpoint = false;
+            _hasFiredThirdQuartile = false;
+            _hasFiredComplete = false;
+            _isSkippable = false;
+            _skipTime = 5.0f;
+
+            if (_skipButtonCoroutine != null)
+            {
+                StopCoroutine(_skipButtonCoroutine);
+                _skipButtonCoroutine = null;
+            }
+
+            if (_skipButton != null)
+            {
+                _skipButton.interactable = false;
+                _skipButton.gameObject.SetActive(true);
+            }
+
+            if (_skipText != null)
+                _skipText.text = "Skip";
+
+            if (_progressSlider != null)
+                _progressSlider.value = 0;
         }
 
         private void ResetEndCardState()
@@ -501,6 +540,10 @@ namespace BidscubeSDK
                 VASTParser.FireTrackingUrls(_vastData.completeUrls);
                 _hasFiredComplete = true;
             }
+
+            if (_isPlayingPod && _playbackPlan != null && TryAdvanceToNextPlaybackSlot())
+                return;
+
             NotifyCompleted();
             if (_videoAdFormat == VideoAdFormat.Rewarded)
                 NotifyRewardedIfNeeded();
@@ -511,9 +554,327 @@ namespace BidscubeSDK
         {
             if (!_hasCompleted && !_hasSkipped)
             {
+                _isPlayingPod = false;
                 NotifySkipped();
                 ShowEndCard();
             }
+        }
+
+        private bool TryAdvanceToNextPlaybackSlot()
+        {
+            if (_playbackPlan == null || _hasSkipped || _hasClosed || _isDestroying)
+                return false;
+
+            int nextIndex = _currentPlaybackSlotIndex + 1;
+            if (nextIndex >= _playbackPlan.Slots.Count)
+                return false;
+
+            _currentPlaybackSlotIndex = nextIndex;
+            ResetSlotTrackingState();
+            StartCoroutine(LoadPlaybackSlotCoroutine(_playbackPlan.Slots[nextIndex]));
+            return true;
+        }
+
+        private IEnumerator LoadPlaybackPlanCoroutine(VideoPlaybackPlan plan)
+        {
+            _playbackPlan = plan;
+            _isPlayingPod = plan != null && plan.Slots.Count > 1;
+            _currentPlaybackSlotIndex = 0;
+            yield return LoadPlaybackSlotCoroutine(plan.Slots[0]);
+        }
+
+        private IEnumerator LoadPlaybackSlotCoroutine(VideoPlaybackSlot slot)
+        {
+            if (slot == null)
+            {
+                yield return HandleSlotFailure("Playback slot is null");
+                yield break;
+            }
+
+            UpdatePodCounterDisplay();
+            _vastData = null;
+
+            if (!string.IsNullOrWhiteSpace(slot.VastXml))
+            {
+                yield return LoadInlineVastXmlCoroutine(slot.VastXml.Trim());
+                yield break;
+            }
+
+            if (!string.IsNullOrWhiteSpace(slot.VastAdTagUrl))
+            {
+                yield return FetchAndLoadVastAdTagUrlCoroutine(slot.VastAdTagUrl.Trim());
+                yield break;
+            }
+
+            if (!string.IsNullOrWhiteSpace(slot.DirectVideoUrl))
+            {
+                _videoPlayer.url = slot.DirectVideoUrl.Trim();
+                yield return PrepareAndPlayVideoCoroutine(notifyLoadedOnPrepare: _currentPlaybackSlotIndex == 0);
+                yield break;
+            }
+
+            var admContent = slot.Adm?.Trim();
+            if (string.IsNullOrWhiteSpace(admContent))
+            {
+                yield return HandleSlotFailure("Playback slot has no adm content");
+                yield break;
+            }
+
+            if (VastAdSequenceParser.ContentLikelyContainsVast(admContent))
+            {
+                yield return LoadInlineVastXmlCoroutine(admContent);
+                yield break;
+            }
+
+            if (OpenRtbVideoUrlHelper.IsHttpUrl(admContent))
+            {
+                if (OpenRtbVideoUrlHelper.IsLikelyDirectVideoUrl(admContent))
+                {
+                    _videoPlayer.url = admContent;
+                    yield return PrepareAndPlayVideoCoroutine(notifyLoadedOnPrepare: _currentPlaybackSlotIndex == 0);
+                }
+                else
+                {
+                    yield return FetchAndLoadVastAdTagUrlCoroutine(admContent);
+                }
+                yield break;
+            }
+
+            yield return HandleSlotFailure("Unsupported slot adm format");
+        }
+
+        private IEnumerator LoadInlineVastXmlCoroutine(string vastXml)
+        {
+            if (VASTParser.IsWrapperVAST(vastXml))
+            {
+                var vastAdTagUri = VASTParser.ExtractVASTAdTagURI(vastXml);
+                if (string.IsNullOrEmpty(vastAdTagUri))
+                {
+                    yield return HandleSlotFailure("Wrapper VAST has no VASTAdTagURI");
+                    yield break;
+                }
+
+                yield return StartCoroutine(FetchNestedVASTRecursive(vastAdTagUri, vastXml));
+            }
+            else
+            {
+                _vastData = VASTParser.Parse(vastXml);
+            }
+
+            yield return PlayCurrentVastDataCoroutine();
+        }
+
+        private IEnumerator FetchAndLoadVastAdTagUrlCoroutine(string vastAdTagUrl)
+        {
+            Logger.Info($"[VideoAdView] Fetching VAST ad tag URL: {vastAdTagUrl}");
+
+            using (var request = UnityWebRequest.Get(vastAdTagUrl))
+            {
+                request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
+                BidscubeSDK.ApplyConfiguredTimeoutTo(request);
+                yield return request.SendWebRequest();
+
+                if (request.result != UnityWebRequest.Result.Success)
+                {
+                    yield return HandleSlotFailure($"Failed to fetch VAST ad tag URL: {request.error}");
+                    yield break;
+                }
+
+                var responseText = request.downloadHandler.text;
+                if (string.IsNullOrWhiteSpace(responseText))
+                {
+                    yield return HandleSlotFailure("VAST ad tag URL returned empty body");
+                    yield break;
+                }
+
+                if (VastAdSequenceParser.ContentLikelyContainsVast(responseText))
+                {
+                    yield return LoadInlineVastXmlCoroutine(responseText.Trim());
+                    yield break;
+                }
+
+                if (responseText.TrimStart().StartsWith("{"))
+                {
+                    var sdkConfig = BidscubeSDK.GetConfiguration() ?? new SDKConfig.Builder().Build();
+                    var resolved = VideoAdPayloadResolver.Resolve(responseText, sdkConfig);
+                    if (resolved?.PlaybackPlan != null && resolved.PlaybackPlan.IsPlayable)
+                    {
+                        yield return LoadPlaybackSlotCoroutine(resolved.PlaybackPlan.Slots[0]);
+                        yield break;
+                    }
+
+                    yield return HandleSlotFailure("Failed to resolve JSON from VAST ad tag URL");
+                    yield break;
+                }
+
+                var trimmed = responseText.Trim();
+                if (OpenRtbVideoUrlHelper.IsLikelyDirectVideoUrl(trimmed))
+                {
+                    _videoPlayer.url = trimmed;
+                    yield return PrepareAndPlayVideoCoroutine(notifyLoadedOnPrepare: _currentPlaybackSlotIndex == 0);
+                    yield break;
+                }
+
+                if (OpenRtbVideoUrlHelper.IsHttpUrl(trimmed))
+                {
+                    yield return FetchAndLoadVastAdTagUrlCoroutine(trimmed);
+                    yield break;
+                }
+
+                yield return HandleSlotFailure("VAST ad tag URL response is not VAST, JSON, or video");
+            }
+        }
+
+        private IEnumerator PlayCurrentVastDataCoroutine()
+        {
+            if (_vastData == null || string.IsNullOrEmpty(_vastData.videoUrl))
+            {
+                yield return HandleSlotFailure("Failed to parse VAST or no video URL in slot");
+                yield break;
+            }
+
+            VASTParser.FireTrackingUrls(_vastData.impressionUrls);
+            if (_vastData.skipOffset > 0)
+                _skipTime = _vastData.skipOffset;
+
+            _videoPlayer.url = _vastData.videoUrl;
+            yield return PrepareAndPlayVideoCoroutine(notifyLoadedOnPrepare: _currentPlaybackSlotIndex == 0);
+        }
+
+        private IEnumerator HandleSlotFailure(string message)
+        {
+            Logger.InfoError($"[VideoAdView] {message}");
+            var config = BidscubeSDK.GetConfiguration() ?? new SDKConfig.Builder().Build();
+
+            if (_isPlayingPod)
+            {
+                if (config.VideoPodSkipPolicy == OpenRtbPodSkipPolicy.FailEntirePod)
+                {
+                    NotifyFailed(Constants.ErrorCodes.InvalidResponse, message);
+                    yield break;
+                }
+
+                if (config.VideoPodContinueOnSlotError && TryAdvanceToNextPlaybackSlot())
+                    yield break;
+            }
+
+            NotifyFailed(Constants.ErrorCodes.InvalidResponse, message);
+        }
+
+        private IEnumerator PrepareAndPlayVideoCoroutine(bool notifyLoadedOnPrepare)
+        {
+            if (_videoPlayer == null || string.IsNullOrEmpty(_videoPlayer.url))
+            {
+                yield return HandleSlotFailure("No video URL available to play");
+                yield break;
+            }
+
+            if (_videoPlayer.url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            {
+                using (var head = UnityWebRequest.Head(_videoPlayer.url))
+                {
+                    head.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
+                    BidscubeSDK.ApplyConfiguredTimeoutTo(head);
+                    yield return head.SendWebRequest();
+
+                    if (head.result != UnityWebRequest.Result.Success || head.responseCode >= 400)
+                    {
+                        var msg = $"Media URL not reachable (HTTP {head.responseCode}): {head.error}";
+                        Logger.InfoError($"[VideoAdView] {msg}");
+                        yield return HandleSlotFailure(msg);
+                        yield break;
+                    }
+                }
+            }
+
+            ResetCacheState();
+            if (Application.platform == RuntimePlatform.Android)
+                TryStartLocalCacheFallback(_videoPlayer.url);
+
+            Logger.Info($"[VideoAdView] Preparing video player with URL: {_videoPlayer.url}");
+
+            _videoHadError = false;
+            _videoError = null;
+            _videoPlayer.Prepare();
+
+            float timeout = Mathf.Max(1f, BidscubeSDK.GetConfiguredAdTimeoutMs() / 1000f);
+            float elapsed = 0f;
+
+            while (!_videoPlayer.isPrepared && !_videoHadError && elapsed < timeout)
+            {
+                if (_cacheReady && !string.IsNullOrEmpty(_cacheLocalUrl) &&
+                    _videoPlayer != null && !string.Equals(_videoPlayer.url, _cacheLocalUrl, StringComparison.Ordinal))
+                {
+                    Logger.Info($"[VideoAdView] Switching to cached file during prepare loop: {_cacheLocalUrl}");
+                    _videoHadError = false;
+                    _videoError = null;
+                    _videoPlayer.url = _cacheLocalUrl;
+                    _videoPlayer.Prepare();
+                }
+
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            if (_videoHadError || !_videoPlayer.isPrepared)
+            {
+                if (TryStartLocalCacheFallback(_videoPlayer.url))
+                {
+                    elapsed = 0f;
+                    while (!_videoPlayer.isPrepared && !_videoHadError && elapsed < timeout)
+                    {
+                        elapsed += Time.deltaTime;
+                        yield return null;
+                    }
+                }
+
+                if (!_videoPlayer.isPrepared)
+                {
+                    var msg = _videoHadError ? (_videoError ?? "Video error") : "Video preparation timeout";
+                    Logger.InfoError($"[VideoAdView] Video failed: {msg}");
+                    yield return HandleSlotFailure(msg);
+                    yield break;
+                }
+            }
+
+            Logger.Info("[VideoAdView] Video prepared successfully");
+            if (notifyLoadedOnPrepare)
+                NotifyLoaded();
+
+            Logger.Info("[VideoAdView] Starting video playback...");
+            _videoPlayer.Play();
+        }
+
+        private void UpdatePodCounterDisplay()
+        {
+            var config = BidscubeSDK.GetConfiguration();
+            if (config == null || !config.VideoPodShowCounter || !_isPlayingPod || _playbackPlan == null)
+            {
+                if (_podCounterText != null)
+                    _podCounterText.gameObject.SetActive(false);
+                return;
+            }
+
+            if (_podCounterText == null)
+            {
+                var counterObj = new GameObject("PodCounter", typeof(RectTransform), typeof(Text));
+                counterObj.transform.SetParent(transform, false);
+                var rt = counterObj.GetComponent<RectTransform>();
+                rt.anchorMin = new Vector2(0.5f, 0f);
+                rt.anchorMax = new Vector2(0.5f, 0f);
+                rt.pivot = new Vector2(0.5f, 0f);
+                rt.sizeDelta = new Vector2(200f, 36f);
+                rt.anchoredPosition = new Vector2(0f, 24f);
+                _podCounterText = counterObj.GetComponent<Text>();
+                _podCounterText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                _podCounterText.fontSize = 16;
+                _podCounterText.alignment = TextAnchor.MiddleCenter;
+                _podCounterText.color = Color.white;
+            }
+
+            _podCounterText.gameObject.SetActive(true);
+            _podCounterText.text = $"{_currentPlaybackSlotIndex + 1}/{_playbackPlan.Slots.Count}";
+            _podCounterText.transform.SetAsLastSibling();
         }
 
         /// <summary>
@@ -548,6 +909,14 @@ namespace BidscubeSDK
             if (string.IsNullOrEmpty(vastXml))
             {
                 NotifyFailed(Constants.ErrorCodes.InvalidResponse, "VAST XML is empty");
+                return;
+            }
+
+            var sdkConfig = BidscubeSDK.GetConfiguration() ?? new SDKConfig.Builder().Build();
+            var resolved = VideoAdPayloadResolver.Resolve(vastXml, sdkConfig);
+            if (resolved?.PlaybackPlan != null && resolved.PlaybackPlan.IsPlayable)
+            {
+                StartCoroutine(LoadPlaybackPlanCoroutine(resolved.PlaybackPlan));
                 return;
             }
 
@@ -600,312 +969,64 @@ namespace BidscubeSDK
                 Logger.Info($"[VideoAdView] Received response ({responseText.Length} chars)");
                 Logger.DebugLog($"[VideoAdView] Response preview: {(responseText.Length <= 400 ? responseText : responseText.Substring(0, 400) + "…")}");
 
-                // Check if response is VAST XML
-                if (responseText.TrimStart().StartsWith("<VAST") || responseText.Contains("<VAST"))
+                var sdkConfig = BidscubeSDK.GetConfiguration() ?? new SDKConfig.Builder().Build();
+
+                if (responseText.TrimStart().StartsWith("{"))
                 {
-                    Logger.Info("[VideoAdView] Detected VAST XML, parsing...");
-                    _vastData = VASTParser.Parse(responseText);
-
-                    if (_vastData == null || string.IsNullOrEmpty(_vastData.videoUrl))
-                    {
-                        // #region agent log
-                        AgentNdjsonDebugLog.Write("VideoAdView.LoadVideoAdCoroutine", "vast_parse_fail", "H3", "{\"placementId\":\"" + _placementId + "\"}");
-                        // #endregion
-                        Logger.InfoError("[VideoAdView] Failed to parse VAST or no video URL found");
-                        NotifyFailed(Constants.ErrorCodes.InvalidResponse, "Failed to parse VAST XML");
-                        yield break;
-                    }
-
-                    // Fire impression tracking URLs
-                    VASTParser.FireTrackingUrls(_vastData.impressionUrls);
-
-                    // Set skip time from VAST skipoffset
-                    if (_vastData.skipOffset > 0)
-                    {
-                        _skipTime = _vastData.skipOffset;
-                    }
-
-                    // Load the actual video
-                    _videoPlayer.url = _vastData.videoUrl;
-                }
-                else
-                {
-                    // Direct video URL or JSON response
-                    Logger.Info("[VideoAdView] Treating as direct video URL or JSON response");
-
-                    // JSON: flat adm, nested adm, or OpenRTB seatbid[].bid[].adm (same as Android SDK envelope)
-                    if (responseText.TrimStart().StartsWith("{"))
-                    {
-                        string admValue = null;
-                        AdResponse jsonEnvelope = null;
-                        if (AdMarkupExtractor.TryExtractMarkup(responseText, out var extracted, out _, out _))
-                        {
-                            admValue = extracted;
-                            Logger.Info("[VideoAdView] Extracted adm from JSON (flat or OpenRTB seatbid)");
-                        }
-                        else
-                        {
-                            try
-                            {
-                                jsonEnvelope = JsonUtility.FromJson<AdResponse>(responseText);
-                                if (jsonEnvelope != null)
-                                    admValue = jsonEnvelope.GetAdmString();
-                            }
-                            catch (System.Exception e)
-                            {
-                                Logger.InfoError($"[VideoAdView] JSON parsing failed: {e.Message}");
-                                NotifyFailed(Constants.ErrorCodes.InvalidResponse, $"JSON parsing failed: {e.Message}");
-                                yield break;
-                            }
-
-                            if (!string.IsNullOrEmpty(admValue))
-                                Logger.Info("[VideoAdView] Extracted adm from JSON envelope (JsonUtility)");
-                        }
-
-                        // If callback implements IAdRenderOverride, let it inspect the raw adm JSON first
-                        if (!string.IsNullOrEmpty(admValue) && _callback is IAdRenderOverride rawOverride)
-                        {
-                            int rawPos = jsonEnvelope != null
-                                ? jsonEnvelope.GetPosition()
-                                : (int)BidscubeSDK.GetResponseAdPosition();
-                            Logger.Info("[VideoAdView] IAdRenderOverride detected, invoking override with raw adm JSON...");
-                            bool handledRaw = false;
-                            try
-                            {
-                                handledRaw = rawOverride.OnAdRenderOverride(_placementId, admValue, AdType.Video, rawPos);
-                            }
-                            catch (System.Exception e)
-                            {
-                                Logger.InfoError($"[VideoAdView] OnAdRenderOverride threw: {e.Message}");
-                            }
-
-                            if (handledRaw)
-                            {
-                                Logger.Info("[VideoAdView] Ad render overridden by app (raw adm); skipping SDK processing.");
-                                yield break;
-                            }
-                            else
-                            {
-                                Logger.Info("[VideoAdView] OnAdRenderOverride returned false for raw adm; continuing SDK processing.");
-                            }
-                        }
-
-                        if (!string.IsNullOrEmpty(admValue))
-                        {
-
-                            // Log the raw adm field as received
-                            Logger.Info($"[VideoAdView] Raw adm field: {admValue.Length} chars");
-                            Logger.DebugLog($"[VideoAdView] Raw adm preview:\n{(admValue.Length <= 500 ? admValue : admValue.Substring(0, 500) + "…")}");
-
-                            // Extract and unescape adm field (similar to BannerAdView)
-                            string admContent = admValue.Trim();
-
-                            // If wrapped in quotes, remove them
-                            if ((admContent.StartsWith("\"") && admContent.EndsWith("\"")) ||
-                                (admContent.StartsWith("'") && admContent.EndsWith("'")))
-                            {
-                                admContent = admContent.Substring(1, admContent.Length - 2);
-                            }
-
-                            // Unescape common JSON string escapes
-                            admContent = admContent
-                                .Replace("\\\"", "\"")
-                                .Replace("\\'", "'")
-                                .Replace("\\n", "\n")  // Keep newlines for better logging
-                                .Replace("\\r", "\r")
-                                .Replace("\\t", "\t")
-                                .Replace("\\/", "/");
-
-                            // Unescape Unicode sequences (e.g., \u003c -> <)
-                            // Unity's JsonUtility should handle this, but handle it explicitly to be safe
-                            admContent = System.Text.RegularExpressions.Regex.Replace(
-                                admContent,
-                                @"\\u([0-9A-Fa-f]{4})",
-                                m => ((char)Convert.ToInt32(m.Groups[1].Value, 16)).ToString()
-                            );
-
-                            Logger.Info($"[VideoAdView] Processed adm: {admContent.Length} chars");
-                            Logger.DebugLog($"[VideoAdView] Processed adm preview:\n{(admContent.Length <= 500 ? admContent : admContent.Substring(0, 500) + "…")}");
-
-                            // AD RENDER OVERRIDE HOOK: if the app implements IAdRenderOverride, give it the admContent
-                            // Note: render-override was already invoked with the raw adm JSON earlier; do not call it again here.
-
-                            // Check if adm is VAST XML
-                            if (admContent.TrimStart().StartsWith("<VAST") || admContent.Contains("<VAST"))
-                            {
-                                Logger.Info("[VideoAdView] Detected VAST XML in adm field, parsing...");
-
-                                // Check if it's a Wrapper VAST (needs to fetch nested VAST)
-                                if (VASTParser.IsWrapperVAST(admContent))
-                                {
-                                    Logger.Info("[VideoAdView] Detected Wrapper VAST, fetching nested VAST...");
-                                    var vastAdTagUri = VASTParser.ExtractVASTAdTagURI(admContent);
-
-                                    if (!string.IsNullOrEmpty(vastAdTagUri))
-                                    {
-                                        Logger.Info($"[VideoAdView] Fetching nested VAST from: {vastAdTagUri}");
-
-                                        // Fetch the nested VAST (outside try-catch to allow yield return)
-                                        // Handle nested wrappers recursively
-                                        yield return StartCoroutine(FetchNestedVASTRecursive(vastAdTagUri, admContent));
-
-                                        if (_vastData == null || string.IsNullOrEmpty(_vastData.videoUrl))
-                                        {
-                                            Logger.InfoError("[VideoAdView] Failed to fetch or parse nested VAST");
-                                            NotifyFailed(Constants.ErrorCodes.NetworkError, "Failed to fetch or parse nested VAST");
-                                            yield break;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        Logger.InfoError("[VideoAdView] Wrapper VAST found but no VASTAdTagURI");
-                                        NotifyFailed(Constants.ErrorCodes.InvalidResponse, "Wrapper VAST has no VASTAdTagURI");
-                                        yield break;
-                                    }
-                                }
-                                else
-                                {
-                                    // Regular InLine VAST
-                                    _vastData = VASTParser.Parse(admContent);
-                                }
-
-                                if (_vastData == null)
-                                {
-                                    Logger.InfoError("[VideoAdView] VASTParser returned null - parsing failed");
-                                    NotifyFailed(Constants.ErrorCodes.InvalidResponse, "VAST parsing failed");
-                                    yield break;
-                                }
-
-                                if (_vastData != null && !string.IsNullOrEmpty(_vastData.videoUrl))
-                                {
-                                    Logger.Info($"[VideoAdView] Successfully parsed VAST, video URL: {_vastData.videoUrl}");
-                                    _videoPlayer.url = _vastData.videoUrl;
-                                    VASTParser.FireTrackingUrls(_vastData.impressionUrls);
-
-                                    if (_vastData.skipOffset > 0)
-                                    {
-                                        _skipTime = _vastData.skipOffset;
-                                    }
-                                }
-                                else
-                                {
-                                    Logger.InfoError("[VideoAdView] VAST parsed but no video URL found");
-                                    NotifyFailed(Constants.ErrorCodes.InvalidResponse, "VAST parsed but no video URL found");
-                                    yield break;
-                                }
-                            }
-                            else
-                            {
-                                Logger.Info("[VideoAdView] adm field is not VAST XML, treating as direct video URL");
-                                _videoPlayer.url = admContent; // Try adm as direct URL
-                            }
-                        }
-                        else
-                        {
-                            Logger.Info("[VideoAdView] JSON response has no adm field, treating original URL as direct video URL");
-                            _videoPlayer.url = url; // Direct video URL
-                        }
-                    }
+                    string admValue = null;
+                    AdResponse jsonEnvelope = null;
+                    if (AdMarkupExtractor.TryExtractMarkup(responseText, out var extracted, out _, out _))
+                        admValue = extracted;
                     else
                     {
-                        // Direct video URL
-                        Logger.Info("[VideoAdView] Treating response as direct video URL");
-                        _videoPlayer.url = url;
-                    }
-                }
-
-                // Validate video URL before preparing
-                if (_videoPlayer == null || string.IsNullOrEmpty(_videoPlayer.url))
-                {
-                    Logger.InfoError("[VideoAdView] No video URL available to play");
-                    NotifyFailed(Constants.ErrorCodes.InvalidResponse, "No video URL found in response");
-                    yield break;
-                }
-
-                // Validate that the media URL is actually reachable (some demo VASTs include URLs that return 403).
-                if (_videoPlayer.url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-                {
-                    using (var head = UnityWebRequest.Head(_videoPlayer.url))
-                    {
-                        head.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
-                        BidscubeSDK.ApplyConfiguredTimeoutTo(head);
-                        yield return head.SendWebRequest();
-
-                        // UnityWebRequest.Head can report Success even for some error codes; check responseCode.
-                        if (head.result != UnityWebRequest.Result.Success || head.responseCode >= 400)
+                        try
                         {
-                            var msg = $"Media URL not reachable (HTTP {head.responseCode}): {head.error}";
-                            Logger.InfoError($"[VideoAdView] {msg}");
-                            NotifyFailed(Constants.ErrorCodes.NetworkError, msg);
+                            jsonEnvelope = JsonUtility.FromJson<AdResponse>(responseText);
+                            if (jsonEnvelope != null)
+                                admValue = jsonEnvelope.GetAdmString();
+                        }
+                        catch (Exception e)
+                        {
+                            Logger.InfoError($"[VideoAdView] JSON parsing failed: {e.Message}");
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(admValue) && _callback is IAdRenderOverride rawOverride)
+                    {
+                        int rawPos = jsonEnvelope != null
+                            ? jsonEnvelope.GetPosition()
+                            : (int)BidscubeSDK.GetResponseAdPosition();
+                        bool handledRaw = false;
+                        try
+                        {
+                            handledRaw = rawOverride.OnAdRenderOverride(_placementId, admValue, AdType.Video, rawPos);
+                        }
+                        catch (Exception e)
+                        {
+                            Logger.InfoError($"[VideoAdView] OnAdRenderOverride threw: {e.Message}");
+                        }
+
+                        if (handledRaw)
+                        {
+                            Logger.Info("[VideoAdView] Ad render overridden by app (raw adm); skipping SDK processing.");
                             yield break;
                         }
                     }
                 }
 
-                // Android: VideoPlayer often fails on HTTPS streams (NuCachedSource2 error -1) without errorReceived.
-                // Start local cache download early so we can fall back to a file:// URL.
-                ResetCacheState();
-                if (Application.platform == RuntimePlatform.Android)
+                var resolved = VideoAdPayloadResolver.Resolve(responseText, sdkConfig);
+                if (resolved != null && resolved.Position != AdPosition.Unknown)
+                    BidscubeSDK.SetResponseAdPosition(resolved.Position);
+
+                if (resolved?.PlaybackPlan != null && resolved.PlaybackPlan.IsPlayable)
                 {
-                    TryStartLocalCacheFallback(_videoPlayer.url);
+                    Logger.Info($"[VideoAdView] Resolved playback plan with {resolved.PlaybackPlan.Slots.Count} slot(s)");
+                    yield return LoadPlaybackPlanCoroutine(resolved.PlaybackPlan);
+                    yield break;
                 }
 
-                Logger.Info($"[VideoAdView] Preparing video player with URL: {_videoPlayer.url}");
-
-                // Prepare video
-                _videoHadError = false;
-                _videoError = null;
-                _videoPlayer.Prepare();
-
-                float timeout = Mathf.Max(1f, BidscubeSDK.GetConfiguredAdTimeoutMs() / 1000f);
-                float elapsed = 0f;
-
-                while (!_videoPlayer.isPrepared && !_videoHadError && elapsed < timeout)
-                {
-                    // If the stream is not becoming ready but the cache is, switch to the local file and prepare again.
-                    if (_cacheReady && !string.IsNullOrEmpty(_cacheLocalUrl) &&
-                        _videoPlayer != null && !string.Equals(_videoPlayer.url, _cacheLocalUrl, StringComparison.Ordinal))
-                    {
-                        Logger.Info($"[VideoAdView] Switching to cached file during prepare loop: {_cacheLocalUrl}");
-                        _videoHadError = false;
-                        _videoError = null;
-                        _videoPlayer.url = _cacheLocalUrl;
-                        _videoPlayer.Prepare();
-                    }
-
-                    elapsed += Time.deltaTime;
-                    yield return null;
-                }
-
-                if (_videoHadError || !_videoPlayer.isPrepared)
-                {
-                    // Android VideoPlayer frequently fails for some HTTPS streams (e.g. NuCachedSource2 error -1).
-                    // Fallback: download MP4 and replay from a local cached file.
-                    if (TryStartLocalCacheFallback(_videoPlayer.url))
-                    {
-                        elapsed = 0f;
-                        while (!_videoPlayer.isPrepared && !_videoHadError && elapsed < timeout)
-                        {
-                            elapsed += Time.deltaTime;
-                            yield return null;
-                        }
-                    }
-
-                    if (!_videoPlayer.isPrepared)
-                    {
-                        var msg = _videoHadError ? (_videoError ?? "Video error") : "Video preparation timeout";
-                        Logger.InfoError($"[VideoAdView] Video failed: {msg}");
-                        NotifyFailed(
-                            _videoHadError ? Constants.ErrorCodes.NetworkError : Constants.ErrorCodes.Timeout,
-                            msg);
-                        yield break;
-                    }
-                }
-
-                Logger.Info("[VideoAdView] Video prepared successfully");
-                NotifyLoaded();
-                Logger.Info("[VideoAdView] Starting video playback...");
-                _videoPlayer.Play();
+                Logger.InfoError("[VideoAdView] Failed to resolve playable video ad payload");
+                NotifyFailed(Constants.ErrorCodes.InvalidResponse, "Failed to resolve playable video ad payload");
             }
         }
 
@@ -1012,10 +1133,14 @@ namespace BidscubeSDK
                 _hasFiredStart = true;
             }
 
-            NotifyDisplayed();
-            NotifyStarted();
+            if (!_hasStarted)
+            {
+                NotifyDisplayed();
+                NotifyStarted();
+            }
+
             StartCoroutine(UpdateProgress());
-            StartCoroutine(EnableSkipButton());
+            _skipButtonCoroutine = StartCoroutine(EnableSkipButton());
             StartCoroutine(TrackVASTQuartiles());
         }
 
@@ -1222,6 +1347,7 @@ namespace BidscubeSDK
             if (_vastData != null)
                 VASTParser.FireTrackingUrls(_vastData.skipUrls);
 
+            _isPlayingPod = false;
             NotifySkipped();
             ShowEndCard();
         }
@@ -1265,6 +1391,7 @@ namespace BidscubeSDK
             if (!_hasCompleted && !_hasSkipped)
                 NotifySkipped();
 
+            _isPlayingPod = false;
             NotifyClosed();
             DismissVideoAdHierarchy();
         }

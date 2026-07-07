@@ -198,6 +198,11 @@ namespace BidscubeSDK
             return _configuration != null;
         }
 
+        internal static SDKConfig GetConfiguration()
+        {
+            return _configuration;
+        }
+
         /// <summary>
         /// Ad load timeout from <see cref="SDKConfig.DefaultAdTimeoutMs"/>, or <see cref="Constants.DefaultTimeoutMs"/> if not initialized.
         /// </summary>

@@ -37,7 +37,7 @@ The Bidscube Unity SDK can be installed in two ways:
 2. Click the `+` button in the top-left corner
 3. Select `Add package from git URL...`
 4. Enter the repository URL: `https://github.com/Bidscube/bidscube-sdk-unity.git`
-5. Optionally, specify a version tag (recommended for production): `https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.13`
+5. Optionally, specify a version tag (recommended for production): `https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.14`
 6. Click `Add`
 7. The SDK will be added as a package dependency
 
@@ -46,7 +46,7 @@ The Bidscube Unity SDK can be installed in two ways:
 ```json
 {
   "dependencies": {
-    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.13"
+    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.14"
   }
 }
 ```
@@ -238,6 +238,29 @@ var legacyView = BidscubeSDK.BidscubeSDK.GetVideoAdView("placement-id", callback
 **Note:** Video ads are always full-screen. Callbacks come from real `VideoAdView` / `VideoPlayer` lifecycle (no artificial delayed success).
 
 On **Android LiteNoVideo** builds (`BIDSCUBE_ANDROID_LITE_NO_VIDEO`), direct SDK video APIs fail fast with **`LiteNoVideoVideoNotSupported` (1006)** — use your mediation adapter's native video path instead.
+
+#### OpenRTB 2.6-style podded video (response parsing)
+
+The Unity SDK supports **response-side** OpenRTB 2.6 / OpenRTB-like **podded video** parsing. This is **not** a full OpenRTB bid-request client — the legacy **GET** request flow via `URLBuilder` is unchanged.
+
+**Supported response shapes:** raw VAST XML, root JSON `adm`, `openrtb.video` / `openRtb.video` / root `video`, `bids[]`, `seatbid[].bid[]`, bid-level `ext`.
+
+**Playback:** slots play sequentially through Unity `VideoPlayer` + `VASTParser` (custom path; IMA remains disabled). Pod modes: structured, dynamic, hybrid, single.
+
+```csharp
+var config = new SDKConfig.Builder()
+    .OpenRtbPodMetadataEnabled(true)
+    .VideoPodDurationValidationMode(OpenRtbPodDurationValidationMode.Lenient)
+    .VideoPodSkipPolicy(OpenRtbPodSkipPolicy.SkipCurrentAndContinue)
+    .VideoPodContinueOnSlotError(true)
+    .VideoPodShowCounter(true)
+    .Build();
+BidscubeSDK.BidscubeSDK.Initialize(config);
+```
+
+- `OnVideoAdCompleted` / `OnUserRewarded` fire once after the **entire pod** completes.
+- Skip/close during a pod stops remaining slots.
+- OpenRTB podded direct video requires a build where direct Unity video is enabled (not Android LiteNoVideo).
 
 ### Native Ads
 

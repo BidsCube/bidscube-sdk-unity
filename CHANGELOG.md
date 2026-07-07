@@ -2,6 +2,22 @@
 
 ---
 
+## [1.2.14] - 2026-07-07
+
+### Added
+
+- **OpenRTB 2.6-style podded video (response-side):** parse `openrtb.video` / `openRtb.video` / root `video`, `bids[]`, `seatbid[].bid[]`, and root `adm` into a sequential `VideoPlaybackPlan` played via Unity `VideoPlayer`.
+- **OpenRTB config on `SDKConfig`:** `OpenRtbPodMetadataEnabled`, `VideoPodDurationValidationMode`, `VideoPodSkipPolicy`, `VideoPodContinueOnSlotError`, `VideoPodShowCounter`.
+- **OpenRTB runtime module:** `Runtime/BidscubeSDK/OpenRTB/` — lightweight JSON parser, pod normalizer, VAST ad-sequence splitter, payload resolver, playback plan builder.
+- **EditMode tests:** `Tests/EditMode/` for OpenRTB parsing and plan building.
+
+### Changed
+
+- **`VideoAdView`:** podded video plays slots sequentially; `OnVideoAdCompleted` / `OnUserRewarded` fire once after the full pod; per-slot VAST tracking resets between slots.
+- Legacy GET ad request flow unchanged; full OpenRTB POST bid requests not implemented yet.
+
+---
+
 ## [1.2.13] - 2026-05-25
 
 ### Added
