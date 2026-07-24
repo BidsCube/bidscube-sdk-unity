@@ -2,6 +2,19 @@
 
 ---
 
+## [1.2.16] - 2026-07-24
+
+### Added
+
+- **Native `user_id` sync:** `SDKConfig.Builder().UserId(...)` and `BidscubeSDK.SetUserId(...)` now forward to native Android (`com.bidscube.sdk.BidscubeSDK`, 1.2.11+) and iOS (`BidscubeSDK` pod, 1.1.1+) so MAX mediation ad requests include query param `user_id` for SSP postbacks.
+- **iOS bridge:** `Runtime/Plugins/iOS/BidscubeUnityNativeBridge.swift` (`BidscubeUnityNativeSyncInitialize` / `BidscubeUnityNativeSetUserId`).
+
+### Changed
+
+- Call **`BidscubeSDK.Initialize`** before **`MaxSdk.InitializeSdk`** on device builds so native config (including `user_id`) is applied before the MAX adapter loads ads.
+
+---
+
 ## [1.2.15] - 2026-07-24
 
 ### Added

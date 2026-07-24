@@ -145,6 +145,12 @@ namespace BidscubeSDK
             if (!string.IsNullOrEmpty(_userId))
                 Logger.Info($"BidsCube SDK user_id set ({_userId.Length} chars)");
 
+#if UNITY_ANDROID && !UNITY_EDITOR
+            BidscubeAndroidSdkInterop.SyncInitializeFromUnityConfig(config, _userId);
+#elif UNITY_IOS && !UNITY_EDITOR
+            BidscubeIosSdkInterop.SyncInitializeFromUnityConfig(config, _userId);
+#endif
+
             // Consent APIs in this SDK are still stubs (see ShowConsentForm). Integration samples and
             // INTEGRATION.md expect Show*Ad to work immediately after Initialize without a prior CMP flow.
             // ResetConsent() clears these flags for Consent Test Scene / manual testing.
@@ -420,6 +426,12 @@ namespace BidscubeSDK
                 Logger.Info($"BidsCube SDK user_id updated ({_userId.Length} chars)");
             else
                 Logger.Info("BidsCube SDK user_id cleared");
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+            BidscubeAndroidSdkInterop.SyncSetUserId(_userId);
+#elif UNITY_IOS && !UNITY_EDITOR
+            BidscubeIosSdkInterop.SyncSetUserId(_userId);
+#endif
         }
 
         /// <summary>

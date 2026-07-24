@@ -28,7 +28,7 @@ namespace BidscubeSDK
         /// <summary>
         /// SDK version
         /// </summary>
-        public const string SdkVersion = "1.2.15";
+        public const string SdkVersion = "1.2.16";
 
         /// <summary>
         /// Error codes
