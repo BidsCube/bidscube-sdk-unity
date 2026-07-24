@@ -2,6 +2,8 @@
 
 Файл: `Runtime/BidscubeSDK/SdkIntegrationContext.cs`
 
+`SdkIntegrationContext` is for sample/test scenes only. Production apps and external integrators should not use it to select mediation mode. Mediation adapters such as AppLovin MAX and LevelPlay are distributed separately.
+
 ⚠️ **Не публічний integrator API.** Використовується в sample/test scenes для перемикання між direct SDK і LevelPlay mediation testing.
 
 ---

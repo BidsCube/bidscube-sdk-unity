@@ -1,6 +1,10 @@
 # Bidscube Unity SDK
 
-The Bidscube Unity SDK provides a comprehensive advertising solution for Unity games, supporting image ads, video ads, native ads, and banner ads.
+The Bidscube Unity SDK (`com.bidscube.sdk`, v1.2.15) provides a comprehensive advertising solution for Unity games, supporting image ads, video ads, native ads, and banner ads.
+
+This package is the core `com.bidscube.sdk` Unity SDK. AppLovin MAX and LevelPlay adapters are separate packages/repositories. This core package should not include AppLovin/LevelPlay AARs or adapter code.
+
+**Requirements:** Unity 2020.3 or later. Video playback uses custom VAST parsing + Unity `VideoPlayer` (IMA wrapper code exists but is currently disabled).
 
 ## Features
 
@@ -16,7 +20,7 @@ The Bidscube Unity SDK provides a comprehensive advertising solution for Unity g
 
 Direct SDK video entry points respect **`BIDSCUBE_ANDROID_LITE_NO_VIDEO`** when a mediation adapter (or your own tooling) sets it for **LiteNoVideo** Android exports. When you consume the native **`com.bidscube:sdk-lite-no-video`** artifact (bundled by adapters as `bidscube-sdk-lite-no-video-*.aar`), you should **not** need **`coreLibraryDesugaringEnabled`** for Bidscube metadata. The **`sdk-full-video`** artifact may pull Media3 / IMA and **may** require desugaring — use **FullWithVideo** export mode in the adapter and expect launcher **`desugar_jdk_libs`** injection.
 
-**OpenRTB podded video** requires a build where direct Unity video is enabled (not LiteNoVideo). The SDK still uses the legacy **GET** ad request flow; full OpenRTB **POST** bid requests are not implemented yet.
+**OpenRTB podded video** requires a build where direct Unity video is enabled (not LiteNoVideo). OpenRTB 2.6 support is response-side podded video parsing only. The SDK still uses the legacy GET ad request flow through `URLBuilder`. `OpenRtbBidRequestBuilder` is a placeholder. Full OpenRTB POST bid requests are not implemented.
 
 ### OpenRTB 2.6-style podded video (response parsing)
 
@@ -33,6 +37,7 @@ Configure via `SDKConfig.Builder()`:
 var config = new SDKConfig.Builder()
     .OpenRtbPodMetadataEnabled(true)
     .VideoPodDurationValidationMode(OpenRtbPodDurationValidationMode.Lenient)
+    .VideoPodSkipPolicy(OpenRtbPodSkipPolicy.SkipCurrentAndContinue)
     .VideoPodContinueOnSlotError(true)
     .VideoPodShowCounter(true)
     .Build();
@@ -173,6 +178,8 @@ Configuration class for SDK settings.
 - `DefaultAdTimeout(int millis)` - Set default ad timeout
 - `DefaultAdPosition(AdPosition position)` - Set default ad position
 - `BaseURL(string url)` - Set base URL for ad requests
+- `UserId(string userId)` - Integrator user id (sent as `user_id` on ad requests for SSP postbacks)
+- `SetUserId(string)` / `GetUserId()` on `BidscubeSDK` - update user id after login
 
 ### Ad Types
 

@@ -177,19 +177,24 @@
 
 | File | Description |
 |------|-------------|
-| `doc/README.md` | Doc index |
-| `doc/overview.md` | Product overview |
-| `doc/architecture.md` | Architecture flows |
+| `doc/README.md` | **Головний індекс** — повний зміст, навігація за ролями |
+| `doc/overview.md` | Product overview, UPM, repo structure |
+| `doc/architecture.md` | Architecture flows, OpenRTB pod diagram |
 | `doc/public-api.md` | Full BidscubeSDK API |
-| `doc/video-ads.md` | Video/VAST/end card |
+| `doc/openrtb.md` | **OpenRTB 2.6 module** — повний reference |
+| `doc/video-ads.md` | Video/VAST/end card/pods |
 | `doc/banner-and-webview.md` | Banner + WebView |
 | `doc/native-ads.md` | Native ads |
 | `doc/networking-vast.md` | URLBuilder + VASTParser |
-| `doc/configuration.md` | SDKConfig, AdSizeSettings |
-| `doc/callbacks-and-errors.md` | Callbacks + error codes |
-| `doc/android.md` | Android feature sets |
+| `doc/configuration.md` | SDKConfig, AdSizeSettings, OpenRTB options |
+| `doc/callbacks-and-errors.md` | Callbacks, pod lifecycle, error codes |
+| `doc/android.md` | Android feature sets, Gradle |
 | `doc/ios-and-plugins.md` | iOS/plugins |
-| `doc/test-scenes-qa.md` | QA scenes |
+| `doc/test-scenes-qa.md` | QA scenes, VAST + OpenRTB pod checklists |
+| `doc/editmode-tests.md` | Unit tests, запуск, матриця |
+| `doc/packaging.md` | UPM, git archive, unitypackage |
+| `doc/troubleshooting.md` | FAQ, типові проблеми |
 | `doc/release-process.md` | Release workflow |
 | `doc/integration-modes.md` | SdkIntegrationContext |
 | `doc/known-issues.md` | Limitations + tech debt |
+| `doc/file-index.md` | Цей файл — індекс коду |

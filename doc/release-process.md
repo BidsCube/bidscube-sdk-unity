@@ -7,7 +7,7 @@
 | What | Where |
 |------|-------|
 | Semver | `package.json` → `"version"` |
-| Git tag | `v` + semver (e.g. `v1.2.14`) |
+| Git tag | `v` + semver (e.g. `v1.2.15`) |
 | Changelog | `CHANGELOG.md` |
 | Public pin | `INTEGRATION.md` Git URL `#vX.Y.Z` |
 
@@ -24,9 +24,10 @@ Summary:
 - [ ] `package.json` name = `com.bidscube.sdk`
 - [ ] Version bumped, CHANGELOG entry added
 - [ ] Only ugui + TMP dependencies
-- [ ] No mediation AARs in core tree
+- [ ] No mediation AARs in core tree (AppLovin MAX / LevelPlay adapters are separate packages)
 - [ ] No `Library/`, build artifacts committed
 - [ ] Consumer can resolve `git#vX.Y.Z`
+- [ ] Clean source archive via `git archive` (not local zip of working directory)
 
 ---
 
@@ -54,21 +55,21 @@ git diff --stat
 
 git add -A
 git commit -m "$(cat <<'EOF'
-Release com.bidscube.sdk 1.2.14
+Release com.bidscube.sdk 1.2.15
 
 <short summary from CHANGELOG>
 EOF
 )"
 
-git tag v1.2.14
+git tag v1.2.15
 
 # SSH remote (recommended internally)
 git push max master
-git push max v1.2.14
+git push max v1.2.15
 
 # or HTTPS
 git push origin master
-git push origin v1.2.14
+git push origin v1.2.15
 ```
 
 ### Non-fast-forward
@@ -77,7 +78,7 @@ git push origin v1.2.14
 git fetch max
 git rebase max/master
 git push max master
-git push max v1.2.14
+git push max v1.2.15
 ```
 
 ---
@@ -98,7 +99,7 @@ git push max v1.2.14
 ### Git URL (UPM)
 
 ```json
-"com.bidscube.sdk": "https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.14"
+"com.bidscube.sdk": "https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.15"
 ```
 
 ### .unitypackage (optional)
@@ -106,6 +107,18 @@ git push max v1.2.14
 Script: `scripts/copy-to-runtime.ps1` — mirrors Assets → Runtime layout for legacy `.unitypackage` builds.
 
 GitHub Release may attach unitypackage if published manually.
+
+### Clean source archive
+
+Do not create release/source archives by zipping the local working directory. Use `git archive`:
+
+```bash
+git archive --format=zip --output ../bidscube-sdk-unity-clean.zip HEAD
+```
+
+Do not include: `.git/`, `Temp/`, `Library/`, `Logs/`, `UserSettings/`, `Build/`, `build/`, `build.app/`, `__MACOSX/`, `.DS_Store`, `*.unitypackage` (unless intentionally attached as release artifact).
+
+See [packaging.md](packaging.md).
 
 ---
 
@@ -132,6 +145,7 @@ Default branch: **`master`**
 
 | Version | Highlights |
 |---------|------------|
+| 1.2.15 | Integrator `user_id` on ad requests for SSP postbacks |
 | 1.2.14 | OpenRTB 2.6 podded video, VAST ad tag URL fetch, EditMode tests |
 | 1.2.13 | VAST end card preview, `LoadVideoAdFromVastXml`, local VAST QA |
 | 1.2.12 | Interstitial/rewarded split, real video lifecycle, LiteNoVideo guards |

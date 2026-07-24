@@ -17,6 +17,8 @@ namespace BidscubeSDK
         // Optional runtime AdSizeSettings if SDKConfig doesn't include it
         private static AdSizeSettings _runtimeAdSizeSettings;
         private static bool _initializationEnabled = true;
+        /// <summary>Integrator user id for SSP postbacks (<c>user_id</c> query param).</summary>
+        private static string _userId;
 
         private static AdPosition _manualAdPosition;
         private static AdPosition _responseAdPosition = AdPosition.Unknown;
@@ -135,8 +137,13 @@ namespace BidscubeSDK
 #endif
 
             _configuration = config;
+            _userId = config != null && !string.IsNullOrWhiteSpace(config.UserId)
+                ? config.UserId.Trim()
+                : null;
             Logger.Configure(config);
             Logger.Info("BidsCube SDK initialized with configuration");
+            if (!string.IsNullOrEmpty(_userId))
+                Logger.Info($"BidsCube SDK user_id set ({_userId.Length} chars)");
 
             // Consent APIs in this SDK are still stubs (see ShowConsentForm). Integration samples and
             // INTEGRATION.md expect Show*Ad to work immediately after Initialize without a prior CMP flow.
@@ -234,6 +241,7 @@ namespace BidscubeSDK
             _adViewsParentUsesLayoutSlotSizing = false;
 
             _configuration = null;
+            _userId = null;
             _manualAdPosition = AdPosition.Unknown;
             _responseAdPosition = AdPosition.Unknown;
             _consentRequired = false;
@@ -401,6 +409,28 @@ namespace BidscubeSDK
         }
 
         /// <summary>
+        /// Set or update the integrator user id after init (e.g. after login).
+        /// Sent on subsequent ad requests as query param <c>user_id</c> for server postbacks.
+        /// Pass null or empty to clear.
+        /// </summary>
+        public static void SetUserId(string userId)
+        {
+            _userId = string.IsNullOrWhiteSpace(userId) ? null : userId.Trim();
+            if (_userId != null)
+                Logger.Info($"BidsCube SDK user_id updated ({_userId.Length} chars)");
+            else
+                Logger.Info("BidsCube SDK user_id cleared");
+        }
+
+        /// <summary>
+        /// Current integrator user id used for ad request <c>user_id</c> (may be null).
+        /// </summary>
+        public static string GetUserId()
+        {
+            return _userId;
+        }
+
+        /// <summary>
         /// Build request URL for ad
         /// </summary>
         /// <param name="placementId">Placement ID</param>
@@ -415,7 +445,9 @@ namespace BidscubeSDK
                 adType,
                 position,
                 _configuration.DefaultAdTimeoutMs,
-                _configuration.EnableDebugMode
+                _configuration.EnableDebugMode,
+                ctaText: null,
+                userId: _userId
             );
         }
 

@@ -6,7 +6,7 @@
 
 Файл: `Runtime/BidscubeSDK/Networking/URLBuilder.cs`
 
-### `BuildAdRequestURL(baseURL, placementId, adType, position, timeoutMs, debug, ctaText?)`
+### `BuildAdRequestURL(baseURL, placementId, adType, position, timeoutMs, debug, ctaText?, userId?)`
 
 Формат **вирівняний з iOS SDK**.
 
@@ -29,13 +29,22 @@
 | `dnt` | Do Not Track | |
 | `gdpr`, `gdpr_consent` | GDPR flags | |
 | `us_privacy`, `ccpa`, `coppa` | privacy flags | |
+| `user_id` | `SDKConfig.UserId` / `BidscubeSDK.SetUserId` | Optional; omitted when empty. Used by SSP for postbacks. |
+
+### OpenRTB pod response (1.2.14+)
+
+Video responses may include OpenRTB pod metadata. Parsing is **not** in URLBuilder — it happens in `VideoAdPayloadResolver` after HTTP GET returns body.
+
+Див. повний reference: [openrtb.md](openrtb.md).
+
+Legacy GET URL format **unchanged** — still `c=v`, `res=json`.
 
 ### Response format by type
 
 | AdType | `res` | Expected body |
 |--------|-------|---------------|
 | Image | `js` | HTML or JSON wrapper with HTML adm |
-| Video | `json` | JSON with VAST/XML adm or direct video URL |
+| Video | `json` | JSON with VAST/XML adm, OpenRTB pod, or direct video URL |
 | Native | `json` | OpenRTB native JSON adm |
 
 ---

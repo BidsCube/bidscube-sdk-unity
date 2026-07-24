@@ -120,7 +120,26 @@ ShowInterstitialVideoAd / ShowRewardedVideoAd
   → skip UI → complete/skip → ShowEndCard → Close → Dismiss
 ```
 
-Деталі: [video-ads.md](video-ads.md)
+Деталі: [video-ads.md](video-ads.md), [openrtb.md](openrtb.md)
+
+## OpenRTB pod flow (1.2.14)
+
+OpenRTB 2.6 support is response-side podded video parsing only. The SDK still uses the legacy GET ad request flow through `URLBuilder`. `OpenRtbBidRequestBuilder` is a placeholder. Full OpenRTB POST bid requests are not implemented.
+
+```
+LoadVideoAdFromURL
+  → HTTP GET (legacy URLBuilder — unchanged)
+  → VideoAdPayloadResolver.Resolve(body, SDKConfig)
+      → OpenRtbJson.TryParseObject
+      → OpenRtbPoddedResponseNormalizer.Normalize
+      → PoddedPlaybackPlanBuilder.Build
+  → LoadPlaybackPlanCoroutine(plan)
+      → for each slot: LoadPlaybackSlotCoroutine
+          → VastXml | VastAdTagUrl fetch | DirectVideoUrl | adm fallback
+          → VASTParser → VideoPlayer
+      → on slot complete: TryAdvanceToNextPlaybackSlot
+  → OnVideoAdCompleted / OnUserRewarded after LAST slot
+```
 
 ## Native flow
 

@@ -104,7 +104,47 @@ Example LiteNoVideo:
 
 ---
 
-## Video callback order reference
+### OpenRTB pod — complete path (2 slots)
+
+```
+OnAdLoading
+OnAdLoaded                    (slot 1 prepared)
+OnAdDisplayed
+OnVideoAdStarted              (pod start)
+OnVideoAdSkippable            (per slot, if applicable)
+OnVideoAdCompleted            (slot 1) — internal advance, no app callback
+... slot 2 plays ...
+OnVideoAdCompleted            (slot 2 = last)
+OnUserRewarded                (rewarded only, after last slot)
+OnAdClosed
+```
+
+### OpenRTB pod — skip on slot 1
+
+```
+OnAdLoading → OnAdLoaded → OnAdDisplayed → OnVideoAdStarted
+→ OnVideoAdSkipped            (user skip/close — pod stops)
+→ OnAdClosed
+(slot 2 does NOT play)
+```
+
+### OpenRTB pod — slot failure with continue
+
+При `VideoPodSkipPolicy.SkipCurrentAndContinue` + `VideoPodContinueOnSlotError(true)`:
+
+```
+slot 1 fails → advance to slot 2 (no OnAdFailed if recovered)
+```
+
+При `FailEntirePod` або continue disabled:
+
+```
+slot 1 fails → OnAdFailed → pod stops
+```
+
+---
+
+## Video callback order reference (single ad)
 
 ### Interstitial — complete path
 

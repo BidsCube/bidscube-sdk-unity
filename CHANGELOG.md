@@ -2,6 +2,19 @@
 
 ---
 
+## [1.2.15] - 2026-07-24
+
+### Added
+
+- **Integrator `user_id`:** pass via `SDKConfig.Builder().UserId(...)` at init, or update with `BidscubeSDK.SetUserId(...)` / `GetUserId()`. Sent on every ad request as query param `user_id` (URL-encoded; omitted when empty) for SSP postbacks.
+
+### Docs
+
+- Documented `user_id` in `INTEGRATION.md`, `configuration.md`, `networking-vast.md`, `public-api.md`.
+- Polished OpenRTB / packaging docs for 1.2.14 behavior (carried into this release).
+
+---
+
 ## [1.2.14] - 2026-07-07
 
 ### Added

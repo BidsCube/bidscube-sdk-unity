@@ -24,7 +24,7 @@ SDK вирівняний з **iOS SDK** за форматом ad request URL і 
 ```json
 {
   "name": "com.bidscube.sdk",
-  "version": "1.2.14",
+  "version": "1.2.15",
   "unity": "2020.3",
   "dependencies": {
     "com.unity.ugui": "2.0.0",
@@ -36,7 +36,7 @@ SDK вирівняний з **iOS SDK** за форматом ad request URL і 
 **Pin для production:**
 
 ```json
-"com.bidscube.sdk": "https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.14"
+"com.bidscube.sdk": "https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.15"
 ```
 
 ## Структура репозиторію
@@ -67,10 +67,17 @@ bidscube-sdk-unity/
 | `Views/` | BannerAdView, VideoAdView, NativeAdView |
 | `Networking/` | URLBuilder, DeviceInfo, WebViewObject |
 | `Android/` | Feature sets, export settings, LiteNoVideo guard |
+| `OpenRTB/` | OpenRTB 2.6 podded video (response-side) — див. [openrtb.md](openrtb.md) |
 | `Settings/` | AdSizeSettings ScriptableObject |
 | `Scenes/` | 5 тестових Unity-сцен |
 | `BasicIntegration/` | Мінімальний AdExample |
 | `Debug/` | AgentNdjsonDebugLog (internal telemetry) |
+
+### Tests/
+
+| Шлях | Призначення |
+|------|-------------|
+| `Tests/EditMode/` | OpenRTB EditMode unit tests (NUnit) — див. [editmode-tests.md](editmode-tests.md) |
 
 ## Мінімальна інтеграція (код)
 
@@ -80,6 +87,7 @@ using BidscubeSDK;
 var config = new SDKConfig.Builder()
     .EnableLogging(true)
     .BaseURL(Constants.BaseURL)
+    .UserId("your-app-user-id") // optional; sent as user_id for postbacks
     .Build();
 
 BidscubeSDK.Initialize(config);
@@ -107,6 +115,8 @@ BidscubeSDK.ShowNativeAd("20214", callback);
 
 **У пакеті немає (окремі пакети):**
 
+This package is the core `com.bidscube.sdk` Unity SDK. AppLovin MAX and LevelPlay adapters are separate packages/repositories. This core package should not include AppLovin/LevelPlay AARs or adapter code.
+
 - AppLovin MAX adapter (`com.bidscube.applovin.max`)
 - LevelPlay / ironSource adapter (`com.bidscube.levelplay`)
 - Mediation SDK binaries
@@ -132,3 +142,5 @@ BidscubeSDK.ShowNativeAd("20214", callback);
 Default base URL: `https://ssp-bcc-ads.com/sdk`
 
 Query params будуються в `URLBuilder` — див. [networking-vast.md](networking-vast.md).
+
+OpenRTB 2.6 support is response-side podded video parsing only. The SDK still uses the legacy GET ad request flow through `URLBuilder`. Full OpenRTB POST bid requests are not implemented. Див. [openrtb.md](openrtb.md).

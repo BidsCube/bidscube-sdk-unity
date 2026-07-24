@@ -14,7 +14,8 @@
 | `Initialize()` | Default config: logging on, timeout 30s, `Constants.BaseURL` |
 | `IsInitialized()` | `_configuration != null` |
 | `SetInitializationEnabled(bool)` / `IsInitializationEnabled()` | Глобальний gate init |
-| `Cleanup()` | `ClearAllAds()` + reset config, consent, positions |
+| `Cleanup()` | `ClearAllAds()` + reset config, consent, positions, user id |
+| `SetUserId(string)` / `GetUserId()` | Integrator user id for SSP postbacks (`user_id` query param) |
 | `GetConfiguredAdTimeoutMs()` | З config або `Constants.DefaultTimeoutMs` (30000) |
 | `ApplyConfiguredTimeoutTo(UnityWebRequest)` | Timeout у секундах на request |
 
@@ -105,7 +106,7 @@ public enum AdPosition {
 | `ShowInterstitialVideoAd(placementId, callback)` | `VideoAdFormat.Interstitial` |
 | `ShowRewardedVideoAd(placementId, callback)` | `VideoAdFormat.Rewarded` |
 | `ShowVideoAd(placementId, callback)` | **Alias** → interstitial |
-| `ShowSkippableVideoAd(placementId, skipButtonText, callback)` | **Alias** → interstitial (`skipButtonText` ignored) |
+| `ShowSkippableVideoAd(placementId, skipButtonText, callback)` | **Legacy compatibility alias** → interstitial (`skipButtonText` ignored). Prefer `ShowInterstitialVideoAd` for new integrations. |
 | `GetInterstitialVideoAdView(placementId, callback)` → `GameObject` | Manual control |
 | `GetRewardedVideoAdView(placementId, callback)` → `GameObject` | Manual control |
 | `GetVideoAdView(placementId, callback)` → `GameObject` | **Alias** → interstitial view |
@@ -162,7 +163,7 @@ public enum AdType { Image, Video, Native }
 | `DefaultAdPosition` | `AdPosition.Unknown` |
 | `BaseURL` | `https://ssp-bcc-ads.com/sdk` |
 | `UserAgentPrefix` | `"BidscubeSDK"` |
-| `SdkVersion` | `"1.2.14"` (sync with `package.json`) |
+| `SdkVersion` | `"1.2.15"` (sync with `package.json`) |
 
 ### Error codes
 
@@ -200,5 +201,5 @@ view.LoadVideoAdFromURL(url);                 // SSP або direct MP4
 |-------|--------|
 | `ShowVideoAd` | `ShowInterstitialVideoAd` |
 | `GetVideoAdView` | `GetInterstitialVideoAdView` |
-| `ShowSkippableVideoAd` | `ShowInterstitialVideoAd` |
+| `ShowSkippableVideoAd` | `ShowInterstitialVideoAd` (legacy compatibility only) |
 | `GetImageAdView` | `GetBannerAdView` |

@@ -18,9 +18,10 @@ namespace BidscubeSDK
         /// <param name="timeoutMs">Timeout in milliseconds</param>
         /// <param name="debug">Debug mode</param>
         /// <param name="ctaText">CTA text (optional)</param>
+        /// <param name="userId">Integrator user id for postbacks (optional; sent as <c>user_id</c>)</param>
         /// <returns>Built URL</returns>
         public static string BuildAdRequestURL(string baseURL, string placementId, AdType adType,
-            AdPosition position, int timeoutMs, bool debug, string ctaText = null)
+            AdPosition position, int timeoutMs, bool debug, string ctaText = null, string userId = null)
         {
             // Use iOS SDK format: https://ssp-bcc-ads.com?placementId=20212&c=b&m=api&res=js&app=1&bundle=...&name=...&app_store_url=...&language=...&deviceWidth=...&deviceHeight=...&ua=...&ifa=...&dnt=1&gdpr=1&gdpr_consent=0&us_privacy=1---&ccpa=0&coppa=0
             var url = new StringBuilder();
@@ -45,6 +46,9 @@ namespace BidscubeSDK
             url.Append($"&us_privacy={DeviceInfo.USPrivacy}");
             url.Append($"&ccpa={DeviceInfo.CCPA}");
             url.Append($"&coppa={DeviceInfo.COPPA}");
+
+            if (!string.IsNullOrWhiteSpace(userId))
+                url.Append($"&user_id={Uri.EscapeDataString(userId.Trim())}");
 
             Logger.Info($"Built URL: {url.ToString()}");
             var built = url.ToString();

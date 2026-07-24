@@ -4,11 +4,16 @@
 
 ---
 
-## Constants.SdkVersion застарілий
+## Constants.SdkVersion sync
 
-| | |
-|---|---|
-| **Проблема** | ~~`Constants.SdkVersion` out of sync~~ — synced to `1.2.14` in v1.2.14 |
+`Constants.SdkVersion` is currently synced with `package.json` at `1.2.15`.
+
+Keep this as a release checklist item:
+
+- `package.json` version
+- `Runtime/BidscubeSDK/Core/Constants.cs`
+- `CHANGELOG.md`
+- Git tag `vX.Y.Z`
 
 ---
 
@@ -38,13 +43,15 @@
 
 | | |
 |---|---|
-| **Проблема** | Unity Android/iOS VideoPlayer unreliable для HLS/DASH |
-| **Mitigation** | VASTParser prefers progressive MP4 |
+| **Проблема** | HLS/DASH URLs (`.m3u8`, `.mpd`) may be classified as direct video URLs, but Unity `VideoPlayer` support can be platform-dependent and unreliable. Progressive MP4 is preferred. |
+| **Mitigation** | `VASTParser` prefers progressive MP4 over streaming formats |
 | **Fallback** | Android cache download + `file://` replay on stream failure |
 
 ---
 
 ## Mediation adapters — окремі репозиторії
+
+This package is the core `com.bidscube.sdk` Unity SDK. AppLovin MAX and LevelPlay adapters are separate packages/repositories. This core package should not include AppLovin/LevelPlay AARs or adapter code.
 
 Core SDK **не містить**:
 
@@ -61,9 +68,9 @@ Core SDK **не містить**:
 
 ---
 
-## ShowSkippableVideoAd skipButtonText
+## ShowSkippableVideoAd — legacy compatibility only
 
-Parameter **`skipButtonText` ignored** — skip label hardcoded ("Skip in N" / "Skip").
+`ShowSkippableVideoAd(placementId, skipButtonText, callback)` is a legacy compatibility alias for interstitial video. `skipButtonText` is currently ignored. Prefer `ShowInterstitialVideoAd(...)` for new integrations.
 
 ---
 
@@ -118,10 +125,21 @@ If RenderTexture empty and no companion — end card shows overlay with transpar
 
 ---
 
+## OpenRTB pod metadata disabled
+
+При `OpenRtbPodMetadataEnabled(false)` — `bids[]` / seatbid pod parsing skipped; root `adm` still resolves.
+
+---
+
+## OpenRTB POST not implemented
+
+OpenRTB 2.6 support is response-side podded video parsing only. The SDK still uses the legacy GET ad request flow through `URLBuilder`. `OpenRtbBidRequestBuilder` is a placeholder. Full OpenRTB POST bid requests are not implemented.
+
+---
+
 ## Recommended follow-ups (backlog)
 
-1. Sync `Constants.SdkVersion` with package.json on each release (automate if possible)
-2. Wire IMA event bridge or remove dead code path
-3. Real CMP integration or remove consent stubs from public API docs
-4. Optional: expose skip button text from VAST/custom API
-5. Auto-generate `public-api.md` section from XML doc comments (if team wants)
+1. Wire IMA event bridge or remove dead code path
+2. Real CMP integration or remove consent stubs from public API docs
+3. Optional: expose skip button text from VAST/custom API
+4. Auto-generate `public-api.md` section from XML doc comments (if team wants)

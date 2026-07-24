@@ -40,7 +40,9 @@ go.GetComponent<VideoAdView>().LoadVideoAdFromURL(url);
 
 ### OpenRTB 2.6 podded video (response-side)
 
-**Not** a full OpenRTB POST bid-request client. Parsing only.
+**Повний module reference:** [openrtb.md](openrtb.md)
+
+OpenRTB 2.6 support is response-side podded video parsing only. The SDK still uses the legacy GET ad request flow through `URLBuilder`. `OpenRtbBidRequestBuilder` is a placeholder. Full OpenRTB POST bid requests are not implemented.
 
 | Component | File |
 |-----------|------|
@@ -67,6 +69,8 @@ go.GetComponent<VideoAdView>().LoadVideoAdFromURL(url);
 `OpenRtbVideoUrlHelper.IsLikelyDirectVideoUrl` distinguishes ad tag URLs from direct media.
 
 **`VideoPodSkipPolicy`:** user skip/close always stops the pod; slot failures use `VideoPodContinueOnSlotError` when policy is `SkipCurrentAndContinue`, or fail entire pod when `FailEntirePod`.
+
+**`VideoPodShowCounter`:** shows a lightweight pod slot counter overlay during sequential pod playback when supported by `VideoAdView`.
 
 
 ### Inline VAST (QA, без backend)
@@ -100,7 +104,7 @@ videoAdView.LoadVideoAdFromVastXml(vastXmlString);
 
 ### Media selection policy
 
-**MP4 > WebM > перший URL** — уникає HLS/DASH на Unity Android `VideoPlayer`.
+**MP4 > WebM > перший URL** — progressive formats preferred. HLS/DASH URLs (`.m3u8`, `.mpd`) may be classified as direct video URLs, but Unity `VideoPlayer` support can be platform-dependent and unreliable.
 
 ### Wrapper VAST
 
@@ -135,7 +139,9 @@ videoAdView.LoadVideoAdFromVastXml(vastXmlString);
 
 ---
 
-## End card (v1.2.13+)
+## End card
+
+End card behavior, introduced in 1.2.13 and still current in 1.2.15.
 
 Після **complete** або **skip**:
 
@@ -213,8 +219,13 @@ OnAdLoading → OnAdLoaded → OnAdDisplayed → OnVideoAdStarted
 
 - `IMAVideoPlayer.cs` — Android JNI stubs для Google IMA
 - `IVideoPlayerEventListener` — unified interface для future bridge
-- **`VideoAdView._useIMA = false`** — IMA disabled до wiring event bridge
-- Production path: **custom VAST + Unity VideoPlayer**
+- **`VideoAdView._useIMA = false`** — IMA disabled; production path is **custom VAST + Unity VideoPlayer**
+
+---
+
+## Legacy video API
+
+`ShowSkippableVideoAd(placementId, skipButtonText, callback)` is a legacy compatibility alias for interstitial video. `skipButtonText` is currently ignored. Prefer `ShowInterstitialVideoAd(...)` for new integrations.
 
 ---
 

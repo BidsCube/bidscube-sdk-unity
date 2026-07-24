@@ -41,6 +41,10 @@ namespace BidscubeSDK
         public OpenRtbPodSkipPolicy VideoPodSkipPolicy { get; private set; }
         public bool VideoPodContinueOnSlotError { get; private set; }
         public bool VideoPodShowCounter { get; private set; }
+        /// <summary>
+        /// Integrator-provided user id sent on ad requests as <c>user_id</c> for server postbacks.
+        /// </summary>
+        public string UserId { get; private set; }
 
         private SDKConfig(
             bool enableLogging,
@@ -54,7 +58,8 @@ namespace BidscubeSDK
             OpenRtbPodDurationValidationMode videoPodDurationValidationMode,
             OpenRtbPodSkipPolicy videoPodSkipPolicy,
             bool videoPodContinueOnSlotError,
-            bool videoPodShowCounter)
+            bool videoPodShowCounter,
+            string userId)
         {
             EnableLogging = enableLogging;
             EnableDebugMode = enableDebugMode;
@@ -68,6 +73,7 @@ namespace BidscubeSDK
             VideoPodSkipPolicy = videoPodSkipPolicy;
             VideoPodContinueOnSlotError = videoPodContinueOnSlotError;
             VideoPodShowCounter = videoPodShowCounter;
+            UserId = userId;
         }
 
         /// <summary>
@@ -88,6 +94,7 @@ namespace BidscubeSDK
             private OpenRtbPodSkipPolicy _videoPodSkipPolicy = OpenRtbPodSkipPolicy.SkipCurrentAndContinue;
             private bool _videoPodContinueOnSlotError = true;
             private bool _videoPodShowCounter = true;
+            private string _userId = null;
 
             public Builder() { }
 
@@ -196,6 +203,17 @@ namespace BidscubeSDK
             }
 
             /// <summary>
+            /// Set the integrator user id. Sent on every ad request as query param <c>user_id</c>
+            /// so the SSP can include it in postbacks.
+            /// </summary>
+            /// <param name="userId">App user identifier (empty/null omitted from requests)</param>
+            public Builder UserId(string userId)
+            {
+                _userId = string.IsNullOrWhiteSpace(userId) ? null : userId.Trim();
+                return this;
+            }
+
+            /// <summary>
             /// Build SDK configuration
             /// </summary>
             /// <returns>SDK configuration</returns>
@@ -213,7 +231,8 @@ namespace BidscubeSDK
                     _videoPodDurationValidationMode,
                     _videoPodSkipPolicy,
                     _videoPodContinueOnSlotError,
-                    _videoPodShowCounter
+                    _videoPodShowCounter,
+                    _userId
                 );
             }
         }

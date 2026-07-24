@@ -17,6 +17,7 @@ var config = new SDKConfig.Builder()
     .BaseURL(Constants.BaseURL)
     .AdSizeSettings(myAdSizeSettings)
     .DisableInitialization(false)
+    .UserId("your-app-user-id")
     .Build();
 
 BidscubeSDK.Initialize(config);
@@ -33,6 +34,16 @@ BidscubeSDK.Initialize(config);
 | `BaseURL` | `BaseURL(string)` | `Constants.BaseURL` |
 | `AdSizeSettings` | `AdSizeSettings(asset)` | `null` |
 | `DisableInitialization` | `DisableInitialization(bool)` | `false` |
+| `UserId` | `UserId(string)` | `null` — integrator user id; sent as query `user_id` on ad requests for SSP postbacks |
+
+Also after init:
+
+```csharp
+BidscubeSDK.SetUserId("player-123"); // update after login
+BidscubeSDK.GetUserId();             // current value (or null)
+```
+
+Empty/null `user_id` is omitted from the request URL.
 
 ### OpenRTB pod video settings
 
@@ -42,11 +53,11 @@ BidscubeSDK.Initialize(config);
 | `VideoPodDurationValidationMode` | `VideoPodDurationValidationMode(...)` | `Lenient` |
 | `VideoPodSkipPolicy` | `VideoPodSkipPolicy(...)` | `SkipCurrentAndContinue` |
 | `VideoPodContinueOnSlotError` | `VideoPodContinueOnSlotError(bool)` | `true` |
-| `VideoPodShowCounter` | `VideoPodShowCounter(bool)` | `true` |
+| `VideoPodShowCounter` | `VideoPodShowCounter(bool)` | `true` — shows a lightweight pod slot counter overlay during sequential pod playback when supported by `VideoAdView` |
 
 Enums: `OpenRtbPodDurationValidationMode` (`Lenient`, `Strict`), `OpenRtbPodSkipPolicy` (`SkipCurrentAndContinue`, `FailEntirePod`).
 
-Full OpenRTB POST bid requests are **not** implemented (`OpenRtbBidRequestBuilder` placeholder).
+OpenRTB 2.6 support is response-side podded video parsing only. The SDK still uses the legacy GET ad request flow through `URLBuilder`. `OpenRtbBidRequestBuilder` is a placeholder. Full OpenRTB POST bid requests are not implemented.
 
 ### Static detected metadata
 

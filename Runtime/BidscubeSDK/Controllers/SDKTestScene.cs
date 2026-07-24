@@ -720,7 +720,8 @@ namespace BidscubeSDK.Controllers
                 position: effectivePosition,
                 timeoutMs: 30000,
                 debug: true,
-                ctaText: "Learn More"
+                ctaText: "Learn More",
+                userId: BidscubeSDK.GetUserId()
             );
         }
 

@@ -1,6 +1,8 @@
 # Bidscube Unity SDK Integration Guide
 
-This guide covers the **core** Unity package `com.bidscube.sdk` (direct Bidscube API). It does **not** cover AppLovin MAX, LevelPlay, or IronSource mediation adapters — use those vendors’ adapter packages separately.
+This guide covers the **core** Unity package `com.bidscube.sdk` (direct Bidscube API, v1.2.15).
+
+This package is the core `com.bidscube.sdk` Unity SDK. AppLovin MAX and LevelPlay adapters are separate packages/repositories. This core package should not include AppLovin/LevelPlay AARs or adapter code.
 
 It explains how to integrate the Bidscube Unity SDK into your Unity project and start showing ads.
 
@@ -37,7 +39,7 @@ The Bidscube Unity SDK can be installed in two ways:
 2. Click the `+` button in the top-left corner
 3. Select `Add package from git URL...`
 4. Enter the repository URL: `https://github.com/Bidscube/bidscube-sdk-unity.git`
-5. Optionally, specify a version tag (recommended for production): `https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.14`
+5. Optionally, specify a version tag (recommended for production): `https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.15`
 6. Click `Add`
 7. The SDK will be added as a package dependency
 
@@ -46,7 +48,7 @@ The Bidscube Unity SDK can be installed in two ways:
 ```json
 {
   "dependencies": {
-    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.14"
+    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.15"
   }
 }
 ```
@@ -90,10 +92,14 @@ public class GameManager : MonoBehaviour
             .DefaultAdTimeout(30000)                  // 30 second timeout
             .DefaultAdPosition(AdPosition.Unknown)    // Default position (centered)
             .BaseURL("https://ssp-bcc-ads.com/sdk")  // Base URL for ad requests
+            .UserId("your-app-user-id")              // Sent as user_id for SSP postbacks
             .Build();
 
         // Initialize with configuration
         BidscubeSDK.BidscubeSDK.Initialize(config);
+
+        // Optional: update after login
+        // BidscubeSDK.BidscubeSDK.SetUserId(loggedInUserId);
     }
 }
 ```
@@ -122,6 +128,7 @@ The `SDKConfig` class allows you to configure various aspects of the SDK:
 | `DefaultAdTimeout` | `int` | `30000` | Default ad loading timeout in milliseconds |
 | `DefaultAdPosition` | `AdPosition` | `Unknown` | Default ad position (centered) |
 | `BaseURL` | `string` | `https://ssp-bcc-ads.com/sdk` | Base URL for ad requests |
+| `UserId` | `string` | `null` | Integrator user id; sent as query `user_id` on every ad request for SSP postbacks. Can also be set/updated via `BidscubeSDK.SetUserId(...)` after init. |
 
 ### Configuration Builder Pattern
 
@@ -215,14 +222,17 @@ BidscubeSDK.BidscubeSDK.ShowRewardedVideoAd("rewarded-placement-id", new MyAdCal
 
 `OnUserRewarded` is **not** called for interstitial video, skip, close-before-complete, load/playback failure, or destroy.
 
-#### Skippable interstitial
+#### Skippable interstitial (legacy compatibility only)
+
+`ShowSkippableVideoAd(placementId, skipButtonText, callback)` is a legacy compatibility alias for interstitial video. `skipButtonText` is currently ignored. Prefer `ShowInterstitialVideoAd(...)` for new integrations.
 
 ```csharp
+// Legacy — prefer ShowInterstitialVideoAd instead
 BidscubeSDK.BidscubeSDK.ShowSkippableVideoAd(
     "your-placement-id",
     "Skip Ad",
     new MyAdCallback()
-); // alias for ShowInterstitialVideoAd
+);
 ```
 
 #### Get video view GameObjects
@@ -241,7 +251,7 @@ On **Android LiteNoVideo** builds (`BIDSCUBE_ANDROID_LITE_NO_VIDEO`), direct SDK
 
 #### OpenRTB 2.6-style podded video (response parsing)
 
-The Unity SDK supports **response-side** OpenRTB 2.6 / OpenRTB-like **podded video** parsing. This is **not** a full OpenRTB bid-request client — the legacy **GET** request flow via `URLBuilder` is unchanged.
+The Unity SDK supports **response-side** OpenRTB 2.6 / OpenRTB-like **podded video** parsing. OpenRTB 2.6 support is response-side podded video parsing only. The SDK still uses the legacy GET ad request flow through `URLBuilder`. `OpenRtbBidRequestBuilder` is a placeholder. Full OpenRTB POST bid requests are not implemented.
 
 **Supported response shapes:** raw VAST XML, root JSON `adm`, `openrtb.video` / `openRtb.video` / root `video`, `bids[]`, `seatbid[].bid[]`, bid-level `ext`.
 
@@ -260,6 +270,7 @@ BidscubeSDK.BidscubeSDK.Initialize(config);
 
 - `OnVideoAdCompleted` / `OnUserRewarded` fire once after the **entire pod** completes.
 - Skip/close during a pod stops remaining slots.
+- `VideoPodShowCounter(true)` shows a lightweight pod slot counter overlay during sequential pod playback when supported by `VideoAdView`.
 - OpenRTB podded direct video requires a build where direct Unity video is enabled (not Android LiteNoVideo).
 
 ### Native Ads

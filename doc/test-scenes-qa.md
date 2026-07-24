@@ -40,9 +40,9 @@ Navigation: `SceneManager.cs` — `SceneType` enum + serialized scene names.
 - Dropdown: UNKNOWN, ABOVE_THE_FOLD, … FULL_SCREEN
 - Re-show ad to apply
 
-### Local VAST QA (v1.2.13+)
+### Local VAST QA
 
-**Без backend** — hardcoded XML у `SDKTestScene.cs`.
+Introduced in 1.2.13; current behavior in 1.2.15 remains the same. **Без backend** — hardcoded XML у `SDKTestScene.cs`.
 
 | Case | Placement ID | Button |
 |------|--------------|--------|
@@ -133,7 +133,9 @@ Demonstrates `IAdRenderOverride` — app takes over adm rendering.
 - [ ] Manual position override works
 - [ ] Clear All Ads destroys hierarchies
 
-### Video end card (1.2.13+)
+### Video end card
+
+End card behavior, introduced in 1.2.13 and still current in 1.2.15.
 
 - [ ] VAST no preview: end card after complete/skip, fallback frame
 - [ ] VAST with preview: companion image on end card
@@ -161,3 +163,51 @@ Demonstrates `IAdRenderOverride` — app takes over adm rendering.
 4. Play Mode → Initialize → test
 
 For device builds: use same scenes or integrate API into host app test harness.
+
+---
+
+## OpenRTB pod QA (1.2.14+)
+
+Потрібен backend або mock з OpenRTB pod response (2+ slots). Placement ID — з вашого SSP test setup.
+
+### Checklist — pod playback
+
+- [ ] OpenRTB `bids[]` з 2 slots: slot 1 грає, потім slot 2
+- [ ] Shows a lightweight pod slot counter overlay during sequential pod playback when `VideoPodShowCounter=true` (e.g. `1/2`, `2/2`)
+- [ ] `OnAdLoaded` один раз (перший slot)
+- [ ] `OnVideoAdCompleted` один раз (після останнього slot)
+- [ ] Rewarded pod: `OnUserRewarded` тільки після останнього slot complete
+- [ ] Skip/close на slot 1: slot 2 **не** грає
+- [ ] Raw VAST (local QA) все ще працює — не зламано pod path
+- [ ] Root JSON `adm` VAST — single slot, працює
+
+### Checklist — URL handling
+
+- [ ] VAST ad tag URL (`https://.../vast?...`) — fetch first, **не** direct `VideoPlayer.url`
+- [ ] Direct `.mp4` URL — грає через `VideoPlayer`
+- [ ] VAST ad tag повертає JSON з 2 slots — обидва slots грають (nested plan)
+- [ ] Redirect chain > 5 — fail gracefully (`OnAdFailed`)
+
+### Checklist — config
+
+- [ ] `OpenRtbPodMetadataEnabled(false)` — `bids[]` ignored, root `adm` still works
+- [ ] `VideoPodSkipPolicy.FailEntirePod` — slot error stops pod
+- [ ] Strict hybrid: fixed slots > poddur → no playback / fail
+
+### Checklist — Android
+
+- [ ] LiteNoVideo: video API → error 1006 (pod included)
+- [ ] FullWithVideo: pod plays on device
+
+Деталі OpenRTB: [openrtb.md](openrtb.md). Unit tests: [editmode-tests.md](editmode-tests.md).
+
+---
+
+## EditMode unit tests
+
+```bash
+# У host Unity project (не в package-only repo):
+Unity -batchmode -projectPath . -runTests -testPlatform EditMode -testResults test-results.xml -quit
+```
+
+Див. [editmode-tests.md](editmode-tests.md) для повної матриці.
