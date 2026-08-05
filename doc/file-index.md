@@ -61,7 +61,8 @@
 | `Core/AdType.cs` | Image, Video, Native |
 | `Core/AdPosition.cs` | Position enum |
 | `Core/VideoAdFormat.cs` | Interstitial, Rewarded |
-| `Core/VASTParser.cs` | VAST 2/3/4 XML parser + tracking |
+| `Core/VASTParser.cs` | VAST 2/3/4 XML parser + Companion (HTML/IFrame/Static) + tracking |
+| `Core/VideoSessionEndPolicy.cs` | `AutoClose` / Companion post-video action policy |
 | `Core/IMAVideoPlayer.cs` | IMA JNI wrapper (disabled path) |
 | `Core/IVideoPlayerEventListener.cs` | Unified video events for IMA bridge |
 | `Core/AdResponse.cs` | JSON response DTOs |

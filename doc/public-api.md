@@ -163,7 +163,7 @@ public enum AdType { Image, Video, Native }
 | `DefaultAdPosition` | `AdPosition.Unknown` |
 | `BaseURL` | `https://ssp-bcc-ads.com/sdk` |
 | `UserAgentPrefix` | `"BidscubeSDK"` |
-| `SdkVersion` | `"1.2.15"` (sync with `package.json`) |
+| `SdkVersion` | `"1.2.17"` (sync with `package.json`) |
 
 ### Error codes
 

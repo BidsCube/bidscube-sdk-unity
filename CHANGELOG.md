@@ -2,6 +2,20 @@
 
 ---
 
+## [1.2.17] - 2026-08-05
+
+### Added
+
+- **`SDKConfig.AutoClose` (default `false`):** when `true`, fullscreen video auto-dismisses after complete/skip (no end card). When `false`, show VAST Companion end card (HTML &gt; IFrame &gt; Static via WebView/image) or keep last frame / post-video content until manual close. Centralized `CloseAdSession` fires `OnAdClosed` once.
+- **VAST Companion:** `HTMLResource`, `IFrameResource`, `StaticResource`, click/view tracking; priority HTML → IFrame → Static.
+- **EditMode tests:** `VideoAutoCloseTests` (config defaults, session-end policy, Companion parse priority).
+
+### Changed
+
+- **Default skip delay:** when VAST has no `skipoffset`, skip button becomes active after **15** seconds (was 5). Explicit VAST `skipoffset` still wins.
+
+---
+
 ## [1.2.16] - 2026-07-24
 
 ### Added

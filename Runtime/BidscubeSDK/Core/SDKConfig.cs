@@ -45,6 +45,11 @@ namespace BidscubeSDK
         /// Integrator-provided user id sent on ad requests as <c>user_id</c> for server postbacks.
         /// </summary>
         public string UserId { get; private set; }
+        /// <summary>
+        /// When true, fullscreen video closes automatically after complete/skip (no end card / last frame).
+        /// Default false: keep end card or last frame until the user closes manually.
+        /// </summary>
+        public bool AutoClose { get; private set; }
 
         private SDKConfig(
             bool enableLogging,
@@ -59,7 +64,8 @@ namespace BidscubeSDK
             OpenRtbPodSkipPolicy videoPodSkipPolicy,
             bool videoPodContinueOnSlotError,
             bool videoPodShowCounter,
-            string userId)
+            string userId,
+            bool autoClose)
         {
             EnableLogging = enableLogging;
             EnableDebugMode = enableDebugMode;
@@ -74,6 +80,7 @@ namespace BidscubeSDK
             VideoPodContinueOnSlotError = videoPodContinueOnSlotError;
             VideoPodShowCounter = videoPodShowCounter;
             UserId = userId;
+            AutoClose = autoClose;
         }
 
         /// <summary>
@@ -95,6 +102,7 @@ namespace BidscubeSDK
             private bool _videoPodContinueOnSlotError = true;
             private bool _videoPodShowCounter = true;
             private string _userId = null;
+            private bool _autoClose = false;
 
             public Builder() { }
 
@@ -214,6 +222,16 @@ namespace BidscubeSDK
             }
 
             /// <summary>
+            /// When true, fullscreen video auto-dismisses after complete/skip without showing end card.
+            /// Default is false.
+            /// </summary>
+            public Builder AutoClose(bool value)
+            {
+                _autoClose = value;
+                return this;
+            }
+
+            /// <summary>
             /// Build SDK configuration
             /// </summary>
             /// <returns>SDK configuration</returns>
@@ -232,7 +250,8 @@ namespace BidscubeSDK
                     _videoPodSkipPolicy,
                     _videoPodContinueOnSlotError,
                     _videoPodShowCounter,
-                    _userId
+                    _userId,
+                    _autoClose
                 );
             }
         }

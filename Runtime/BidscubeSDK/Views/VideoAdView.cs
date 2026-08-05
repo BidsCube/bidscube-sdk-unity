@@ -46,7 +46,10 @@ namespace BidscubeSDK
         private bool _hasRewarded;
         private bool _isDestroying;
         private bool _endCardShown;
-        private float _skipTime = 5.0f; // Skip button appears after 5 seconds
+        private bool _companionViewTracked;
+        private bool _awaitingManualClose;
+        private WebViewObject _companionWebView;
+        private float _skipTime = 15.0f; // Default skip delay when VAST has no skipoffset
 
         // VAST data
         private VASTParser.VASTData _vastData;
@@ -391,6 +394,8 @@ namespace BidscubeSDK
             _hasRewarded = false;
             _isDestroying = false;
             _endCardShown = false;
+            _companionViewTracked = false;
+            _awaitingManualClose = false;
             _isSkippable = false;
             _hasFiredStart = false;
             _hasFiredFirstQuartile = false;
@@ -410,7 +415,7 @@ namespace BidscubeSDK
             _hasFiredThirdQuartile = false;
             _hasFiredComplete = false;
             _isSkippable = false;
-            _skipTime = 5.0f;
+            _skipTime = 15.0f;
 
             if (_skipButtonCoroutine != null)
             {
@@ -433,7 +438,7 @@ namespace BidscubeSDK
 
         private void ResetEndCardState()
         {
-            _skipTime = 5.0f;
+            _skipTime = 15.0f;
             _endCardShown = false;
             if (_endCardRoot != null)
                 _endCardRoot.SetActive(false);
@@ -545,19 +550,229 @@ namespace BidscubeSDK
                 return;
 
             NotifyCompleted();
-            if (_videoAdFormat == VideoAdFormat.Rewarded)
+            if (VideoSessionEndPolicy.ShouldGrantReward(_videoAdFormat, completedNaturally: true, wasSkipped: false, alreadyRewarded: _hasRewarded))
                 NotifyRewardedIfNeeded();
-            ShowEndCard();
+
+            PresentPostVideoUi(fromSkip: false);
         }
 
         private void HandleUserDismissBeforeComplete()
         {
-            if (!_hasCompleted && !_hasSkipped)
+            if (_hasCompleted || _hasSkipped || _isDestroying)
+                return;
+
+            _isPlayingPod = false;
+            NotifySkipped();
+            PresentPostVideoUi(fromSkip: true);
+        }
+
+        private bool IsAutoCloseEnabled()
+        {
+            return BidscubeSDK.GetConfiguration()?.AutoClose == true;
+        }
+
+        /// <summary>
+        /// After linear video complete/skip: auto-close or show companion / last frame.
+        /// Does not call OnAdClosed when autoClose=false.
+        /// </summary>
+        private void PresentPostVideoUi(bool fromSkip)
+        {
+            if (_isDestroying || _hasClosed)
+                return;
+
+            var action = VideoSessionEndPolicy.Resolve(IsAutoCloseEnabled(), _vastData != null && _vastData.HasCompanion);
+            Logger.Info($"[VideoAdView] Post-video action={action}, fromSkip={fromSkip}, autoClose={IsAutoCloseEnabled()}");
+
+            switch (action)
             {
-                _isPlayingPod = false;
-                NotifySkipped();
-                ShowEndCard();
+                case VideoSessionEndAction.AutoClose:
+                    CloseAdSession(treatIncompleteAsSkip: false);
+                    break;
+                case VideoSessionEndAction.ShowCompanionEndCard:
+                    ShowCompanionEndCard();
+                    break;
+                default:
+                    KeepLastFrameOrPostVideoContent();
+                    break;
             }
+        }
+
+        /// <summary>
+        /// Centralized dismiss path: release player, clear overlays/end card, close fullscreen, fire OnAdClosed once.
+        /// </summary>
+        private void CloseAdSession(bool treatIncompleteAsSkip)
+        {
+            if (_hasClosed || _isDestroying)
+                return;
+
+            if (treatIncompleteAsSkip && !_hasCompleted && !_hasSkipped)
+                NotifySkipped();
+
+            _awaitingManualClose = false;
+            DestroyCompanionWebView();
+            NotifyClosed();
+            DismissVideoAdHierarchy();
+        }
+
+        private void KeepLastFrameOrPostVideoContent()
+        {
+            // Leave VideoPlayer (last frame / mini-game / post-video surface) until manual close.
+            _awaitingManualClose = true;
+            SetupUI();
+
+            if (_videoPlayer != null && _videoPlayer.isPlaying)
+                _videoPlayer.Pause();
+
+            if (_skipButton != null)
+                _skipButton.gameObject.SetActive(false);
+
+            if (_endCardRoot != null)
+                _endCardRoot.SetActive(false);
+
+            if (_closeButton != null)
+            {
+                _closeButton.gameObject.SetActive(true);
+                _closeButton.transform.SetAsLastSibling();
+            }
+        }
+
+        private void ShowCompanionEndCard()
+        {
+            if (_endCardShown || _isDestroying)
+                return;
+
+            SetupUI();
+            _endCardShown = true;
+            _awaitingManualClose = true;
+
+            // Companion replaces the linear player session — release VideoPlayer resources.
+            if (_videoPlayer != null)
+            {
+                if (_videoPlayer.isPlaying)
+                    _videoPlayer.Pause();
+                ReleaseVideoPlayerResources();
+            }
+
+            if (_skipButton != null)
+                _skipButton.gameObject.SetActive(false);
+
+            FireCompanionViewTrackingOnce();
+
+            var type = _vastData?.companionResourceType ?? VASTParser.VastCompanionResourceType.None;
+            if (type == VASTParser.VastCompanionResourceType.Html
+                || type == VASTParser.VastCompanionResourceType.IFrame)
+            {
+                ShowCompanionWebView(_vastData.companionResource, type == VASTParser.VastCompanionResourceType.Html);
+            }
+            else
+            {
+                ShowStaticCompanionEndCard();
+            }
+
+            if (_closeButton != null)
+            {
+                _closeButton.gameObject.SetActive(true);
+                _closeButton.transform.SetAsLastSibling();
+            }
+        }
+
+        private void ShowStaticCompanionEndCard()
+        {
+            if (_endCardRoot == null)
+                return;
+
+            _endCardRoot.SetActive(true);
+            _endCardRoot.transform.SetAsLastSibling();
+
+            var clickUrl = !string.IsNullOrEmpty(_vastData?.previewClickThroughUrl)
+                ? _vastData.previewClickThroughUrl
+                : _vastData?.clickThroughUrl;
+
+            if (_endCardCtaButton != null)
+                _endCardCtaButton.gameObject.SetActive(!string.IsNullOrEmpty(clickUrl));
+            if (_endCardPreviewButton != null)
+                _endCardPreviewButton.interactable = !string.IsNullOrEmpty(clickUrl);
+            if (_endCardCtaText != null)
+                _endCardCtaText.text = !string.IsNullOrEmpty(clickUrl) ? "Learn More" : "Preview";
+
+            var imageUrl = !string.IsNullOrEmpty(_vastData?.companionResource)
+                ? _vastData.companionResource
+                : _vastData?.previewImageUrl;
+
+            if (!string.IsNullOrEmpty(imageUrl))
+                StartCoroutine(LoadEndCardPreview(imageUrl));
+            else if (_endCardPreview != null)
+            {
+                _endCardPreview.texture = _videoTexture != null ? _videoTexture.texture : null;
+                _endCardPreview.color = _endCardPreview.texture != null ? Color.white : new Color(1f, 1f, 1f, 0f);
+            }
+        }
+
+        private void ShowCompanionWebView(string resource, bool isHtml)
+        {
+            if (_endCardRoot != null)
+                _endCardRoot.SetActive(false);
+
+            DestroyCompanionWebView();
+
+            var host = new GameObject("CompanionWebView");
+            host.transform.SetParent(transform, false);
+            _companionWebView = host.AddComponent<WebViewObject>();
+            _companionWebView.Init(
+                cb: null,
+                err: msg => Logger.InfoError($"[VideoAdView] Companion WebView error: {msg}"),
+                httpErr: msg => Logger.InfoError($"[VideoAdView] Companion WebView HTTP error: {msg}"),
+                ld: null,
+                started: null,
+                hooked: null,
+                cookies: null,
+                transparent: false);
+            _companionWebView.SetMargins(0, 0, 0, 0);
+            _companionWebView.SetVisibility(true);
+
+            if (isHtml)
+            {
+                var html = resource.TrimStart().StartsWith("<", StringComparison.Ordinal)
+                    ? resource
+                    : $"<html><body style=\"margin:0\">{resource}</body></html>";
+                if (!html.TrimStart().StartsWith("<!DOCTYPE", StringComparison.OrdinalIgnoreCase)
+                    && !html.TrimStart().StartsWith("<html", StringComparison.OrdinalIgnoreCase))
+                {
+                    html = $"<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/></head><body style=\"margin:0\">{html}</body></html>";
+                }
+                _companionWebView.LoadHTML(html, "");
+            }
+            else
+            {
+                _companionWebView.LoadURL(resource);
+            }
+        }
+
+        private void DestroyCompanionWebView()
+        {
+            if (_companionWebView == null)
+                return;
+
+            try
+            {
+                _companionWebView.SetVisibility(false);
+            }
+            catch
+            {
+                // ignore teardown errors
+            }
+
+            if (_companionWebView.gameObject != null)
+                Destroy(_companionWebView.gameObject);
+            _companionWebView = null;
+        }
+
+        private void FireCompanionViewTrackingOnce()
+        {
+            if (_companionViewTracked || _vastData == null)
+                return;
+            _companionViewTracked = true;
+            VASTParser.FireTrackingUrls(_vastData.companionViewTrackingUrls);
         }
 
         private bool TryAdvanceToNextPlaybackSlot()
@@ -1356,7 +1571,7 @@ namespace BidscubeSDK
 
         private void OnSkipClicked()
         {
-            if (!_isSkippable || _isDestroying)
+            if (!_isSkippable || _isDestroying || _hasClosed)
                 return;
 
             if (_vastData != null)
@@ -1364,7 +1579,7 @@ namespace BidscubeSDK
 
             _isPlayingPod = false;
             NotifySkipped();
-            ShowEndCard();
+            PresentPostVideoUi(fromSkip: true);
         }
 
         private void OnVideoClicked()
@@ -1393,6 +1608,9 @@ namespace BidscubeSDK
             if (string.IsNullOrEmpty(clickUrl))
                 return;
 
+            if (_vastData.companionClickTrackingUrls != null && _vastData.companionClickTrackingUrls.Count > 0)
+                VASTParser.FireTrackingUrls(_vastData.companionClickTrackingUrls);
+
             Logger.Info($"[VideoAdView] Opening end-card click-through URL: {clickUrl}");
             Application.OpenURL(clickUrl);
             _callback?.OnAdClicked(_placementId);
@@ -1400,62 +1618,17 @@ namespace BidscubeSDK
 
         private void OnCloseClicked()
         {
-            if (_isDestroying)
+            if (_isDestroying || _hasClosed)
                 return;
 
-            if (!_hasCompleted && !_hasSkipped)
-                NotifySkipped();
-
             _isPlayingPod = false;
-            NotifyClosed();
-            DismissVideoAdHierarchy();
+            CloseAdSession(treatIncompleteAsSkip: true);
         }
 
         private void ShowEndCard()
         {
-            if (_endCardShown || _isDestroying)
-                return;
-
-            SetupUI();
-            _endCardShown = true;
-
-            if (_videoPlayer != null && _videoPlayer.isPlaying)
-                _videoPlayer.Pause();
-
-            if (_skipButton != null)
-                _skipButton.gameObject.SetActive(false);
-
-            if (_endCardRoot == null)
-                return;
-
-            _endCardRoot.SetActive(true);
-            _endCardRoot.transform.SetAsLastSibling();
-
-            var clickUrl = !string.IsNullOrEmpty(_vastData?.previewClickThroughUrl)
-                ? _vastData.previewClickThroughUrl
-                : _vastData?.clickThroughUrl;
-
-            if (_endCardCtaButton != null)
-                _endCardCtaButton.gameObject.SetActive(!string.IsNullOrEmpty(clickUrl));
-            if (_endCardPreviewButton != null)
-                _endCardPreviewButton.interactable = !string.IsNullOrEmpty(clickUrl);
-            if (_endCardCtaText != null)
-                _endCardCtaText.text = !string.IsNullOrEmpty(clickUrl) ? "Learn More" : "Preview";
-
-            if (!string.IsNullOrEmpty(_vastData?.previewImageUrl))
-            {
-                StartCoroutine(LoadEndCardPreview(_vastData.previewImageUrl));
-            }
-            else if (_endCardPreview != null)
-            {
-                // Keep the current fallback behavior as-is when preview is missing:
-                // reuse the current rendered video surface / last frame if available.
-                _endCardPreview.texture = _videoTexture != null ? _videoTexture.texture : null;
-                _endCardPreview.color = _endCardPreview.texture != null ? Color.white : new Color(1f, 1f, 1f, 0f);
-            }
-
-            if (_closeButton != null)
-                _closeButton.transform.SetAsLastSibling();
+            // Legacy entry point — route through post-video policy.
+            PresentPostVideoUi(fromSkip: _hasSkipped && !_hasCompleted);
         }
 
         private IEnumerator LoadEndCardPreview(string previewUrl)
@@ -1552,7 +1725,7 @@ namespace BidscubeSDK
         /// </summary>
         public void Destroy()
         {
-            DismissVideoAdHierarchy();
+            CloseAdSession(treatIncompleteAsSkip: !_hasCompleted && !_hasSkipped);
         }
 
         void DismissVideoAdHierarchy()
@@ -1560,6 +1733,7 @@ namespace BidscubeSDK
             if (_isDestroying)
                 return;
             _isDestroying = true;
+            DestroyCompanionWebView();
             ReleaseVideoPlayerResources();
 
             var controller = GetComponentInParent<AdViewController>();
@@ -1578,7 +1752,14 @@ namespace BidscubeSDK
             _videoPlayer.started -= OnVideoStarted;
             _videoPlayer.loopPointReached -= OnVideoCompleted;
             _videoPlayer.errorReceived -= OnVideoError;
-            _videoPlayer.Stop();
+            try
+            {
+                _videoPlayer.Stop();
+            }
+            catch
+            {
+                // ignore
+            }
             var rt = _videoPlayer.targetTexture;
             _videoPlayer.targetTexture = null;
             if (rt != null)
@@ -1590,8 +1771,18 @@ namespace BidscubeSDK
 
         private void OnDestroy()
         {
+            if (_companionWebView != null)
+            {
+                DestroyCompanionWebView();
+            }
+
             if (_isDestroying)
+            {
+                if (!_hasClosed)
+                    NotifyClosed();
                 return;
+            }
+
             _isDestroying = true;
             ReleaseVideoPlayerResources();
 

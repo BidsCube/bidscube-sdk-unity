@@ -35,6 +35,7 @@ BidscubeSDK.Initialize(config);
 | `AdSizeSettings` | `AdSizeSettings(asset)` | `null` |
 | `DisableInitialization` | `DisableInitialization(bool)` | `false` |
 | `UserId` | `UserId(string)` | `null` — integrator user id; sent as query `user_id` on ad requests for SSP postbacks |
+| `AutoClose` | `AutoClose(bool)` | `false` — when `true`, fullscreen video dismisses after complete/skip (no end card / last frame). When `false`, show Companion end card or keep last frame until manual close |
 
 Also after init:
 
@@ -44,6 +45,17 @@ BidscubeSDK.GetUserId();             // current value (or null)
 ```
 
 Empty/null `user_id` is omitted from the request URL.
+
+### `AutoClose` behavior
+
+| `AutoClose` | After video complete / skip |
+|-------------|-----------------------------|
+| `true` | Auto-dismiss fullscreen; release player; no end card; `OnAdClosed` once |
+| `false` (default) | No auto-dismiss; Companion end card (HTML &gt; IFrame &gt; Static) or last frame / post-video content kept; manual close button; `OnAdClosed` only on manual/system close |
+
+Reward for `ShowRewardedVideoAd` is granted only after natural complete (never on skip), regardless of `AutoClose`.
+
+Wrappers / mediation adapters should pass `autoClose` into `SDKConfig.Builder().AutoClose(...)`; the core SDK owns fullscreen lifecycle.
 
 ### OpenRTB pod video settings
 

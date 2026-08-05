@@ -1,6 +1,6 @@
 # Bidscube Unity SDK Integration Guide
 
-This guide covers the **core** Unity package `com.bidscube.sdk` (direct Bidscube API, v1.2.15).
+This guide covers the **core** Unity package `com.bidscube.sdk` (direct Bidscube API, v1.2.17).
 
 This package is the core `com.bidscube.sdk` Unity SDK. AppLovin MAX and LevelPlay adapters are separate packages/repositories. This core package should not include AppLovin/LevelPlay AARs or adapter code.
 
@@ -39,7 +39,7 @@ The Bidscube Unity SDK can be installed in two ways:
 2. Click the `+` button in the top-left corner
 3. Select `Add package from git URL...`
 4. Enter the repository URL: `https://github.com/Bidscube/bidscube-sdk-unity.git`
-5. Optionally, specify a version tag (recommended for production): `https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.15`
+5. Optionally, specify a version tag (recommended for production): `https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.17`
 6. Click `Add`
 7. The SDK will be added as a package dependency
 
@@ -48,7 +48,7 @@ The Bidscube Unity SDK can be installed in two ways:
 ```json
 {
   "dependencies": {
-    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.15"
+    "com.bidscube.sdk": "https://github.com/Bidscube/bidscube-sdk-unity.git#v1.2.17"
   }
 }
 ```
@@ -93,6 +93,7 @@ public class GameManager : MonoBehaviour
             .DefaultAdPosition(AdPosition.Unknown)    // Default position (centered)
             .BaseURL("https://ssp-bcc-ads.com/sdk")  // Base URL for ad requests
             .UserId("your-app-user-id")              // Sent as user_id for SSP postbacks
+            .AutoClose(false)                        // Keep end card / last frame until user closes
             .Build();
 
         // Initialize with configuration
@@ -129,6 +130,7 @@ The `SDKConfig` class allows you to configure various aspects of the SDK:
 | `DefaultAdPosition` | `AdPosition` | `Unknown` | Default ad position (centered) |
 | `BaseURL` | `string` | `https://ssp-bcc-ads.com/sdk` | Base URL for ad requests |
 | `UserId` | `string` | `null` | Integrator user id; sent as query `user_id` on every ad request for SSP postbacks. Can also be set/updated via `BidscubeSDK.SetUserId(...)` after init. |
+| `AutoClose` | `bool` | `false` | When `true`, fullscreen video closes after complete/skip (no end card). When `false`, Companion end card or last frame stays until manual close. Pass from mediation wrappers into core `SDKConfig`. |
 
 ### Configuration Builder Pattern
 

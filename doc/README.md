@@ -2,7 +2,7 @@
 
 > **Аудиторія:** команда BidsCube (розробка, QA, інтеграція, support).  
 > **Пакет:** `com.bidscube.sdk`  
-> **Поточна версія:** **1.2.15** — див. [`package.json`](../package.json), [`CHANGELOG.md`](../CHANGELOG.md).  
+> **Поточна версія:** **1.2.17** — див. [`package.json`](../package.json), [`CHANGELOG.md`](../CHANGELOG.md).  
 > **Публічна документація:** [`README.md`](../README.md), [`INTEGRATION.md`](../INTEGRATION.md).
 
 Ця папка — **повний внутрішній довідник** по core SDK (`bidscube-sdk-unity`).
@@ -114,15 +114,16 @@ This package is the core `com.bidscube.sdk` Unity SDK. AppLovin MAX and LevelPla
 
 ---
 
-## Версійні highlights (1.2.15)
+## Версійні highlights (1.2.17)
 
+- `AutoClose` + Companion HTML/IFrame/Static; default skip 15s
 - Integrator `user_id` on ad requests (`SDKConfig.UserId` / `SetUserId`) for SSP postbacks
 - OpenRTB 2.6 **response-side** podded video
 - Sequential `VideoPlayer` playback (structured / dynamic / hybrid pods)
 - VAST ad tag URL fetch, nested JSON multi-slot plans
 - Redirect depth cap (5), strict hybrid budget, JSON trailing garbage guard
 - EditMode tests у `Tests/EditMode/`
-- `SdkVersion` synced → `1.2.15`
+- `SdkVersion` synced → `1.2.17`
 
 Повна історія: [`CHANGELOG.md`](../CHANGELOG.md).
 

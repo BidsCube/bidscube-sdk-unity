@@ -24,7 +24,7 @@ SDK вирівняний з **iOS SDK** за форматом ad request URL і 
 ```json
 {
   "name": "com.bidscube.sdk",
-  "version": "1.2.15",
+  "version": "1.2.17",
   "unity": "2020.3",
   "dependencies": {
     "com.unity.ugui": "2.0.0",
@@ -36,7 +36,7 @@ SDK вирівняний з **iOS SDK** за форматом ad request URL і 
 **Pin для production:**
 
 ```json
-"com.bidscube.sdk": "https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.15"
+"com.bidscube.sdk": "https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.17"
 ```
 
 ## Структура репозиторію

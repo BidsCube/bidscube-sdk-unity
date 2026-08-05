@@ -65,6 +65,7 @@ Unity -batchmode \
 | `OpenRtbPoddedResponseNormalizerTests` | `bids[]`, `seatbid`, multi-pod → first sorted podid |
 | `PoddedPlaybackPlanBuilderTests` | Dynamic budget, hybrid order, strict hybrid fail, structured sort |
 | `VideoAdPayloadResolverTests` | Raw VAST, root adm, bids pod, metadata disabled, mp4 vs ad tag URL, rqdDurs fallback |
+| `VideoAutoCloseTests` | AutoClose config, session-end policy, Companion HTML/IFrame/Static priority |
 | `VastAdSequenceParserTests` | Multi-`<Ad>` split, sequence, duration parse |
 | `VastAdTagJsonPlanLoaderTests` | Multi-slot JSON → `FullPlan`; single → `SingleSlot` |
 | `OpenRtbVideoUrlHelperTests` | `.mp4` direct; ad tag URL; redirect depth > 5 |
@@ -88,7 +89,7 @@ var json = @"{ ""bids"": [ { ""adm"": """ + JsonEscape(Vast1) + @""" } ] }";
 ## CI integration (рекомендація)
 
 1. Створити minimal Unity test project у CI (або використати існуючий harness repo)
-2. Додати `com.bidscube.sdk` via Git URL `#v1.2.15`
+2. Додати `com.bidscube.sdk` via Git URL `#v1.2.17`
 3. Запускати EditMode batchmode на кожен PR / tag
 4. Артефакт: `test-results.xml` (JUnit-compatible)
 

@@ -1,6 +1,6 @@
 # Bidscube Unity SDK
 
-The Bidscube Unity SDK (`com.bidscube.sdk`, v1.2.15) provides a comprehensive advertising solution for Unity games, supporting image ads, video ads, native ads, and banner ads.
+The Bidscube Unity SDK (`com.bidscube.sdk`, v1.2.17) provides a comprehensive advertising solution for Unity games, supporting image ads, video ads, native ads, and banner ads.
 
 This package is the core `com.bidscube.sdk` Unity SDK. AppLovin MAX and LevelPlay adapters are separate packages/repositories. This core package should not include AppLovin/LevelPlay AARs or adapter code.
 

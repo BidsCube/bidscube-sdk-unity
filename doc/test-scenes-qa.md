@@ -58,7 +58,7 @@ Alternative: ввести placement ID в input → **Video Ads**.
 - Doordash burger MP4 (~13s)
 - No Companion / StaticResource
 - End card: last video frame fallback
-- Skip after default 5s countdown
+- Skip after default 15s countdown (unless VAST sets `skipoffset`)
 - No crash
 
 #### Case 2 — with preview
@@ -133,9 +133,19 @@ Demonstrates `IAdRenderOverride` — app takes over adm rendering.
 - [ ] Manual position override works
 - [ ] Clear All Ads destroys hierarchies
 
-### Video end card
+### Video end card / AutoClose
 
-End card behavior, introduced in 1.2.13 and still current in 1.2.15.
+- [ ] `AutoClose=false` (default): complete → Companion or last frame; no `OnAdClosed` until Close
+- [ ] `AutoClose=true`: complete/skip → auto close; no end card; `OnAdClosed` once
+- [ ] Static Companion end card + click / view tracking
+- [ ] HTML / IFrame Companion via WebView
+- [ ] No Companion: last frame remains visible on device (not only unit test)
+- [ ] Skip does not grant reward
+- [ ] Rewarded complete grants reward once; close does not duplicate reward/complete/close callbacks
+
+### Video end card (historical, 1.2.13+)
+
+End card behavior, introduced in 1.2.13; extended by `AutoClose` / multi-type Companion.
 
 - [ ] VAST no preview: end card after complete/skip, fallback frame
 - [ ] VAST with preview: companion image on end card

@@ -126,7 +126,7 @@ videoAdView.LoadVideoAdFromVastXml(vastXmlString);
 
 ## Skip flow
 
-1. Default `_skipTime = 5.0f` або VAST `skipOffset`
+1. Default `_skipTime = 15.0f` або VAST `skipOffset` (якщо `> 0`)
 2. `EnableSkipButton` coroutine:
    - Показує skip button (disabled)
    - Countdown: `"Skip in N"` кожну секунду
@@ -139,43 +139,40 @@ videoAdView.LoadVideoAdFromVastXml(vastXmlString);
 
 ---
 
-## End card
+## End card / post-video UI (`AutoClose`)
 
-End card behavior, introduced in 1.2.13 and still current in 1.2.15.
+Controlled by `SDKConfig.AutoClose` (default **`false`**). Introduced with Companion HTML/IFrame support; see [configuration.md](configuration.md).
 
-Після **complete** або **skip**:
+### `autoClose=true`
 
-```
-ShowEndCard()
-  → pause video
-  → hide skip
-  → show EndCardRoot
-  → if previewImageUrl → LoadEndCardPreview (HTTP texture)
-  → else fallback: last video frame (RenderTexture)
-  → CTA "Learn More" if click URL exists
-  → Close on top (SetAsLastSibling)
-```
+After complete or skip:
 
-### Preview fallback rules
+- Automatically closes the fullscreen ad via centralized `CloseAdSession`
+- Releases `VideoPlayer`
+- Does **not** show Companion end card or last frame
+- Fires `OnAdClosed` exactly once
+- Rewarded: `OnUserRewarded` only after natural complete (before auto-close)
 
-| У VAST є companion image? | Поведінка |
-|---------------------------|-----------|
-| **Так** | Завантажити `StaticResource` URL на end card |
-| **Ні** | **Існуюча fallback логіка без змін** — last frame з RenderTexture; end card **все одно показується** |
-| Load fail | Fallback на last frame |
+### `autoClose=false` (default)
 
-### Click on end card
+After complete or skip:
 
-Priority URL:
+- Does **not** auto-close or fire `OnAdClosed`
+- If VAST has Companion → show end card (priority: **HTMLResource** → **IFrameResource** → **StaticResource**); player may be released and replaced by Companion WebView/image
+- If no Companion → keep last video frame (or other post-video / mini-game surface); do **not** release player until manual close
+- Manual close button remains available → `CloseAdSession` → `OnAdClosed` once
 
-1. `previewClickThroughUrl` (companion)
-2. `clickThroughUrl` (linear VideoClicks)
+### Companion support
 
-→ `Application.OpenURL` + `OnAdClicked`
+- `StaticResource`, `HTMLResource`, `IFrameResource`
+- `CompanionClickThrough`, `CompanionClickTracking`, view tracking (`creativeView`)
+- HTML/IFrame rendered via native `WebViewObject` overlay
 
-### Close on end card
+---
 
-→ `OnAdClosed` + `DismissVideoAdHierarchy()`
+## End card (legacy notes)
+
+End card / last-frame behavior above supersedes the earlier “always show end card overlay” flow. Static Companion preview and last-frame fallback remain supported when `AutoClose=false`.
 
 ---
 

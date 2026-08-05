@@ -6,7 +6,7 @@
 
 ## Constants.SdkVersion sync
 
-`Constants.SdkVersion` is currently synced with `package.json` at `1.2.15`.
+`Constants.SdkVersion` is currently synced with `package.json` at `1.2.17`.
 
 Keep this as a release checklist item:
 

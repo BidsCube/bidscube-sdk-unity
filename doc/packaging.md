@@ -11,7 +11,7 @@
 ```json
 {
   "dependencies": {
-    "com.bidscube.sdk": "https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.15"
+    "com.bidscube.sdk": "https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.17"
   }
 }
 ```
@@ -85,9 +85,9 @@ GitHub Release може прикріплювати `.unitypackage` вручну 
 Після tag:
 
 ```bash
-git tag v1.2.15
+git tag v1.2.17
 git push max master
-git push max v1.2.15
+git push max v1.2.17
 ```
 
 Див. [release-process.md](release-process.md).

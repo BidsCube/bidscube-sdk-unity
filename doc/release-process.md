@@ -7,7 +7,7 @@
 | What | Where |
 |------|-------|
 | Semver | `package.json` → `"version"` |
-| Git tag | `v` + semver (e.g. `v1.2.15`) |
+| Git tag | `v` + semver (e.g. `v1.2.17`) |
 | Changelog | `CHANGELOG.md` |
 | Public pin | `INTEGRATION.md` Git URL `#vX.Y.Z` |
 
@@ -55,21 +55,21 @@ git diff --stat
 
 git add -A
 git commit -m "$(cat <<'EOF'
-Release com.bidscube.sdk 1.2.15
+Release com.bidscube.sdk 1.2.17
 
 <short summary from CHANGELOG>
 EOF
 )"
 
-git tag v1.2.15
+git tag v1.2.17
 
 # SSH remote (recommended internally)
 git push max master
-git push max v1.2.15
+git push max v1.2.17
 
 # or HTTPS
 git push origin master
-git push origin v1.2.15
+git push origin v1.2.17
 ```
 
 ### Non-fast-forward
@@ -78,7 +78,7 @@ git push origin v1.2.15
 git fetch max
 git rebase max/master
 git push max master
-git push max v1.2.15
+git push max v1.2.17
 ```
 
 ---
@@ -99,7 +99,7 @@ git push max v1.2.15
 ### Git URL (UPM)
 
 ```json
-"com.bidscube.sdk": "https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.15"
+"com.bidscube.sdk": "https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.17"
 ```
 
 ### .unitypackage (optional)
@@ -145,6 +145,8 @@ Default branch: **`master`**
 
 | Version | Highlights |
 |---------|------------|
+| 1.2.17 | AutoClose, Companion HTML/IFrame/Static, default skip 15s |
+| 1.2.16 | Native user_id sync for MAX mediation |
 | 1.2.15 | Integrator `user_id` on ad requests for SSP postbacks |
 | 1.2.14 | OpenRTB 2.6 podded video, VAST ad tag URL fetch, EditMode tests |
 | 1.2.13 | VAST end card preview, `LoadVideoAdFromVastXml`, local VAST QA |

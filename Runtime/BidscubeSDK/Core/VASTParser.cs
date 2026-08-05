@@ -37,6 +37,14 @@ namespace BidscubeSDK
             }
         }
 
+        public enum VastCompanionResourceType
+        {
+            None = 0,
+            Html = 1,
+            IFrame = 2,
+            StaticImage = 3
+        }
+
         [System.Serializable]
         public class VASTData
         {
@@ -44,6 +52,11 @@ namespace BidscubeSDK
             public string clickThroughUrl;
             public string previewImageUrl;
             public string previewClickThroughUrl;
+            public VastCompanionResourceType companionResourceType = VastCompanionResourceType.None;
+            /// <summary>Static image URL, IFrame URL, or HTML markup depending on <see cref="companionResourceType"/>.</summary>
+            public string companionResource;
+            public List<string> companionClickTrackingUrls = new List<string>();
+            public List<string> companionViewTrackingUrls = new List<string>();
             public List<string> impressionUrls = new List<string>();
             public List<string> startUrls = new List<string>();
             public List<string> firstQuartileUrls = new List<string>();
@@ -54,6 +67,10 @@ namespace BidscubeSDK
             public List<string> clickTrackingUrls = new List<string>();
             public int skipOffset = -1; // -1 means not skippable, otherwise seconds
             public int duration = 0; // Video duration in seconds
+
+            public bool HasCompanion =>
+                companionResourceType != VastCompanionResourceType.None
+                && !string.IsNullOrWhiteSpace(companionResource);
         }
 
         /// <summary>
@@ -408,22 +425,8 @@ namespace BidscubeSDK
                     vastData.clickThroughUrl = clickThroughNode.InnerText?.Trim();
                 }
 
-                // Parse Companion preview image/click-through if present.
-                var companionNode = adNode.SelectSingleNode(".//Companion");
-                if (companionNode != null)
-                {
-                    var staticResourceNode = companionNode.SelectSingleNode(".//StaticResource");
-                    if (staticResourceNode != null)
-                    {
-                        vastData.previewImageUrl = staticResourceNode.InnerText?.Trim();
-                    }
-
-                    var companionClickThroughNode = companionNode.SelectSingleNode(".//CompanionClickThrough");
-                    if (companionClickThroughNode != null)
-                    {
-                        vastData.previewClickThroughUrl = companionClickThroughNode.InnerText?.Trim();
-                    }
-                }
+                // Parse CompanionAds: prefer HTML > IFrame > Static image across Companion nodes.
+                ParseBestCompanion(adNode, vastData);
 
                 // Parse ClickTracking
                 var clickTrackingNodes = adNode.SelectNodes(".//ClickTracking");
@@ -722,6 +725,138 @@ namespace BidscubeSDK
             {
                 Logger.InfoError($"[VASTParser] Error parsing VAST XML: {e.Message}\n{e.StackTrace}");
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Selects the best Companion creative: HTMLResource &gt; IFrameResource &gt; StaticResource.
+        /// </summary>
+        internal static void ParseBestCompanion(XmlNode adNode, VASTData vastData)
+        {
+            if (adNode == null || vastData == null)
+                return;
+
+            var companionNodes = adNode.SelectNodes(".//Companion");
+            if (companionNodes == null || companionNodes.Count == 0)
+                return;
+
+            XmlNode bestNode = null;
+            VastCompanionResourceType bestType = VastCompanionResourceType.None;
+            string bestResource = null;
+            int bestScore = 0;
+
+            foreach (XmlNode companionNode in companionNodes)
+            {
+                if (companionNode == null)
+                    continue;
+
+                if (TryGetCompanionResource(companionNode, VastCompanionResourceType.Html, out var html))
+                {
+                    if (bestScore < 3)
+                    {
+                        bestScore = 3;
+                        bestType = VastCompanionResourceType.Html;
+                        bestResource = html;
+                        bestNode = companionNode;
+                    }
+                    continue;
+                }
+
+                if (TryGetCompanionResource(companionNode, VastCompanionResourceType.IFrame, out var iframe))
+                {
+                    if (bestScore < 2)
+                    {
+                        bestScore = 2;
+                        bestType = VastCompanionResourceType.IFrame;
+                        bestResource = iframe;
+                        bestNode = companionNode;
+                    }
+                    continue;
+                }
+
+                if (TryGetCompanionResource(companionNode, VastCompanionResourceType.StaticImage, out var image))
+                {
+                    if (bestScore < 1)
+                    {
+                        bestScore = 1;
+                        bestType = VastCompanionResourceType.StaticImage;
+                        bestResource = image;
+                        bestNode = companionNode;
+                    }
+                }
+            }
+
+            if (bestNode == null || bestType == VastCompanionResourceType.None || string.IsNullOrWhiteSpace(bestResource))
+                return;
+
+            vastData.companionResourceType = bestType;
+            vastData.companionResource = bestResource.Trim();
+            if (bestType == VastCompanionResourceType.StaticImage)
+                vastData.previewImageUrl = vastData.companionResource;
+
+            var clickThrough = bestNode.SelectSingleNode(".//CompanionClickThrough");
+            if (clickThrough != null)
+            {
+                vastData.previewClickThroughUrl = clickThrough.InnerText?.Trim();
+            }
+
+            var clickTrackingNodes = bestNode.SelectNodes(".//CompanionClickTracking");
+            if (clickTrackingNodes != null)
+            {
+                foreach (XmlNode node in clickTrackingNodes)
+                {
+                    var url = node.InnerText?.Trim();
+                    if (!string.IsNullOrEmpty(url))
+                        vastData.companionClickTrackingUrls.Add(url);
+                }
+            }
+
+            var trackingNodes = bestNode.SelectNodes(".//Tracking");
+            if (trackingNodes != null)
+            {
+                foreach (XmlNode trackingNode in trackingNodes)
+                {
+                    var eventType = trackingNode.Attributes?["event"]?.Value;
+                    var url = trackingNode.InnerText?.Trim();
+                    if (string.IsNullOrEmpty(url))
+                        continue;
+                    if (string.Equals(eventType, "creativeView", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(eventType, "view", StringComparison.OrdinalIgnoreCase))
+                    {
+                        vastData.companionViewTrackingUrls.Add(url);
+                    }
+                }
+            }
+        }
+
+        static bool TryGetCompanionResource(XmlNode companionNode, VastCompanionResourceType type, out string resource)
+        {
+            resource = null;
+            if (companionNode == null)
+                return false;
+
+            switch (type)
+            {
+                case VastCompanionResourceType.Html:
+                {
+                    var node = companionNode.SelectSingleNode(".//HTMLResource");
+                    resource = node?.InnerText?.Trim();
+                    return !string.IsNullOrWhiteSpace(resource);
+                }
+                case VastCompanionResourceType.IFrame:
+                {
+                    var node = companionNode.SelectSingleNode(".//IFrameResource");
+                    resource = node?.InnerText?.Trim();
+                    return !string.IsNullOrWhiteSpace(resource);
+                }
+                case VastCompanionResourceType.StaticImage:
+                {
+                    var node = companionNode.SelectSingleNode(".//StaticResource");
+                    resource = node?.InnerText?.Trim();
+                    return !string.IsNullOrWhiteSpace(resource);
+                }
+                default:
+                    return false;
             }
         }
 
