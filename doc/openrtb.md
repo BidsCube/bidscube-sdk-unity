@@ -58,7 +58,7 @@ flowchart LR
 | `OpenRtbVideoUrlHelper.cs` | `OpenRtbVideoUrlHelper` | Direct video vs VAST ad tag URL; max redirect depth = **5** |
 | `VastAdTagJsonPlanLoader.cs` | `VastAdTagJsonPlanLoader` | Режим завантаження nested JSON plan (single vs full) |
 | `OpenRtbBidRequestBuilder.cs` | — | **Placeholder** — POST не реалізовано |
-| `AssemblyInfo.cs` | — | `InternalsVisibleTo("BidscubeSDK.OpenRTB.Tests")` |
+| `AssemblyInfo.cs` | — | `InternalsVisibleTo("BidscubeSDK.Tests")` |
 
 ---
 

@@ -52,6 +52,7 @@ This package is the core `com.bidscube.sdk` Unity SDK. AppLovin MAX and LevelPla
 | Документ | Що всередині |
 |----------|--------------|
 | [test-scenes-qa.md](test-scenes-qa.md) | Unity test scenes, VAST QA, OpenRTB pod QA |
+| [qa/webview-location-referrer-probe.md](qa/webview-location-referrer-probe.md) | QA: `window.location` / `document.referrer` у Banner / Video / Native |
 | [editmode-tests.md](editmode-tests.md) | Unit tests, запуск, матриця покриття |
 | [release-process.md](release-process.md) | Версіонування, теги, push, CI |
 | [packaging.md](packaging.md) | UPM, git archive, unitypackage |
@@ -77,8 +78,9 @@ This package is the core `com.bidscube.sdk` Unity SDK. AppLovin MAX and LevelPla
 ### QA
 
 1. [test-scenes-qa.md](test-scenes-qa.md)
-2. [troubleshooting.md](troubleshooting.md)
-3. [callbacks-and-errors.md](callbacks-and-errors.md) — expected callback order
+2. [qa/webview-location-referrer-probe.md](qa/webview-location-referrer-probe.md)
+3. [troubleshooting.md](troubleshooting.md)
+4. [callbacks-and-errors.md](callbacks-and-errors.md) — expected callback order
 
 ### Інтегратор (внутрішній)
 
@@ -104,6 +106,7 @@ This package is the core `com.bidscube.sdk` Unity SDK. AppLovin MAX and LevelPla
 | OpenRTB pod (2+ slots) | [openrtb.md](openrtb.md), [configuration.md](configuration.md) |
 | VAST end card + companion | [video-ads.md](video-ads.md) § End card |
 | Local VAST без backend | [test-scenes-qa.md](test-scenes-qa.md) |
+| WebView location / referrer probe | [qa/webview-location-referrer-probe.md](qa/webview-location-referrer-probe.md) |
 | VAST ad tag URL vs MP4 | [openrtb.md](openrtb.md), [troubleshooting.md](troubleshooting.md) |
 | Android Lite vs Full | [android.md](android.md) |
 | Error 1006 | [android.md](android.md), [callbacks-and-errors.md](callbacks-and-errors.md) |

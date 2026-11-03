@@ -22,7 +22,7 @@
 |------|-------------|
 | `Runtime/BidscubeSDK/BidscubeSDK.cs` | Static public API entry point |
 | `Runtime/BidscubeSDK/BidscubeSDK.asmdef` | Main runtime assembly definition |
-| `Runtime/BidscubeSDK/SdkIntegrationContext.cs` | Sample scene LevelPlay mode switch |
+| `Samples/SDK Demo/SdkIntegrationContext.cs` | Sample scene LevelPlay mode switch |
 
 ---
 
@@ -32,12 +32,7 @@
 |------|-------------|
 | `Controllers/AdViewController.cs` | Central ad orchestrator: canvas, layout, type dispatch |
 | `Controllers/WebViewController.cs` | HTML WebView + margin sync |
-| `Controllers/NewWebViewController.cs` | Alternate WebView host for samples |
-| `Controllers/SDKTestScene.cs` | Primary QA scene + local VAST cases |
-| `Controllers/BidscubeExampleScene.cs` | Full example + integration bar |
-| `Controllers/WindowedAdTestScene.cs` | Windowed layout tests |
-| `Controllers/ConsentTestScene.cs` | Consent stub tests |
-| `Controllers/SceneManager.cs` | Inter-scene navigation |
+
 
 ---
 
@@ -122,8 +117,8 @@
 
 | File | Description |
 |------|-------------|
-| `BasicIntegration/AdExample.cs` | Minimal integration sample |
-| `Scenes/*.unity` | Five test/example scenes |
+| `Samples/SDK Demo/BasicIntegration/AdExample.cs` | Minimal integration sample |
+| `Samples/SDK Demo/Scenes/*.unity` | Five test/example scenes |
 
 ---
 
@@ -149,7 +144,7 @@
 | `OpenRTB/VastAdTagJsonPlanLoader.cs` | Nested JSON plan load mode for VAST ad tag URLs |
 | `OpenRTB/OpenRtbVideoUrlHelper.cs` | Direct video vs VAST ad tag URL classification |
 | `OpenRTB/OpenRtbBidRequestBuilder.cs` | Placeholder (POST bid request not implemented) |
-| `Tests/EditMode/` | OpenRTB EditMode unit tests |
+| `Tests/EditMode/` | EditMode unit tests (VAST, markup, URL, OpenRTB, video policy) |
 
 ---
 
@@ -192,6 +187,7 @@
 | `doc/android.md` | Android feature sets, Gradle |
 | `doc/ios-and-plugins.md` | iOS/plugins |
 | `doc/test-scenes-qa.md` | QA scenes, VAST + OpenRTB pod checklists |
+| `doc/qa/webview-location-referrer-probe.md` | QA: WebView `location` / `referrer` for Banner / Video / Native |
 | `doc/editmode-tests.md` | Unit tests, запуск, матриця |
 | `doc/packaging.md` | UPM, git archive, unitypackage |
 | `doc/troubleshooting.md` | FAQ, типові проблеми |

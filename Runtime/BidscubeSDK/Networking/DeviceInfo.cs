@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using System.Linq;
+using System;
 using UnityEngine;
 
 namespace BidscubeSDK
@@ -110,23 +110,53 @@ namespace BidscubeSDK
         /// </summary>
         public static int DoNotTrack => IsTrackingEnabled ? 0 : 1;
 
+        private static bool _explicitGdprSet;
+        private static string _explicitGdprApplies = "";
+        private static string _explicitGdprConsent = "";
+
         /// <summary>
-        /// Get GDPR flag
+        /// Publisher override. Null <paramref name="gdprApplies"/> leaves the applies flag unset.
+        /// A missing CMP value is not treated as <c>gdpr=0</c> or as consent.
+        /// </summary>
+        public static void SetExplicitGdprConsent(bool? gdprApplies, string tcString)
+        {
+            _explicitGdprSet = true;
+            _explicitGdprApplies = gdprApplies.HasValue ? (gdprApplies.Value ? "1" : "0") : "";
+            _explicitGdprConsent = tcString ?? "";
+        }
+
+        public static void ClearExplicitGdprConsent()
+        {
+            _explicitGdprSet = false;
+            _explicitGdprApplies = "";
+            _explicitGdprConsent = "";
+        }
+
+        /// <summary>
+        /// GDPR applies flag from the explicit API, otherwise IAB TCF. Empty when unknown.
         /// </summary>
         public static string GDPR
         {
             get
             {
-                var euCountries = new[] { "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE" };
-                var currentCountry = GetCurrentCountryCode();
-                return euCountries.Contains(currentCountry) ? "1" : "0";
+                if (_explicitGdprSet)
+                    return _explicitGdprApplies ?? "";
+                return ReadCmpGdprApplies();
             }
         }
 
         /// <summary>
-        /// Get GDPR consent
+        /// TCF string from the explicit API, otherwise IAB TCF. Empty when unknown.
         /// </summary>
-        public static string GDPRConsent => "0";
+        public static string GDPRConsent
+        {
+            get
+            {
+                if (_explicitGdprSet)
+                    return _explicitGdprConsent ?? "";
+                return ReadCmpTcString();
+            }
+        }
 
         /// <summary>
         /// Get US privacy string
@@ -188,11 +218,63 @@ namespace BidscubeSDK
             };
         }
 
-        private static string GetCurrentCountryCode()
+        private static string ReadCmpGdprApplies()
         {
-            // Unity doesn't have built-in country detection
-            // This would need to be implemented using a third-party service or plugin
-            return "US"; // Default fallback
+            string applies;
+            string ignored;
+            if (!TryReadAndroidTcf(out applies, out ignored))
+                return "";
+            return applies ?? "";
+        }
+
+        private static string ReadCmpTcString()
+        {
+            string ignored;
+            string tcString;
+            if (!TryReadAndroidTcf(out ignored, out tcString))
+                return "";
+            return tcString ?? "";
+        }
+
+        private static bool TryReadAndroidTcf(out string gdprApplies, out string tcString)
+        {
+            gdprApplies = "";
+            tcString = "";
+#if UNITY_ANDROID && !UNITY_EDITOR
+            try
+            {
+                using (var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+                using (var activity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity"))
+                {
+                    if (activity == null)
+                        return false;
+                    using (var context = activity.Call<AndroidJavaObject>("getApplicationContext"))
+                    using (var preferenceManager = new AndroidJavaClass("android.preference.PreferenceManager"))
+                    using (var prefs = preferenceManager.CallStatic<AndroidJavaObject>("getDefaultSharedPreferences", context))
+                    {
+                        if (prefs.Call<bool>("contains", "IABTCF_gdprApplies"))
+                        {
+                            var applies = prefs.Call<int>("getInt", "IABTCF_gdprApplies", -1);
+                            if (applies == 0 || applies == 1)
+                                gdprApplies = applies.ToString();
+                        }
+
+                        if (prefs.Call<bool>("contains", "IABTCF_TCString"))
+                        {
+                            var stored = prefs.Call<string>("getString", "IABTCF_TCString", "");
+                            tcString = stored ?? "";
+                        }
+                    }
+                }
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+#else
+            return false;
+#endif
         }
     }
 }

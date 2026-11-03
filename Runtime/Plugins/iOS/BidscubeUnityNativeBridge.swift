@@ -16,6 +16,7 @@ public func BidscubeUnityNativeSyncInitialize(
     _ enableLogging: Bool,
     _ enableDebugMode: Bool,
     _ defaultAdTimeoutMs: Int32,
+    _ autoClose: Bool,
     _ userId: UnsafePointer<CChar>?
 ) {
 #if canImport(BidscubeSDK)
@@ -25,6 +26,7 @@ public func BidscubeUnityNativeSyncInitialize(
         .enableLogging(enableLogging)
         .enableDebugMode(enableDebugMode)
         .defaultAdTimeout(Int(defaultAdTimeoutMs))
+        .autoClose(autoClose)
 
     if let uid = normalizedUserId(userId) {
         builder = builder.userId(uid)

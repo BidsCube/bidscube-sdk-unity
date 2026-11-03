@@ -442,6 +442,8 @@ namespace BidscubeSDK
                     }
                 }
 
+                CollectElementsByLocalName(adNode, "Impression", vastData.impressionUrls);
+
                 // Parse Tracking events
                 var trackingNodes = adNode.SelectNodes(".//Tracking");
                 if (trackingNodes != null)
@@ -456,7 +458,7 @@ namespace BidscubeSDK
                         switch (eventType?.ToLower())
                         {
                             case "impression":
-                                vastData.impressionUrls.Add(url);
+                                AddUniqueUrl(vastData.impressionUrls, url);
                                 break;
                             case "start":
                             case "creativeView":
@@ -904,7 +906,7 @@ namespace BidscubeSDK
             return 0;
         }
 
-        private static int ParseSkipOffset(string skipOffsetStr)
+        internal static int ParseSkipOffset(string skipOffsetStr)
         {
             if (string.IsNullOrEmpty(skipOffsetStr))
                 return -1;
@@ -1142,26 +1144,49 @@ namespace BidscubeSDK
             return url ?? string.Empty;
         }
 
-        /// <summary>
-        /// Fire tracking URL (make HTTP request)
-        /// </summary>
-        /// <param name="url">Tracking URL</param>
-        public static void FireTrackingUrl(string url)
+        private static void CollectElementsByLocalName(XmlNode root, string localName, List<string> urls)
         {
-            if (string.IsNullOrEmpty(url))
+            if (root == null || urls == null || string.IsNullOrEmpty(localName))
                 return;
 
-            try
+            if (root.NodeType == XmlNodeType.Element
+                && string.Equals(root.LocalName, localName, StringComparison.OrdinalIgnoreCase))
             {
-                var request = UnityEngine.Networking.UnityWebRequest.Get(url);
-                request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
-                request.SendWebRequest();
-                Logger.Info($"[VASTParser] Fired tracking URL: {url}");
+                AddUniqueUrl(urls, root.InnerText);
             }
-            catch (Exception e)
-            {
-                Logger.Info($"[VASTParser] Failed to fire tracking URL {url}: {e.Message}");
-            }
+
+            foreach (XmlNode child in root.ChildNodes)
+                CollectElementsByLocalName(child, localName, urls);
+        }
+
+        private static void AddUniqueUrl(List<string> urls, string url)
+        {
+            var trimmed = url?.Trim();
+            if (string.IsNullOrEmpty(trimmed) || urls.Contains(trimmed))
+                return;
+            urls.Add(trimmed);
+        }
+
+        public static void FireTrackingUrl(string url)
+        {
+            FireTrackingUrl(url, "renderer=VideoAdView event=tracker");
+        }
+
+        public static void FireTrackingUrl(string url, string context)
+        {
+            TrackingDispatch.Enqueue(url, context);
+        }
+
+        public static string ExpandTrackingUrl(string url)
+        {
+            if (string.IsNullOrEmpty(url))
+                return url;
+            var cache = UnityEngine.Random.Range(10000000, 100000000).ToString();
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
+            return url.Replace("[CACHEBUSTING]", cache)
+                .Replace("[TIMESTAMP]", timestamp)
+                .Replace("%5BCACHEBUSTING%5D", cache)
+                .Replace("%5BTIMESTAMP%5D", timestamp);
         }
 
         /// <summary>
@@ -1170,13 +1195,86 @@ namespace BidscubeSDK
         /// <param name="urls">List of tracking URLs</param>
         public static void FireTrackingUrls(List<string> urls)
         {
+            FireTrackingUrls(urls, "renderer=VideoAdView event=tracker");
+        }
+
+        public static void FireTrackingUrls(List<string> urls, string context)
+        {
             if (urls == null || urls.Count == 0)
                 return;
 
             foreach (var url in urls)
             {
-                FireTrackingUrl(url);
+                FireTrackingUrl(url, context);
             }
+        }
+    }
+
+    /// <summary>
+    /// Keeps VAST tracker requests alive until the HTTP call finishes.
+    /// A tracking HTTP 204 is acceptance, not no-fill.
+    /// </summary>
+    internal static class TrackingDispatch
+    {
+        private static readonly List<UnityEngine.Networking.UnityWebRequest> InFlight =
+            new List<UnityEngine.Networking.UnityWebRequest>();
+
+        public static int PendingCount
+        {
+            get { return InFlight.Count; }
+        }
+
+        public static void Enqueue(string url)
+        {
+            Enqueue(url, "renderer=VideoAdView event=tracker");
+        }
+
+        public static void Enqueue(string url, string context)
+        {
+            if (string.IsNullOrEmpty(url))
+                return;
+
+            var expanded = VASTParser.ExpandTrackingUrl(url);
+            UnityEngine.Networking.UnityWebRequest request = null;
+            try
+            {
+                request = UnityEngine.Networking.UnityWebRequest.Get(expanded);
+                request.timeout = 15;
+                request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
+                var operation = request.SendWebRequest();
+                InFlight.Add(request);
+                Logger.Info("[VASTParser] tracker queued " + (context ?? "event=tracker") + " host=" + SafeHost(expanded));
+                operation.completed += _ => Finish(request, expanded, context);
+            }
+            catch (Exception e)
+            {
+                Logger.InfoError("[VASTParser] tracker failed to start " + (context ?? "event=tracker")
+                    + " host=" + SafeHost(url) + " error=" + e.Message);
+                if (request != null)
+                {
+                    InFlight.Remove(request);
+                    request.Dispose();
+                }
+            }
+        }
+
+        private static void Finish(UnityEngine.Networking.UnityWebRequest request, string url, string context)
+        {
+            InFlight.Remove(request);
+            var code = request.responseCode;
+            var accepted = code >= 200 && code < 300;
+            Logger.Info("[VASTParser] tracker " + (accepted ? "accepted" : "failed")
+                + " " + (context ?? "event=tracker")
+                + " http=" + code + " host=" + SafeHost(url));
+            request.Dispose();
+        }
+
+        private static string SafeHost(string url)
+        {
+            Uri parsed;
+            if (Uri.TryCreate(url, UriKind.Absolute, out parsed))
+                return parsed.Host;
+            return "invalid-url";
         }
     }
 }

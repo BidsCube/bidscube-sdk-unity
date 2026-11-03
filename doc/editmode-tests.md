@@ -1,10 +1,10 @@
 # EditMode unit tests
 
 > **Шлях:** `Tests/EditMode/`  
-> **Assembly:** `BidscubeSDK.OpenRTB.Tests.asmdef`  
+> **Assembly:** `BidscubeSDK.Tests` (`BidscubeSDK.Tests.asmdef`)  
 > **Framework:** NUnit (Unity Test Framework)
 
-Тести покривають **OpenRTB parsing і plan building** без PlayMode / device. Не замінюють manual QA на сценах.
+Тести покривають OpenRTB parsing, VAST, markup extraction, URL building і video policy без PlayMode / device. Не замінюють manual QA на sample-сценах.
 
 ---
 
@@ -14,7 +14,14 @@
 Tests/
 ├── Tests.meta
 └── EditMode/
-    ├── BidscubeSDK.OpenRTB.Tests.asmdef
+    ├── BidscubeSDK.Tests.asmdef
+    ├── Fixtures/QaVastFixtures.cs
+    ├── Vast/VASTParserTests.cs
+    ├── Networking/AdMarkupExtractorTests.cs
+    ├── Networking/URLBuilderTests.cs
+    ├── Video/VideoSkipPolicyTests.cs
+    ├── Video/VideoEndCardResolverTests.cs
+    ├── VideoAutoCloseTests.cs
     ├── OpenRtbJsonTests.cs
     ├── OpenRtbVideoObjectParserTests.cs
     ├── OpenRtbPoddedResponseNormalizerTests.cs
@@ -39,7 +46,7 @@ Tests/
 1. Відкрити host project з підключеним пакетом (local path або Git URL)
 2. **Window → General → Test Runner**
 3. Вкладка **EditMode**
-4. **Run All** або фільтр `BidscubeSDK.OpenRTB.Tests`
+4. **Run All** або фільтр `BidscubeSDK.Tests`
 
 ### Unity CLI (host project з `ProjectSettings/`)
 
@@ -60,6 +67,11 @@ Unity -batchmode \
 
 | Test class | Що перевіряє |
 |------------|--------------|
+| `VASTParserTests` | Empty/malformed; no companion; static companion; skipoffset; tracking; Wrapper; QA VAST #1/#2 |
+| `AdMarkupExtractorTests` | Flat `adm`; `seatbid[].bid[].adm`; raw HTML; escaped JSON |
+| `URLBuilderTests` | image `c=b&res=js`; video/native `res=json`; `user_id` encoding; DeviceSnapshot |
+| `VideoSkipPolicyTests` | skippable offset; `Skip in N` / `Skip` |
+| `VideoEndCardResolverTests` | WebView vs static; click URL; preview image; QA fixtures |
 | `OpenRtbJsonTests` | Valid JSON; trailing garbage rejected; trailing whitespace OK |
 | `OpenRtbVideoObjectParserTests` | `podid`, `rqddurs`/`rqdDurs`, `poddur`, `maxseq` |
 | `OpenRtbPoddedResponseNormalizerTests` | `bids[]`, `seatbid`, multi-pod → first sorted podid |
@@ -84,12 +96,14 @@ const string Vast1 = "<VAST version=\"3.0\">...</VAST>";
 var json = @"{ ""bids"": [ { ""adm"": """ + JsonEscape(Vast1) + @""" } ] }";
 ```
 
+QA VAST XML: `Tests/EditMode/Fixtures/QaVastFixtures.cs`.
+
 ---
 
 ## CI integration (рекомендація)
 
 1. Створити minimal Unity test project у CI (або використати існуючий harness repo)
-2. Додати `com.bidscube.sdk` via Git URL `#v1.2.17`
+2. Додати `com.bidscube.sdk` via Git URL `#v1.2.18`
 3. Запускати EditMode batchmode на кожен PR / tag
 4. Артефакт: `test-results.xml` (JUnit-compatible)
 
@@ -101,7 +115,7 @@ var json = @"{ ""bids"": [ { ""adm"": """ + JsonEscape(Vast1) + @""" } ] }";
 
 | Область | Чому | QA |
 |---------|------|-----|
-| `VideoAdView` coroutines | PlayMode / device | test-scenes-qa.md |
+| `VideoAdView` coroutines | PlayMode / device | Samples/SDK Demo scenes |
 | WebView render | Native plugin | device builds |
 | Gradle patcher | Editor export | android.md |
 | Network HTTP mocks | No mock server in tests | manual / integration |
@@ -111,8 +125,8 @@ var json = @"{ ""bids"": [ { ""adm"": """ + JsonEscape(Vast1) + @""" } ] }";
 
 ## Додавання нового тесту
 
-1. Створити `Tests/EditMode/MyFeatureTests.cs`
-2. Namespace: `BidscubeSDK.OpenRTB.Tests`
-3. Додати `.meta` (Unity згенерує GUID при відкритті, або `uuidgen`)
-4. Тестувати через **public/internal** API з `BidscubeSDK.OpenRTB` — не дублювати parser logic у тестах
-5. Оновити цей документ і [openrtb.md](openrtb.md)
+1. Створити `Tests/EditMode/<Area>/MyFeatureTests.cs`
+2. Namespace: `BidscubeSDK.Tests` (OpenRTB-файли можуть лишатися в `BidscubeSDK.OpenRTB.Tests`)
+3. Додати `.meta` з 32-символьним hex GUID
+4. Тестувати через **public/internal** API з `BidscubeSDK` — не дублювати parser logic у тестах
+5. Оновити цей документ

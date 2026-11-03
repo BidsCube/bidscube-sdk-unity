@@ -51,8 +51,39 @@ namespace BidscubeSDK
         private WebViewObject _companionWebView;
         private float _skipTime = 15.0f; // Default skip delay when VAST has no skipoffset
 
+        /// <summary>
+        /// Playback facts the MAX adapter needs. Public so IL2CPP keeps them without reflection.
+        /// </summary>
+        public struct VideoAdSessionState
+        {
+            public bool Rewarded;
+            public bool Presented;
+            public bool Completed;
+            public bool EndCardShown;
+            public bool AwaitingManualClose;
+            public bool Closed;
+        }
+
+        public VideoAdSessionState SessionState
+        {
+            get
+            {
+                return new VideoAdSessionState
+                {
+                    Rewarded = _videoAdFormat == VideoAdFormat.Rewarded,
+                    Presented = _hasDisplayed || _hasStarted,
+                    Completed = _hasCompleted,
+                    EndCardShown = _endCardShown,
+                    AwaitingManualClose = _awaitingManualClose,
+                    Closed = _hasClosed
+                };
+            }
+        }
+
         // VAST data
         private VASTParser.VASTData _vastData;
+        private bool _hasFiredImpression = false;
+        private string _trackingSessionId = "";
         private bool _hasFiredStart = false;
         private bool _hasFiredFirstQuartile = false;
         private bool _hasFiredMidpoint = false;
@@ -75,6 +106,13 @@ namespace BidscubeSDK
         private bool _cacheDownloadStarted = false;
         private bool _cacheReady = false;
         private string _cacheLocalUrl = null;
+        private int _endCardRequestId;
+        private Texture2D _endCardOwnedTexture;
+        private readonly List<AudioSource> _pausedHostAudio = new List<AudioSource>();
+        private bool _hostAudioPaused;
+        private bool _explicitAdMuteCaptured;
+        private bool _explicitAdMute;
+        private bool _pausedForBackground;
 
         private void Awake()
         {
@@ -144,7 +182,7 @@ namespace BidscubeSDK
                 _videoPlayer.renderMode = VideoRenderMode.RenderTexture;
                 _videoPlayer.waitForFirstFrame = true;
                 _videoPlayer.aspectRatio = VideoAspectRatio.FitInside;
-                _videoPlayer.audioOutputMode = VideoAudioOutputMode.None;
+                BindAdAudio();
 
                 int rw = Mathf.Max(16, Screen.width);
                 int rh = Mathf.Max(16, Screen.height);
@@ -278,11 +316,20 @@ namespace BidscubeSDK
             previewRect.sizeDelta = new Vector2(720f, 405f);
             previewRect.anchoredPosition = new Vector2(0f, 30f);
             var previewImage = previewButtonObj.GetComponent<Image>();
-            previewImage.color = Color.white;
+            previewImage.color = new Color(0.08f, 0.08f, 0.08f, 1f);
             _endCardPreviewButton = previewButtonObj.GetComponent<Button>();
             _endCardPreviewButton.targetGraphic = previewImage;
             _endCardPreviewButton.onClick.AddListener(OnEndCardClicked);
-            _endCardPreview = previewButtonObj.AddComponent<RawImage>();
+
+            var previewContentObj = new GameObject("EndCardPreview", typeof(RectTransform), typeof(RawImage));
+            previewContentObj.transform.SetParent(previewButtonObj.transform, false);
+            var previewContentRect = previewContentObj.GetComponent<RectTransform>();
+            previewContentRect.anchorMin = Vector2.zero;
+            previewContentRect.anchorMax = Vector2.one;
+            previewContentRect.offsetMin = Vector2.zero;
+            previewContentRect.offsetMax = Vector2.zero;
+            _endCardPreview = previewContentObj.GetComponent<RawImage>();
+            _endCardPreview.color = new Color(1f, 1f, 1f, 0f);
             _endCardPreview.raycastTarget = false;
 
             var ctaObj = new GameObject("EndCardCTA", typeof(RectTransform), typeof(Image), typeof(Button));
@@ -321,36 +368,40 @@ namespace BidscubeSDK
 
         private void SetupFullScreenCanvas()
         {
-            // Ensure we have a canvas for full screen display
-            var canvas = GetComponentInParent<Canvas>();
-            if (canvas == null)
-            {
-                var canvasObj = new GameObject("VideoAdCanvas");
-                canvas = canvasObj.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-                canvas.sortingOrder = 9999; // Very high to be on top
+            var canvas = FindOrCreateSdkCanvas();
+            if (transform.parent != canvas.transform)
+                transform.SetParent(canvas.transform, false);
 
-                var canvasScaler = canvasObj.AddComponent<CanvasScaler>();
-                canvasScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-                canvasScaler.referenceResolution = new Vector2(Screen.width, Screen.height);
-
-                canvasObj.AddComponent<GraphicRaycaster>();
-
-                transform.SetParent(canvasObj.transform, false);
-            }
-
-            // Always make video full screen
             var rectTransform = GetComponent<RectTransform>();
             if (rectTransform == null)
-            {
                 rectTransform = gameObject.AddComponent<RectTransform>();
-            }
 
             Logger.Info("[VideoAdView] Setting up full screen display");
             rectTransform.anchorMin = Vector2.zero;
             rectTransform.anchorMax = Vector2.one;
             rectTransform.offsetMin = Vector2.zero;
             rectTransform.offsetMax = Vector2.zero;
+        }
+
+        private static Canvas FindOrCreateSdkCanvas()
+        {
+            var canvases = FindObjectsOfType<Canvas>();
+            for (var i = 0; i < canvases.Length; i++)
+            {
+                if (canvases[i] != null && canvases[i].name == "BidscubeSdkCanvas")
+                    return canvases[i];
+            }
+
+            var canvasObj = new GameObject("BidscubeSdkCanvas");
+            DontDestroyOnLoad(canvasObj);
+            var canvas = canvasObj.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 9999;
+            var canvasScaler = canvasObj.AddComponent<CanvasScaler>();
+            canvasScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            canvasScaler.referenceResolution = new Vector2(1920f, 1080f);
+            canvasObj.AddComponent<GraphicRaycaster>();
+            return canvas;
         }
 
         private void SetupIMA()
@@ -397,6 +448,8 @@ namespace BidscubeSDK
             _companionViewTracked = false;
             _awaitingManualClose = false;
             _isSkippable = false;
+            _hasFiredImpression = false;
+            _trackingSessionId = Guid.NewGuid().ToString("N").Substring(0, 12);
             _hasFiredStart = false;
             _hasFiredFirstQuartile = false;
             _hasFiredMidpoint = false;
@@ -409,6 +462,8 @@ namespace BidscubeSDK
 
         private void ResetSlotTrackingState()
         {
+            _hasFiredImpression = false;
+            _trackingSessionId = Guid.NewGuid().ToString("N").Substring(0, 12);
             _hasFiredStart = false;
             _hasFiredFirstQuartile = false;
             _hasFiredMidpoint = false;
@@ -438,6 +493,7 @@ namespace BidscubeSDK
 
         private void ResetEndCardState()
         {
+            _endCardRequestId++;
             _skipTime = 15.0f;
             _endCardShown = false;
             if (_endCardRoot != null)
@@ -451,6 +507,7 @@ namespace BidscubeSDK
                 _endCardPreview.texture = null;
                 _endCardPreview.color = new Color(1f, 1f, 1f, 0f);
             }
+            ReleaseEndCardTexture();
             if (_endCardCtaText != null)
                 _endCardCtaText.text = "Learn More";
             if (_skipButton != null)
@@ -609,7 +666,11 @@ namespace BidscubeSDK
                 NotifySkipped();
 
             _awaitingManualClose = false;
+            _pausedForBackground = false;
+            SilenceAdAudio();
             DestroyCompanionWebView();
+            CancelEndCardLoad();
+            RestoreHostAudio();
             NotifyClosed();
             DismissVideoAdHierarchy();
         }
@@ -659,8 +720,7 @@ namespace BidscubeSDK
             FireCompanionViewTrackingOnce();
 
             var type = _vastData?.companionResourceType ?? VASTParser.VastCompanionResourceType.None;
-            if (type == VASTParser.VastCompanionResourceType.Html
-                || type == VASTParser.VastCompanionResourceType.IFrame)
+            if (VideoEndCardResolver.ShouldRenderInWebView(type))
             {
                 ShowCompanionWebView(_vastData.companionResource, type == VASTParser.VastCompanionResourceType.Html);
             }
@@ -684,20 +744,16 @@ namespace BidscubeSDK
             _endCardRoot.SetActive(true);
             _endCardRoot.transform.SetAsLastSibling();
 
-            var clickUrl = !string.IsNullOrEmpty(_vastData?.previewClickThroughUrl)
-                ? _vastData.previewClickThroughUrl
-                : _vastData?.clickThroughUrl;
+            var clickUrl = VideoEndCardResolver.ResolveClickUrl(_vastData);
 
             if (_endCardCtaButton != null)
                 _endCardCtaButton.gameObject.SetActive(!string.IsNullOrEmpty(clickUrl));
             if (_endCardPreviewButton != null)
                 _endCardPreviewButton.interactable = !string.IsNullOrEmpty(clickUrl);
             if (_endCardCtaText != null)
-                _endCardCtaText.text = !string.IsNullOrEmpty(clickUrl) ? "Learn More" : "Preview";
+                _endCardCtaText.text = VideoEndCardResolver.ResolveCtaLabel(clickUrl);
 
-            var imageUrl = !string.IsNullOrEmpty(_vastData?.companionResource)
-                ? _vastData.companionResource
-                : _vastData?.previewImageUrl;
+            var imageUrl = VideoEndCardResolver.ResolveStaticPreviewImageUrl(_vastData);
 
             if (!string.IsNullOrEmpty(imageUrl))
                 StartCoroutine(LoadEndCardPreview(imageUrl));
@@ -895,6 +951,12 @@ namespace BidscubeSDK
                 BidscubeSDK.ApplyConfiguredTimeoutTo(request);
                 yield return request.SendWebRequest();
 
+                if (request.responseCode == 204)
+                {
+                    yield return HandleSlotFailure("No fill (HTTP 204)");
+                    yield break;
+                }
+
                 if (request.result != UnityWebRequest.Result.Success)
                 {
                     yield return HandleSlotFailure($"Failed to fetch VAST ad tag URL: {request.error}");
@@ -962,8 +1024,7 @@ namespace BidscubeSDK
                 yield break;
             }
 
-            VASTParser.FireTrackingUrls(_vastData.impressionUrls);
-            if (_vastData.skipOffset > 0)
+            if (VideoSkipPolicy.IsSkippable(_vastData.skipOffset))
                 _skipTime = _vastData.skipOffset;
 
             _videoPlayer.url = _vastData.videoUrl;
@@ -1024,6 +1085,7 @@ namespace BidscubeSDK
 
             _videoHadError = false;
             _videoError = null;
+            BindAdAudio();
             _videoPlayer.Prepare();
 
             float timeout = Mathf.Max(1f, BidscubeSDK.GetConfiguredAdTimeoutMs() / 1000f);
@@ -1038,10 +1100,11 @@ namespace BidscubeSDK
                     _videoHadError = false;
                     _videoError = null;
                     _videoPlayer.url = _cacheLocalUrl;
+                    BindAdAudio();
                     _videoPlayer.Prepare();
                 }
 
-                elapsed += Time.deltaTime;
+                elapsed += Time.unscaledDeltaTime;
                 yield return null;
             }
 
@@ -1052,7 +1115,7 @@ namespace BidscubeSDK
                     elapsed = 0f;
                     while (!_videoPlayer.isPrepared && !_videoHadError && elapsed < timeout)
                     {
-                        elapsed += Time.deltaTime;
+                        elapsed += Time.unscaledDeltaTime;
                         yield return null;
                     }
                 }
@@ -1157,14 +1220,13 @@ namespace BidscubeSDK
                 return;
             }
 
-            VASTParser.FireTrackingUrls(_vastData.impressionUrls);
-
-            if (_vastData.skipOffset > 0)
+            if (VideoSkipPolicy.IsSkippable(_vastData.skipOffset))
                 _skipTime = _vastData.skipOffset;
 
             _videoHadError = false;
             _videoError = null;
             _videoPlayer.url = _vastData.videoUrl;
+            BindAdAudio();
             _videoPlayer.Prepare();
         }
 
@@ -1179,6 +1241,12 @@ namespace BidscubeSDK
                 request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
                 BidscubeSDK.ApplyConfiguredTimeoutTo(request);
                 yield return request.SendWebRequest();
+
+                if (request.responseCode == 204)
+                {
+                    yield return HandleSlotFailure("No fill (HTTP 204)");
+                    yield break;
+                }
 
                 if (request.result != UnityWebRequest.Result.Success)
                 {
@@ -1261,6 +1329,7 @@ namespace BidscubeSDK
 
         private void OnVideoPrepared(VideoPlayer source)
         {
+            BindAdAudio(beforePrepare: false);
             NotifyLoaded();
             if (_videoPlayer != null && !_videoPlayer.isPlaying)
             {
@@ -1269,11 +1338,118 @@ namespace BidscubeSDK
             }
         }
 
+        private void BindAdAudio()
+        {
+            BindAdAudio(beforePrepare: true);
+        }
+
+        private void BindAdAudio(bool beforePrepare)
+        {
+            if (_videoPlayer == null)
+                return;
+
+            CaptureExplicitAdMute();
+            // Direct sends the video track to the platform output. This is the
+            // route under test. It is not a measured result that AudioSource
+            // cannot play the same file.
+            _videoPlayer.audioOutputMode = VideoAudioOutputMode.Direct;
+            if (beforePrepare)
+                _videoPlayer.controlledAudioTrackCount = 1;
+            _videoPlayer.EnableAudioTrack(0, true);
+            ApplyConfiguredAdGain();
+
+            Logger.Info("[VideoAdView] renderer=VideoAdView"
+                + " configuredRoute=Direct"
+                + " configuredTrack=0"
+                + " beforePrepare=" + beforePrepare
+                + " readbackAudioTrackCount=" + _videoPlayer.audioTrackCount
+                + " readbackDirectMute=" + _videoPlayer.GetDirectAudioMute(0)
+                + " readbackDirectVolume=" + _videoPlayer.GetDirectAudioVolume(0)
+                + " readbackListenerPause=" + AudioListener.pause
+                + " readbackListenerVolume=" + AudioListener.volume
+                + " evidence=videoplayer-property-readback not microphone");
+        }
+
+        private void CaptureExplicitAdMute()
+        {
+            if (_explicitAdMuteCaptured || _videoPlayer == null)
+                return;
+            _explicitAdMuteCaptured = true;
+            if (_videoPlayer.audioOutputMode == VideoAudioOutputMode.Direct)
+                _explicitAdMute = _videoPlayer.GetDirectAudioMute(0);
+        }
+
+        private void ApplyConfiguredAdGain()
+        {
+            if (_videoPlayer == null)
+                return;
+            var mute = _explicitAdMute;
+            var gain = mute ? 0f : 1f;
+            _videoPlayer.SetDirectAudioMute(0, mute);
+            _videoPlayer.SetDirectAudioVolume(0, gain);
+        }
+
+        private void SilenceAdAudio()
+        {
+            if (_videoPlayer == null)
+                return;
+            _pausedForBackground = false;
+            try
+            {
+                if (_videoPlayer.audioOutputMode == VideoAudioOutputMode.Direct)
+                    _videoPlayer.SetDirectAudioMute(0, true);
+                if (_videoPlayer.isPlaying)
+                    _videoPlayer.Pause();
+            }
+            catch (Exception)
+            {
+                // The player may already be stopping.
+            }
+        }
+
+        private void OnApplicationPause(bool paused)
+        {
+            if (_videoPlayer == null || _hasClosed || _isDestroying)
+                return;
+            if (paused)
+            {
+                _pausedForBackground = _videoPlayer.isPlaying;
+                try
+                {
+                    if (_videoPlayer.audioOutputMode == VideoAudioOutputMode.Direct)
+                        _videoPlayer.SetDirectAudioMute(0, true);
+                    if (_videoPlayer.isPlaying)
+                        _videoPlayer.Pause();
+                }
+                catch (Exception)
+                {
+                    _pausedForBackground = false;
+                }
+                return;
+            }
+
+            if (!_pausedForBackground)
+                return;
+            _pausedForBackground = false;
+            ApplyConfiguredAdGain();
+            try
+            {
+                _videoPlayer.Play();
+            }
+            catch (Exception)
+            {
+                // A closed player can reject Play. Leave it stopped.
+            }
+        }
+
         private void OnVideoError(VideoPlayer source, string message)
         {
             _videoHadError = true;
             _videoError = message;
             Logger.InfoError($"[VideoAdView] VideoPlayer errorReceived: {message}");
+            _pausedForBackground = false;
+            SilenceAdAudio();
+            RestoreHostAudio();
         }
 
         private void ResetCacheState()
@@ -1349,16 +1525,33 @@ namespace BidscubeSDK
                 _videoHadError = false;
                 _videoError = null;
                 _videoPlayer.url = _cacheLocalUrl;
+                BindAdAudio();
                 _videoPlayer.Prepare();
             }
         }
 
+        private string TrackingContext(string eventName)
+        {
+            if (string.IsNullOrEmpty(_trackingSessionId))
+                _trackingSessionId = Guid.NewGuid().ToString("N").Substring(0, 12);
+            return "renderer=VideoAdView session=" + _trackingSessionId
+                + " event=" + eventName
+                + " placement=" + (_placementId ?? "");
+        }
+
         private void OnVideoStarted(VideoPlayer source)
         {
+            if (!_hasFiredImpression && !_hasClosed && isActiveAndEnabled
+                && _vastData != null && _vastData.impressionUrls != null && _vastData.impressionUrls.Count > 0)
+            {
+                VASTParser.FireTrackingUrls(_vastData.impressionUrls, TrackingContext("impression"));
+                _hasFiredImpression = true;
+            }
+
             // Fire VAST start tracking URLs
             if (!_hasFiredStart && _vastData != null)
             {
-                VASTParser.FireTrackingUrls(_vastData.startUrls);
+                VASTParser.FireTrackingUrls(_vastData.startUrls, TrackingContext("start"));
                 _hasFiredStart = true;
             }
 
@@ -1367,6 +1560,8 @@ namespace BidscubeSDK
                 NotifyDisplayed();
                 NotifyStarted();
             }
+
+            PauseHostAudio();
 
             StartCoroutine(UpdateProgress());
             _skipButtonCoroutine = StartCoroutine(EnableSkipButton());
@@ -1409,6 +1604,12 @@ namespace BidscubeSDK
                 BidscubeSDK.ApplyConfiguredTimeoutTo(nestedRequest);
                 yield return nestedRequest.SendWebRequest();
 
+                if (nestedRequest.responseCode == 204)
+                {
+                    Logger.InfoError("[VideoAdView] Nested VAST no fill (HTTP 204)");
+                    yield break;
+                }
+
                 if (nestedRequest.result == UnityWebRequest.Result.Success)
                 {
                     var nestedVastXml = nestedRequest.downloadHandler.text;
@@ -1429,11 +1630,9 @@ namespace BidscubeSDK
                             if (_vastData != null)
                             {
                                 // Merge impression URLs from this wrapper level
-                                var wrapperImpressionUrls = ExtractWrapperImpressionUrls(nestedVastXml);
-                                if (wrapperImpressionUrls.Count > 0)
-                                {
-                                    _vastData.impressionUrls.AddRange(wrapperImpressionUrls);
-                                }
+                                var wrapperImpressionUrls = ExtractWrapperImpressionUrls(nestedVastXml, nextVastAdTagUri);
+                                if (wrapperImpressionUrls.Count > 0 && _vastData != null)
+                                    MergeImpressionUrls(_vastData.impressionUrls, wrapperImpressionUrls);
                             }
                             yield break;
                         }
@@ -1451,11 +1650,8 @@ namespace BidscubeSDK
                         if (_vastData != null)
                         {
                             // Merge wrapper impression URLs from all wrapper levels
-                            var wrapperImpressionUrls = ExtractWrapperImpressionUrls(wrapperVastXml);
-                            if (wrapperImpressionUrls.Count > 0)
-                            {
-                                _vastData.impressionUrls.AddRange(wrapperImpressionUrls);
-                            }
+                            var wrapperImpressionUrls = ExtractWrapperImpressionUrls(wrapperVastXml, vastAdTagUri);
+                            MergeImpressionUrls(_vastData.impressionUrls, wrapperImpressionUrls);
                         }
                         else
                         {
@@ -1474,7 +1670,7 @@ namespace BidscubeSDK
         /// <summary>
         /// Extract impression URLs from wrapper VAST XML
         /// </summary>
-        private List<string> ExtractWrapperImpressionUrls(string wrapperVastXml)
+        private List<string> ExtractWrapperImpressionUrls(string wrapperVastXml, string vastAdTagUri)
         {
             var impressionUrls = new List<string>();
 
@@ -1482,23 +1678,8 @@ namespace BidscubeSDK
             {
                 var xmlDoc = new System.Xml.XmlDocument();
                 xmlDoc.LoadXml(wrapperVastXml);
-
-                var impressionNodes = xmlDoc.SelectNodes("//Impression");
-                if (impressionNodes != null)
-                {
-                    foreach (System.Xml.XmlNode impNode in impressionNodes)
-                    {
-                        var impUrl = impNode.InnerText?.Trim();
-                        if (impUrl.StartsWith("<![CDATA[") && impUrl.EndsWith("]]>"))
-                        {
-                            impUrl = impUrl.Substring(9, impUrl.Length - 12).Trim();
-                        }
-                        if (!string.IsNullOrEmpty(impUrl))
-                        {
-                            impressionUrls.Add(impUrl);
-                        }
-                    }
-                }
+                var matched = FindWrapperAd(xmlDoc.DocumentElement, vastAdTagUri);
+                CollectImpressionNodes(matched ?? xmlDoc.DocumentElement, impressionUrls);
             }
             catch (System.Exception e)
             {
@@ -1506,6 +1687,73 @@ namespace BidscubeSDK
             }
 
             return impressionUrls;
+        }
+
+        private static System.Xml.XmlNode FindWrapperAd(System.Xml.XmlNode root, string vastAdTagUri)
+        {
+            if (root == null)
+                return null;
+            System.Xml.XmlNode firstAd = null;
+            var ads = new List<System.Xml.XmlNode>();
+            CollectElements(root, "Ad", ads);
+            for (var i = 0; i < ads.Count; i++)
+            {
+                if (firstAd == null)
+                    firstAd = ads[i];
+                if (string.IsNullOrEmpty(vastAdTagUri))
+                    continue;
+                var tags = new List<System.Xml.XmlNode>();
+                CollectElements(ads[i], "VASTAdTagURI", tags);
+                for (var t = 0; t < tags.Count; t++)
+                {
+                    var text = tags[t].InnerText?.Trim();
+                    if (!string.IsNullOrEmpty(text) && string.Equals(text, vastAdTagUri.Trim(), StringComparison.Ordinal))
+                        return ads[i];
+                }
+            }
+            return firstAd;
+        }
+
+        private static void CollectElements(System.Xml.XmlNode node, string localName, List<System.Xml.XmlNode> found)
+        {
+            if (node == null)
+                return;
+            if (node.NodeType == System.Xml.XmlNodeType.Element
+                && string.Equals(node.LocalName, localName, StringComparison.OrdinalIgnoreCase))
+            {
+                found.Add(node);
+                if (string.Equals(localName, "Ad", StringComparison.OrdinalIgnoreCase))
+                    return;
+            }
+            foreach (System.Xml.XmlNode child in node.ChildNodes)
+                CollectElements(child, localName, found);
+        }
+
+        private static void MergeImpressionUrls(List<string> target, List<string> extra)
+        {
+            if (target == null || extra == null)
+                return;
+            for (var i = 0; i < extra.Count; i++)
+            {
+                if (!string.IsNullOrEmpty(extra[i]) && !target.Contains(extra[i]))
+                    target.Add(extra[i]);
+            }
+        }
+
+        private static void CollectImpressionNodes(System.Xml.XmlNode node, List<string> urls)
+        {
+            if (node == null)
+                return;
+            if (node.NodeType == System.Xml.XmlNodeType.Element
+                && string.Equals(node.LocalName, "Impression", StringComparison.OrdinalIgnoreCase))
+            {
+                var impUrl = node.InnerText?.Trim();
+                if (!string.IsNullOrEmpty(impUrl) && !urls.Contains(impUrl))
+                    urls.Add(impUrl);
+            }
+
+            foreach (System.Xml.XmlNode child in node.ChildNodes)
+                CollectImpressionNodes(child, urls);
         }
 
         private IEnumerator TrackVASTQuartiles()
@@ -1556,7 +1804,7 @@ namespace BidscubeSDK
             while (remaining > 0f)
             {
                 if (_skipText != null)
-                    _skipText.text = $"Skip in {Mathf.CeilToInt(remaining)}";
+                    _skipText.text = VideoSkipPolicy.FormatCountdownLabel(Mathf.CeilToInt(remaining));
                 yield return new WaitForSeconds(1f);
                 remaining -= 1f;
             }
@@ -1565,7 +1813,7 @@ namespace BidscubeSDK
             if (_skipButton != null)
                 _skipButton.interactable = true;
             if (_skipText != null)
-                _skipText.text = "Skip";
+                _skipText.text = VideoSkipPolicy.FormatCountdownLabel(0);
             _callback?.OnVideoAdSkippable(_placementId);
         }
 
@@ -1601,9 +1849,7 @@ namespace BidscubeSDK
             if (_vastData == null)
                 return;
 
-            var clickUrl = !string.IsNullOrEmpty(_vastData.previewClickThroughUrl)
-                ? _vastData.previewClickThroughUrl
-                : _vastData.clickThroughUrl;
+            var clickUrl = VideoEndCardResolver.ResolveClickUrl(_vastData);
 
             if (string.IsNullOrEmpty(clickUrl))
                 return;
@@ -1636,23 +1882,98 @@ namespace BidscubeSDK
             if (_endCardPreview == null || string.IsNullOrEmpty(previewUrl))
                 yield break;
 
+            var requestId = ++_endCardRequestId;
             using (var request = UnityWebRequestTexture.GetTexture(previewUrl))
             {
                 request.SetRequestHeader("User-Agent", DeviceInfo.UserAgent);
                 yield return request.SendWebRequest();
 
-                if (request.result == UnityWebRequest.Result.Success)
+                var downloaded = request.result == UnityWebRequest.Result.Success
+                    ? DownloadHandlerTexture.GetContent(request)
+                    : null;
+                if (requestId != _endCardRequestId || this == null || _hasClosed || _endCardPreview == null)
                 {
-                    _endCardPreview.texture = DownloadHandlerTexture.GetContent(request);
+                    if (downloaded != null)
+                        Destroy(downloaded);
+                    yield break;
+                }
+
+                if (downloaded != null)
+                {
+                    ReleaseEndCardTexture();
+                    _endCardOwnedTexture = downloaded;
+                    _endCardPreview.texture = _endCardOwnedTexture;
                     _endCardPreview.color = Color.white;
                 }
                 else
                 {
                     Logger.InfoError($"[VideoAdView] Failed to load preview image, using fallback: {request.error}");
-                    _endCardPreview.texture = _videoTexture != null ? _videoTexture.texture : null;
-                    _endCardPreview.color = _endCardPreview.texture != null ? Color.white : new Color(1f, 1f, 1f, 0f);
+                    ApplyEndCardFallbackFrame();
                 }
             }
+        }
+
+        private void CancelEndCardLoad()
+        {
+            _endCardRequestId++;
+            if (_endCardPreview != null)
+            {
+                _endCardPreview.texture = null;
+                _endCardPreview.color = new Color(1f, 1f, 1f, 0f);
+            }
+            ReleaseEndCardTexture();
+        }
+
+        private void ApplyEndCardFallbackFrame()
+        {
+            if (_endCardPreview == null)
+                return;
+            var frame = _videoTexture != null ? _videoTexture.texture : null;
+            _endCardPreview.texture = frame;
+            _endCardPreview.color = frame != null ? Color.white : new Color(1f, 1f, 1f, 0f);
+        }
+
+        private void ReleaseEndCardTexture()
+        {
+            if (_endCardOwnedTexture == null)
+                return;
+            if (_endCardPreview != null && _endCardPreview.texture == _endCardOwnedTexture)
+            {
+                _endCardPreview.texture = null;
+                _endCardPreview.color = new Color(1f, 1f, 1f, 0f);
+            }
+            Destroy(_endCardOwnedTexture);
+            _endCardOwnedTexture = null;
+        }
+
+        private void PauseHostAudio()
+        {
+            if (_hostAudioPaused)
+                return;
+            _hostAudioPaused = true;
+            var sources = FindObjectsOfType<AudioSource>();
+            for (var i = 0; i < sources.Length; i++)
+            {
+                var source = sources[i];
+                if (source == null || source.gameObject == gameObject || !source.isPlaying)
+                    continue;
+                source.Pause();
+                _pausedHostAudio.Add(source);
+            }
+        }
+
+        private void RestoreHostAudio()
+        {
+            if (!_hostAudioPaused)
+                return;
+            _hostAudioPaused = false;
+            for (var i = 0; i < _pausedHostAudio.Count; i++)
+            {
+                var source = _pausedHostAudio[i];
+                if (source != null)
+                    source.UnPause();
+            }
+            _pausedHostAudio.Clear();
         }
 
         /// <summary>
@@ -1752,6 +2073,8 @@ namespace BidscubeSDK
             _videoPlayer.started -= OnVideoStarted;
             _videoPlayer.loopPointReached -= OnVideoCompleted;
             _videoPlayer.errorReceived -= OnVideoError;
+            _pausedForBackground = false;
+            SilenceAdAudio();
             try
             {
                 _videoPlayer.Stop();
@@ -1784,6 +2107,8 @@ namespace BidscubeSDK
             }
 
             _isDestroying = true;
+            CancelEndCardLoad();
+            RestoreHostAudio();
             ReleaseVideoPlayerResources();
 
             if (_hasStarted && !_hasCompleted && !_hasSkipped)

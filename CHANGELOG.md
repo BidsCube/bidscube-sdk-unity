@@ -1,4 +1,35 @@
-## [Unreleased]
+## [1.2.18] - 2026-11-03
+
+### Fixed
+
+- Standard VAST `<Impression>` tags are collected per ad. A second ad in the same document is not attached to the first. Each impression fires once, when playback starts. The HTTP call stays alive until it finishes. Tracking HTTP 204 is acceptance. An ad or wrapper fetch HTTP 204 is no-fill. The tracking URL is not logged.
+- `gdpr_consent` is no longer hardcoded to `0`. An explicit `SetGdprConsent` value wins; otherwise Android reads `IABTCF_gdprApplies` and `IABTCF_TCString`. A missing value is omitted.
+- End-card background `Image` and preview `RawImage` are separate objects. A failed or late preview download does not keep the texture.
+- Video audio uses the platform Direct route on one track. An explicit mute already set on that player is kept. Ad audio stops on close, error, and background. Host sources that were already playing are paused for that session and restored afterwards. Game listener volume is not changed.
+- Direct video uses its own `BidscubeSdkCanvas` instead of the first Canvas in the game.
+- `VideoAdView.SessionState` exposes playback facts without reflection.
+
+### Changed
+
+- Package minimum editor is Unity 2022.3. Dependencies are `com.unity.ugui` 1.0.0 and `com.unity.textmeshpro` 3.0.7. `ugui` 2.0.0 does not resolve on 2022.3.
+
+### Added
+
+- **`DeviceSnapshot`** for testable ad-request URL building (`URLBuilder.BuildAdRequestURL(..., DeviceSnapshot)`).
+- **`VideoSkipPolicy`** / **`VideoEndCardResolver`** — pure skip countdown and Companion end-card URL/image resolution.
+- **EditMode tests:** VAST parser (including QA with/without preview), `AdMarkupExtractor`, `URLBuilder`, skip/end-card policy.
+- **UPM sample:** `Samples/SDK Demo` (test scenes, QA probes, example integration).
+
+### Fixed
+
+- **Unity `.meta` GUIDs:** `BidscubeAndroidSdkInterop.cs.meta` and `BidscubeIosSdkInterop.cs.meta` are 32 hex characters. Published **1.2.16** / **1.2.17** used 31 characters, so Unity dropped the scripts and Android player builds failed with `CS0103`.
+
+### Changed
+
+- **Native interop:** `SDKConfig.AutoClose` is forwarded to Android (`SDKConfig.Builder.autoClose`) and iOS (`BidscubeUnityNativeSyncInitialize` bridge) during `BidscubeSDK.Initialize`.
+- Demo/QA scenes and `SdkIntegrationContext` moved out of `Runtime/` into `Samples/SDK Demo`.
+- Removed duplicate `Runtime/Plugins/WebViewObject.cs`; SDK uses `Runtime/BidscubeSDK/Networking/WebViewObject.cs`.
+- Test assembly renamed to `BidscubeSDK.Tests`.
 
 ---
 

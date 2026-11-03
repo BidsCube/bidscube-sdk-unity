@@ -376,6 +376,17 @@ namespace BidscubeSDK
             _hasAdsConsentFlag = false;
             _hasAnalyticsConsentFlag = false;
             _consentRequired = false;
+            DeviceInfo.ClearExplicitGdprConsent();
+        }
+
+        /// <summary>
+        /// Sets the GDPR snapshot sent on the next ad request.
+        /// Pass null <paramref name="gdprApplies"/> when the publisher does not know.
+        /// Does not treat a missing value as consent or as <c>gdpr=0</c>.
+        /// </summary>
+        public static void SetGdprConsent(bool? gdprApplies, string tcString)
+        {
+            DeviceInfo.SetExplicitGdprConsent(gdprApplies, tcString);
         }
 
         /// <summary>

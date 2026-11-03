@@ -1,6 +1,6 @@
 # Test scenes та QA
 
-Scenes: `Runtime/BidscubeSDK/Scenes/`
+Scenes: `Samples/SDK Demo/Scenes/`
 
 ---
 
@@ -114,7 +114,7 @@ Demonstrates `IAdRenderOverride` — app takes over adm rendering.
 
 ## BasicIntegration sample
 
-`Runtime/BidscubeSDK/BasicIntegration/AdExample.cs`:
+`Samples/SDK Demo/BasicIntegration/AdExample.cs`:
 
 - Minimal UI wiring
 - Direct `AdViewController.Initialize` (lower-level than static API)
@@ -168,11 +168,16 @@ End card behavior, introduced in 1.2.13; extended by `AutoClose` / multi-type Co
 ## Running scenes in Unity
 
 1. Add package to test project (local path or Git URL)
-2. Open scene from `Runtime/BidscubeSDK/Scenes/`
+2. Open scene from `Samples/SDK Demo/Scenes/`
 3. Ensure TMP + uGUI packages resolved
 4. Play Mode → Initialize → test
 
 For device builds: use same scenes or integrate API into host app test harness.
+
+### WebView `location` / `referrer` probe
+
+Повна QA-інструкція (Banner / Video companion HTML / Native):  
+[qa/webview-location-referrer-probe.md](qa/webview-location-referrer-probe.md)
 
 ---
 

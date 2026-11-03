@@ -1,3 +1,4 @@
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("BidscubeSDK.OpenRTB.Tests")]
+[assembly: InternalsVisibleTo("BidscubeSDK.Tests")]
+[assembly: InternalsVisibleTo("BidscubeSDK.Samples")]

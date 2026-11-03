@@ -112,6 +112,11 @@ namespace BidscubeSDK
                 Logger.Warning("[BidscubeAndroidSdkInterop] SDKConfig.Builder has no baseURL setter; C# BaseURL not applied on this native SDK version.");
             }
 
+            if (!TryInvokeBuilderReturnsBuilder(builder, new[] { "autoClose" }, cfg.AutoClose))
+            {
+                Logger.Warning("[BidscubeAndroidSdkInterop] SDKConfig.Builder has no autoClose setter; upgrade native SDK to 1.2.13+ for fullscreen autoClose policy.");
+            }
+
             if (!string.IsNullOrWhiteSpace(userId))
             {
                 if (!TryInvokeBuilderReturnsBuilder(builder, new[] { "userId", "setUserId" }, userId.Trim()))
@@ -122,6 +127,24 @@ namespace BidscubeSDK
         }
 
         private static bool TryInvokeBuilderReturnsBuilder(AndroidJavaObject builder, string[] methodNames, string arg)
+        {
+            foreach (var name in methodNames)
+            {
+                try
+                {
+                    builder.Call(name, arg);
+                    return true;
+                }
+                catch (Exception)
+                {
+                    // try next alias
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryInvokeBuilderReturnsBuilder(AndroidJavaObject builder, string[] methodNames, bool arg)
         {
             foreach (var name in methodNames)
             {

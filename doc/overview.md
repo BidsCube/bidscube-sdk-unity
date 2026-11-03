@@ -36,7 +36,7 @@ SDK вирівняний з **iOS SDK** за форматом ad request URL і 
 **Pin для production:**
 
 ```json
-"com.bidscube.sdk": "https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.17"
+"com.bidscube.sdk": "https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.18"
 ```
 
 ## Структура репозиторію
@@ -63,21 +63,28 @@ bidscube-sdk-unity/
 | Підпапка | Призначення |
 |----------|-------------|
 | `Core/` | Enums, config, constants, callbacks, VAST, IMA wrapper |
-| `Controllers/` | AdViewController, WebView, test scenes |
+| `Controllers/` | AdViewController, WebViewController |
 | `Views/` | BannerAdView, VideoAdView, NativeAdView |
 | `Networking/` | URLBuilder, DeviceInfo, WebViewObject |
 | `Android/` | Feature sets, export settings, LiteNoVideo guard |
 | `OpenRTB/` | OpenRTB 2.6 podded video (response-side) — див. [openrtb.md](openrtb.md) |
 | `Settings/` | AdSizeSettings ScriptableObject |
-| `Scenes/` | 5 тестових Unity-сцен |
-| `BasicIntegration/` | Мінімальний AdExample |
 | `Debug/` | AgentNdjsonDebugLog (internal telemetry) |
+
+### Samples/SDK Demo/
+
+| Підпапка | Призначення |
+|----------|-------------|
+| `Scenes/` | 5 тестових Unity-сцен |
+| `Controllers/` | SDK test / example / consent / windowed scenes |
+| `BasicIntegration/` | Мінімальний AdExample |
+| `QA/` | Location / WebView probes |
 
 ### Tests/
 
 | Шлях | Призначення |
 |------|-------------|
-| `Tests/EditMode/` | OpenRTB EditMode unit tests (NUnit) — див. [editmode-tests.md](editmode-tests.md) |
+| `Tests/EditMode/` | EditMode unit tests (VAST, URL, OpenRTB, video policy) — див. [editmode-tests.md](editmode-tests.md) |
 
 ## Мінімальна інтеграція (код)
 

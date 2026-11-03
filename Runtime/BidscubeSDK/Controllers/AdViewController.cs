@@ -429,61 +429,6 @@ namespace BidscubeSDK
             // Overlay objects will be instantiated when ad loads
         }
 
-        /// <summary>
-        /// Test HTML rendering using WebViewController
-        /// </summary>
-        [ContextMenu("Test HTML Rendering")]
-        public void TestHTMLRendering()
-        {
-            Logger.Info(" AdViewController: Testing HTML rendering using WebViewController...");
-
-            // Create WebViewController for testing
-            var webViewControllerGO = new GameObject("TestWebViewController");
-            webViewControllerGO.transform.SetParent(transform);
-            var webViewController = webViewControllerGO.AddComponent<WebViewController>();
-
-            // Initialize WebViewController
-            webViewController.Initialize(
-                onHtmlLoaded: (url) => Logger.Info($" Test WebViewController: HTML loaded: {url}"),
-                onError: (error) => Logger.InfoError($" Test WebViewController error: {error}"),
-                onMessage: (message) => Logger.Info($" Test WebViewController message: {message}")
-            );
-
-            // Load test HTML using WebViewController
-            webViewController.LoadTestHTML();
-
-            Logger.Info(" AdViewController: Test HTML loaded using WebViewController");
-        }
-
-        /// <summary>
-        /// Test with your specific HTML content using WebViewController
-        /// </summary>
-        [ContextMenu("Test Your HTML")]
-        public void TestYourHTML()
-        {
-            Logger.Info(" AdViewController: Testing your specific HTML content using WebViewController...");
-
-            // Your specific HTML content
-            var yourHtml = @"<!DOCTYPE html> <html lang='en'> <head> <meta charset='UTF-8'> <meta name='viewport' content='width=device-width, initial-scale=1.0'> <title>Test Image Ad</title> <style>     body {         margin: 0;         background: black;         display: flex;         justify-content: center;         align-items: center;         height: 100vh;     }     img {         width: 100%;         height: auto;     } </style> </head> <body>     <img src='https://images.ctfassets.net/qclcq9s44sii/Xn8oCGZCVbWFZuDtPMYjE/854403c5605e210a371f958c0b5aa5f2/7_Image_APIs_To_Use_On_Your_Product_In_2025__Updated___2_.png' alt='Ad'> </body> </html>";
-
-            // Create WebViewController for testing
-            var webViewControllerGO = new GameObject("YourHTMLWebViewController");
-            webViewControllerGO.transform.SetParent(transform);
-            var webViewController = webViewControllerGO.AddComponent<WebViewController>();
-
-            // Initialize WebViewController
-            webViewController.Initialize(
-                onHtmlLoaded: (url) => Logger.Info($" Your HTML WebViewController: HTML loaded: {url}"),
-                onError: (error) => Logger.InfoError($" Your HTML WebViewController error: {error}"),
-                onMessage: (message) => Logger.Info($" Your HTML WebViewController message: {message}")
-            );
-
-            // Load your HTML using WebViewController
-            webViewController.LoadHTML(yourHtml, "");
-
-            Logger.Info(" AdViewController: Your HTML loaded using WebViewController");
-        }
-
         private void CreateVideoAdView()
         {
             // Video ads should be full screen

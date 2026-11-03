@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using BidscubeSDK;
+using BidscubeSDK.QA;
 
 namespace BidscubeSDK.Controllers
 {
@@ -149,6 +150,10 @@ namespace BidscubeSDK.Controllers
 
             if (_testLoggingButton != null)
                 _testLoggingButton.onClick.AddListener(TestLogging);
+
+            // Reuse logging button long-press alternative: also wire location probe via double-tap logging text area if present.
+            // Dedicated entry: call from LogMessage QA hint + optional UI button created at runtime.
+            EnsureLocationProbeButton();
 
             // Clear all ads button
             if (_clearAllAdsButton != null)
@@ -904,6 +909,44 @@ namespace BidscubeSDK.Controllers
             LogMessage("This is a test log message");
             LogMessage("Testing different log levels...");
             LogMessage("=== LOGGING TEST COMPLETED ===");
+        }
+
+        private void EnsureLocationProbeButton()
+        {
+            // Prefer reusing the logging button's parent to host a small runtime QA control.
+            if (_testLoggingButton == null || _testLoggingButton.transform.parent == null)
+            {
+                LogMessage("[QA] Location probe: SdkLocationProbeRunner.Ensure().RunAllAndLog() (no UI button host)");
+                return;
+            }
+
+            var parent = _testLoggingButton.transform.parent;
+            var existing = parent.Find("LocationProbeButton");
+            if (existing != null)
+                return;
+
+            var go = Instantiate(_testLoggingButton.gameObject, parent);
+            go.name = "LocationProbeButton";
+            var label = go.GetComponentInChildren<TextMeshProUGUI>();
+            if (label != null)
+                label.text = "Location Probe";
+            var btn = go.GetComponent<Button>();
+            if (btn != null)
+            {
+                btn.onClick.RemoveAllListeners();
+                btn.onClick.AddListener(() =>
+                {
+                    LogMessage("[QA] Starting WebView location/referrer probe (baseUrl=\"\")…");
+                    SdkLocationProbeRunner.LogEmitted -= OnLocationProbeLog;
+                    SdkLocationProbeRunner.LogEmitted += OnLocationProbeLog;
+                    SdkLocationProbeRunner.Ensure().RunAllAndLog();
+                });
+            }
+        }
+
+        private void OnLocationProbeLog(string line)
+        {
+            LogMessage(line);
         }
 
         private void OnManualPositionToggleChanged(bool isOn)

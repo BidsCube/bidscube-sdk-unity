@@ -7,7 +7,7 @@
 | What | Where |
 |------|-------|
 | Semver | `package.json` → `"version"` |
-| Git tag | `v` + semver (e.g. `v1.2.17`) |
+| Git tag | `v` + semver (e.g. `v1.2.18`) |
 | Changelog | `CHANGELOG.md` |
 | Public pin | `INTEGRATION.md` Git URL `#vX.Y.Z` |
 
@@ -61,15 +61,15 @@ Release com.bidscube.sdk 1.2.17
 EOF
 )"
 
-git tag v1.2.17
+git tag v1.2.18
 
 # SSH remote (recommended internally)
 git push max master
-git push max v1.2.17
+git push max v1.2.18
 
 # or HTTPS
 git push origin master
-git push origin v1.2.17
+git push origin v1.2.18
 ```
 
 ### Non-fast-forward
@@ -78,7 +78,7 @@ git push origin v1.2.17
 git fetch max
 git rebase max/master
 git push max master
-git push max v1.2.17
+git push max v1.2.18
 ```
 
 ---
@@ -99,7 +99,7 @@ git push max v1.2.17
 ### Git URL (UPM)
 
 ```json
-"com.bidscube.sdk": "https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.17"
+"com.bidscube.sdk": "https://github.com/BidsCube/bidscube-sdk-unity.git#v1.2.18"
 ```
 
 ### .unitypackage (optional)

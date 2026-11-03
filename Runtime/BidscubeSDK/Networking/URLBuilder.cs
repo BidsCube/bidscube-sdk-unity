@@ -11,80 +11,93 @@ namespace BidscubeSDK
         /// <summary>
         /// Build ad request URL - matches iOS SDK format
         /// </summary>
-        /// <param name="baseURL">Base URL</param>
-        /// <param name="placementId">Placement ID</param>
-        /// <param name="adType">Ad type</param>
-        /// <param name="position">Ad position</param>
-        /// <param name="timeoutMs">Timeout in milliseconds</param>
-        /// <param name="debug">Debug mode</param>
-        /// <param name="ctaText">CTA text (optional)</param>
-        /// <param name="userId">Integrator user id for postbacks (optional; sent as <c>user_id</c>)</param>
-        /// <returns>Built URL</returns>
         public static string BuildAdRequestURL(string baseURL, string placementId, AdType adType,
             AdPosition position, int timeoutMs, bool debug, string ctaText = null, string userId = null)
         {
-            // Use iOS SDK format: https://ssp-bcc-ads.com?placementId=20212&c=b&m=api&res=js&app=1&bundle=...&name=...&app_store_url=...&language=...&deviceWidth=...&deviceHeight=...&ua=...&ifa=...&dnt=1&gdpr=1&gdpr_consent=0&us_privacy=1---&ccpa=0&coppa=0
+            return BuildAdRequestURL(
+                baseURL,
+                placementId,
+                adType,
+                position,
+                timeoutMs,
+                debug,
+                DeviceSnapshot.FromDeviceInfo(),
+                ctaText,
+                userId);
+        }
+
+        /// <summary>
+        /// Build ad request URL with an injected device snapshot (for tests).
+        /// <paramref name="timeoutMs"/>, <paramref name="debug"/>, <paramref name="ctaText"/>, and
+        /// <paramref name="position"/> are accepted for API compatibility and are not added to the query.
+        /// </summary>
+        public static string BuildAdRequestURL(
+            string baseURL,
+            string placementId,
+            AdType adType,
+            AdPosition position,
+            int timeoutMs,
+            bool debug,
+            DeviceSnapshot device,
+            string ctaText = null,
+            string userId = null)
+        {
+            _ = position;
+            _ = timeoutMs;
+            _ = debug;
+            _ = ctaText;
+
             var url = new StringBuilder();
-            url.Append(baseURL.TrimEnd('/'));
+            url.Append((baseURL ?? "").TrimEnd('/'));
             url.Append($"?placementId={placementId}");
             url.Append($"&c={GetContentType(adType)}");
             url.Append($"&m=api");
-            // Native + video: JSON body with adm (OpenRTB-style); image/banner use JS/HTML.
             url.Append($"&res={GetResponseResource(adType)}");
             url.Append($"&app=1");
-            url.Append($"&bundle={Uri.EscapeDataString(DeviceInfo.BundleId)}");
-            url.Append($"&name={Uri.EscapeDataString(DeviceInfo.AppName)}");
-            url.Append($"&app_store_url={Uri.EscapeDataString(DeviceInfo.AppStoreURL)}");
-            url.Append($"&language={Uri.EscapeDataString(DeviceInfo.Language)}");
-            url.Append($"&deviceWidth={DeviceInfo.DeviceWidth}");
-            url.Append($"&deviceHeight={DeviceInfo.DeviceHeight}");
-            url.Append($"&ua={Uri.EscapeDataString(DeviceInfo.UserAgent)}");
-            url.Append($"&ifa={Uri.EscapeDataString(DeviceInfo.AdvertisingIdentifier)}");
-            url.Append($"&dnt={DeviceInfo.DoNotTrack}");
-            url.Append($"&gdpr={DeviceInfo.GDPR}");
-            url.Append($"&gdpr_consent={DeviceInfo.GDPRConsent}");
-            url.Append($"&us_privacy={DeviceInfo.USPrivacy}");
-            url.Append($"&ccpa={DeviceInfo.CCPA}");
-            url.Append($"&coppa={DeviceInfo.COPPA}");
+            url.Append($"&bundle={Uri.EscapeDataString(device.BundleId)}");
+            url.Append($"&name={Uri.EscapeDataString(device.AppName)}");
+            url.Append($"&app_store_url={Uri.EscapeDataString(device.AppStoreURL)}");
+            url.Append($"&language={Uri.EscapeDataString(device.Language)}");
+            url.Append($"&deviceWidth={device.DeviceWidth}");
+            url.Append($"&deviceHeight={device.DeviceHeight}");
+            url.Append($"&ua={Uri.EscapeDataString(device.UserAgent)}");
+            url.Append($"&ifa={Uri.EscapeDataString(device.AdvertisingIdentifier)}");
+            url.Append($"&dnt={device.DoNotTrack}");
+            if (!string.IsNullOrEmpty(device.GDPR))
+                url.Append($"&gdpr={Uri.EscapeDataString(device.GDPR)}");
+            if (!string.IsNullOrEmpty(device.GDPRConsent))
+                url.Append($"&gdpr_consent={Uri.EscapeDataString(device.GDPRConsent)}");
+            url.Append($"&us_privacy={device.USPrivacy}");
+            url.Append($"&ccpa={device.CCPA}");
+            url.Append($"&coppa={device.COPPA}");
 
             if (!string.IsNullOrWhiteSpace(userId))
                 url.Append($"&user_id={Uri.EscapeDataString(userId.Trim())}");
 
-            Logger.Info($"Built URL: {url.ToString()}");
             var built = url.ToString();
-            // #region agent log
-            AgentNdjsonDebugLog.Write(
-                "URLBuilder.BuildAdRequestURL",
-                "url_built",
-                "H1",
-                "{\"adType\":\"" + adType + "\",\"placementId\":\"" + placementId + "\",\"urlLen\":" + built.Length + "}");
-            // #endregion
+            Logger.Info("Built ad request placement=" + placementId
+                + " gdpr=" + (string.IsNullOrEmpty(device.GDPR) ? "absent" : "set")
+                + " consent=" + (string.IsNullOrEmpty(device.GDPRConsent) ? "absent" : "set"));
             return built;
         }
 
-        /// <summary>
-        /// Get content type for ad type (matches iOS SDK)
-        /// </summary>
-        /// <param name="adType">Ad type</param>
-        /// <returns>Content type string</returns>
-        private static string GetContentType(AdType adType)
+        internal static string GetContentType(AdType adType)
         {
             switch (adType)
             {
                 case AdType.Image:
-                    return "b"; // banner
+                    return "b";
                 case AdType.Video:
-                    return "v"; // video
+                    return "v";
                 case AdType.Native:
-                    return "n"; // native
+                    return "n";
                 default:
                     return "b";
             }
         }
 
-        private static string GetResponseResource(AdType adType)
+        internal static string GetResponseResource(AdType adType)
         {
-            // JSON body with adm (VAST/native markup) — aligns with mobile SSP; image/banner often stay JS/HTML.
             if (adType == AdType.Native || adType == AdType.Video)
                 return "json";
             return "js";

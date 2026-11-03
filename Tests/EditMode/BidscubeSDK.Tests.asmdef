@@ -1,6 +1,6 @@
 {
-  "name": "BidscubeSDK.OpenRTB.Tests",
-  "rootNamespace": "BidscubeSDK.OpenRTB.Tests",
+  "name": "BidscubeSDK.Tests",
+  "rootNamespace": "BidscubeSDK.Tests",
   "references": [
     "BidscubeSDK",
     "UnityEngine.TestRunner",

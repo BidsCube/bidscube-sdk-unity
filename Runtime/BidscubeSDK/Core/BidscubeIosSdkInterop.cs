@@ -15,6 +15,7 @@ namespace BidscubeSDK
             bool enableLogging,
             bool enableDebugMode,
             int defaultAdTimeoutMs,
+            bool autoClose,
             string userId);
 
         [DllImport("__Internal")]
@@ -32,6 +33,7 @@ namespace BidscubeSDK
                     cfg.EnableLogging,
                     cfg.EnableDebugMode,
                     cfg.DefaultAdTimeoutMs,
+                    cfg.AutoClose,
                     userId);
                 Logger.Info("Init (iOS native): BidscubeSDK initialize / user_id sync invoked.");
             }
